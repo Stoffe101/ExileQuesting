@@ -29,6 +29,7 @@ const UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const UPSTREAM_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
 const UPSTREAM_AREAS_PATH = 'data/english/[leveltracker] areas.json';
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const isSmokeTest = process.argv.includes('--smoke-test');
 
 const DEFAULT_SETTINGS: AppSettings = {
   logPath: '',
@@ -513,6 +514,11 @@ else {
   app.whenReady().then(async () => {
     await Promise.all([loadSettings(), loadProgress()]);
     await loadCampaign();
+    if (isSmokeTest) {
+      log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps.`);
+      app.exit(0);
+      return;
+    }
     registerIpc();
     mainWindow = createMainWindow();
     overlayWindow = createOverlayWindow();
@@ -523,6 +529,10 @@ else {
     setTimeout(() => void checkCampaignUpdates(), 4_000);
   }).catch((error) => {
     log.error('Fatal startup failure.', error);
+    if (isSmokeTest) {
+      app.exit(1);
+      return;
+    }
     void dialog.showErrorBox('ExileQuesting could not start', `The application hit a startup error. A diagnostic log was written to:\n${log.transports.file.getFile().path}\n\n${error instanceof Error ? error.message : String(error)}`);
     app.quit();
   });
