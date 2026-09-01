@@ -32,6 +32,20 @@ function matchesArea(step: CampaignStep, event: Pick<ZoneEvent, 'areaId' | 'area
   return null;
 }
 
+function nextEnabledAfter(
+  steps: CampaignStep[],
+  matchedIndex: number,
+  enabled: (step: CampaignStep, index: number) => boolean,
+): number {
+  for (let index = matchedIndex + 1; index < steps.length; index += 1) {
+    if (enabled(steps[index], index)) return index;
+  }
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    if (enabled(steps[index], index)) return index;
+  }
+  return Math.max(0, Math.min(matchedIndex, steps.length - 1));
+}
+
 export function decideProgression(
   steps: CampaignStep[],
   currentProgress: number,
@@ -67,7 +81,10 @@ export function decideProgression(
     .some((step, offset) => enabled(step, recentStart + offset) && Boolean(matchesArea(step, event)));
   if (hasRecentMatch && forwardMatch.index > currentProgress + 1) return null;
 
-  const to = Math.min(forwardMatch.index + 1, steps.length - 1);
+  // Route conditions can place mutually exclusive pages next to each other. Once
+  // a zone transition completes a page, land on the next *enabled* page instead
+  // of briefly pointing progress at a disabled league-start/bandit/optional page.
+  const to = nextEnabledAfter(steps, forwardMatch.index, enabled);
   if (to <= currentProgress) return null;
   if (forwardMatch.kind === 'id') {
     return { to, reason: `Internal area ID ${event.areaId} matched the next valid route transition.`, confidence: 'verified' };
@@ -90,8 +107,8 @@ function closestGlobalMatch(
     : [];
   const candidates = idMatches.length ? idMatches : nameMatches;
   if (!candidates.length) return undefined;
-  candidates.sort((a, b) => Math.abs((a.index + 1) - savedProgress) - Math.abs((b.index + 1) - savedProgress));
-  return { index: Math.min(candidates[0].index + 1, steps.length - 1), confidence: idMatches.length ? 'verified' : 'inferred' };
+  candidates.sort((a, b) => Math.abs(nextEnabledAfter(steps, a.index, isEnabled) - savedProgress) - Math.abs(nextEnabledAfter(steps, b.index, isEnabled) - savedProgress));
+  return { index: nextEnabledAfter(steps, candidates[0].index, isEnabled), confidence: idMatches.length ? 'verified' : 'inferred' };
 }
 
 export function makeHistoryEntry(
