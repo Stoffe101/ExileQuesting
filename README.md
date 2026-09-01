@@ -57,7 +57,7 @@ Complete deterministic pre-playtest verification:
 npm run verify:preplaytest
 ```
 
-That runs type checking, unit/regression tests, the 228-page campaign audit, semantic campaign lint and the full Acts 1–10 simulator.
+That runs type checking, unit/regression tests, the 228-page campaign audit, semantic campaign lint and the full Acts 1–10 simulator. The exact split between automated coverage and checks that require a live Path of Exile session is maintained in `docs/PRE_PLAYTEST.md`.
 
 Useful focused commands:
 
