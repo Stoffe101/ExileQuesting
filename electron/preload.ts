@@ -14,8 +14,18 @@ const api = {
   reportOverlayContentHeight: (height: number): Promise<void> => ipcRenderer.invoke('overlay:content-size', height),
   resetOverlayPosition: (): Promise<RuntimeState> => ipcRenderer.invoke('overlay:reset-position'),
   checkCampaignUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('campaign:check'),
+  confirmReward: (stepId: string, confirmed: boolean): Promise<RuntimeState> => ipcRenderer.invoke('reward:confirm', stepId, confirmed),
+  startRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:start'),
+  pauseRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:pause'),
+  resetRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:reset'),
+  finishRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:finish'),
+  checkAppUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('app-update:check'),
+  downloadAppUpdate: (): Promise<RuntimeState> => ipcRenderer.invoke('app-update:download'),
+  installAppUpdate: (): Promise<RuntimeState> => ipcRenderer.invoke('app-update:install'),
+  acknowledgeRecovery: (): Promise<RuntimeState> => ipcRenderer.invoke('recovery:acknowledge'),
   openDiagnosticsFolder: (): Promise<void> => ipcRenderer.invoke('diagnostics:open'),
   copyDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:copy'),
+  exportDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:export'),
   onState: (callback: (state: RuntimeState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);
     ipcRenderer.on('state:changed', listener);
