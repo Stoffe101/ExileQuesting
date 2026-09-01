@@ -524,6 +524,26 @@ async function replayCapturedLog(): Promise<ReplayUiResult | null> {
   return lastReplay;
 }
 
+async function exportReplayBundle(): Promise<boolean> {
+  if (!lastReplay) return false;
+  const options: Electron.SaveDialogOptions = {
+    title: 'Export ExileQuesting replay bundle',
+    defaultPath: `ExileQuesting-replay-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+    filters: [{ name: 'ExileQuesting replay', extensions: ['json'] }],
+  };
+  const result = mainWindow ? await dialog.showSaveDialog(mainWindow, options) : await dialog.showSaveDialog(options);
+  if (result.canceled || !result.filePath) return false;
+  const bundle = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    appVersion: app.getVersion(),
+    campaign: { repository: dataset.source.repository, commit: dataset.source.commit, schemaVersion: dataset.schemaVersion },
+    replay: lastReplay,
+  };
+  await fs.writeFile(result.filePath, JSON.stringify(bundle, null, 2), 'utf8');
+  return true;
+}
+
 function sanitizeDemo(value: unknown): OverlayDemoConfig {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const mode = ['focus', 'compact', 'coach'].includes(String(input.mode)) ? input.mode as OverlayMode : 'focus';
@@ -592,6 +612,7 @@ function registerIpc(): void {
   ipcMain.handle('diagnostics:copy', () => { clipboard.writeText(diagnosticsText()); });
   ipcMain.handle('diagnostics:export', async () => { await exportDiagnostics(); });
   ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());
+  ipcMain.handle('diagnostics:replay-export', async () => exportReplayBundle());
   ipcMain.handle('pob:list', () => buildProfiles);
   ipcMain.handle('pob:import', async (_event, input: unknown) => {
     if (typeof input !== 'string') throw new Error('PoB input must be text.');
@@ -627,8 +648,11 @@ async function runVisualSmoke(outputArgument: string): Promise<void> {
   const warningIndex = Math.max(0, dataset.steps.findIndex((step) => step.annotation?.warning));
   const passiveIndex = Math.max(0, dataset.steps.findIndex((step) => step.permanentReward === 'passive'));
   const coachIndex = Math.max(0, dataset.steps.findIndex((step) => step.annotation?.details?.length && step.annotation?.speedrun));
+  const longIndex = Math.max(0, dataset.steps.reduce((best, step, index, steps) => step.title.length > steps[best].title.length ? index : best, 0));
+  const compactTypography: AppSettings['overlayTypography'] = { ...DEFAULT_SETTINGS.overlayTypography, preset: 'compact', objective: 18, actions: 13, guidance: 11, labels: 9, status: 9, density: 'compact' };
   const scenarios: Array<{ name: string; progress: number; mode: OverlayMode; typography: AppSettings['overlayTypography'] }> = [
     { name: 'focus-default-start', progress: 0, mode: 'focus', typography: DEFAULT_SETTINGS.overlayTypography },
+    { name: 'focus-compact-long-objective', progress: longIndex, mode: 'focus', typography: compactTypography },
     { name: 'compact-large-warning', progress: warningIndex, mode: 'compact', typography: { ...DEFAULT_SETTINGS.overlayTypography, preset: 'large', objective: 24, actions: 17, guidance: 15, labels: 11, status: 11 } },
     { name: 'focus-extra-large-passive', progress: passiveIndex, mode: 'focus', typography: { ...DEFAULT_SETTINGS.overlayTypography, preset: 'extra-large', objective: 28, actions: 20, guidance: 17, labels: 13, status: 13 } },
     { name: 'coach-extra-large', progress: coachIndex, mode: 'coach', typography: { ...DEFAULT_SETTINGS.overlayTypography, preset: 'extra-large', objective: 28, actions: 20, guidance: 17, labels: 13, status: 13, density: 'spacious' } },
