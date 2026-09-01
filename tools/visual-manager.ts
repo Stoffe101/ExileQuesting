@@ -135,70 +135,77 @@ const scenarios: Scenario[] = [
   { name: 'diagnostics-3440x1440', width: 3440, height: 1440, tab: 'Diagnostics', ultrawide: true },
 ];
 
-await app.whenReady();
-await fs.mkdir(output, { recursive: true });
-const state = await makeState();
-ipcMain.handle('app:bootstrap', () => state);
+async function main(): Promise<void> {
+  await app.whenReady();
+  await fs.mkdir(output, { recursive: true });
+  const state = await makeState();
+  ipcMain.handle('app:bootstrap', () => state);
 
-const window = new BrowserWindow({
-  show: false,
-  width: 1200,
-  height: 800,
-  backgroundColor: '#090b10',
-  webPreferences: {
-    preload: path.resolve('dist-electron/preload.cjs'),
-    contextIsolation: true,
-    nodeIntegration: false,
-    sandbox: true,
-    offscreen: true,
-  },
-});
+  const window = new BrowserWindow({
+    show: false,
+    width: 1200,
+    height: 800,
+    backgroundColor: '#090b10',
+    webPreferences: {
+      preload: path.resolve('dist-electron/preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      offscreen: true,
+    },
+  });
 
-const loading = waitForLoad(window);
-await window.loadFile(path.resolve('dist/index.html'));
-await loading;
+  const loading = waitForLoad(window);
+  await window.loadFile(path.resolve('dist/index.html'));
+  await loading;
 
-const captures: unknown[] = [];
-for (const scenario of scenarios) {
-  window.setContentSize(scenario.width, scenario.height);
-  await switchTab(window, scenario.tab);
-  const metrics = await window.webContents.executeJavaScript(`(() => {
-    const page = document.querySelector('.manager-main > .page');
-    const sidebar = document.querySelector('.sidebar');
-    const first = page?.firstElementChild;
-    const diagnosticText = document.querySelector('.diagnostic-list dd');
-    if (!page || !sidebar || !first) throw new Error('Manager visual structure is incomplete.');
-    const firstRect = first.getBoundingClientRect();
-    return {
-      viewportWidth: document.documentElement.clientWidth,
-      viewportHeight: document.documentElement.clientHeight,
-      documentScrollWidth: document.documentElement.scrollWidth,
-      pageClientHeight: page.clientHeight,
-      pageScrollHeight: page.scrollHeight,
-      pageScrollWidth: page.scrollWidth,
-      pageClientWidth: page.clientWidth,
-      sidebarWidth: sidebar.getBoundingClientRect().width,
-      contentWidth: firstRect.width,
-      contentLeft: firstRect.left,
-      diagnosticFontPx: diagnosticText ? parseFloat(getComputedStyle(diagnosticText).fontSize) : null,
-    };
-  })()`);
+  const captures: unknown[] = [];
+  for (const scenario of scenarios) {
+    window.setContentSize(scenario.width, scenario.height);
+    await switchTab(window, scenario.tab);
+    const metrics = await window.webContents.executeJavaScript(`(() => {
+      const page = document.querySelector('.manager-main > .page');
+      const sidebar = document.querySelector('.sidebar');
+      const first = page?.firstElementChild;
+      const diagnosticText = document.querySelector('.diagnostic-list dd');
+      if (!page || !sidebar || !first) throw new Error('Manager visual structure is incomplete.');
+      const firstRect = first.getBoundingClientRect();
+      return {
+        viewportWidth: document.documentElement.clientWidth,
+        viewportHeight: document.documentElement.clientHeight,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        pageClientHeight: page.clientHeight,
+        pageScrollHeight: page.scrollHeight,
+        pageScrollWidth: page.scrollWidth,
+        pageClientWidth: page.clientWidth,
+        sidebarWidth: sidebar.getBoundingClientRect().width,
+        contentWidth: firstRect.width,
+        contentLeft: firstRect.left,
+        diagnosticFontPx: diagnosticText ? parseFloat(getComputedStyle(diagnosticText).fontSize) : null,
+      };
+    })()`);
 
-  if (metrics.documentScrollWidth > metrics.viewportWidth + 2) throw new Error(`${scenario.name}: document overflows horizontally (${metrics.documentScrollWidth} > ${metrics.viewportWidth}).`);
-  if (metrics.pageScrollWidth > metrics.pageClientWidth + 2) throw new Error(`${scenario.name}: page overflows horizontally (${metrics.pageScrollWidth} > ${metrics.pageClientWidth}).`);
-  if (scenario.expectScrollable && metrics.pageScrollHeight <= metrics.pageClientHeight) throw new Error(`${scenario.name}: expected a scrollable page but content height ${metrics.pageScrollHeight} <= viewport ${metrics.pageClientHeight}.`);
-  if (scenario.expectCompactSidebar && metrics.sidebarWidth > 90) throw new Error(`${scenario.name}: compact sidebar did not activate (${metrics.sidebarWidth}px).`);
-  if (scenario.ultrawide && metrics.contentWidth > 1790) throw new Error(`${scenario.name}: ultrawide reading column is too wide (${metrics.contentWidth}px).`);
-  if (scenario.tab === 'Diagnostics' && (metrics.diagnosticFontPx ?? 0) < 11) throw new Error(`${scenario.name}: diagnostics text is too small (${metrics.diagnosticFontPx}px).`);
+    if (metrics.documentScrollWidth > metrics.viewportWidth + 2) throw new Error(`${scenario.name}: document overflows horizontally (${metrics.documentScrollWidth} > ${metrics.viewportWidth}).`);
+    if (metrics.pageScrollWidth > metrics.pageClientWidth + 2) throw new Error(`${scenario.name}: page overflows horizontally (${metrics.pageScrollWidth} > ${metrics.pageClientWidth}).`);
+    if (scenario.expectScrollable && metrics.pageScrollHeight <= metrics.pageClientHeight) throw new Error(`${scenario.name}: expected a scrollable page but content height ${metrics.pageScrollHeight} <= viewport ${metrics.pageClientHeight}.`);
+    if (scenario.expectCompactSidebar && metrics.sidebarWidth > 90) throw new Error(`${scenario.name}: compact sidebar did not activate (${metrics.sidebarWidth}px).`);
+    if (scenario.ultrawide && metrics.contentWidth > 1790) throw new Error(`${scenario.name}: ultrawide reading column is too wide (${metrics.contentWidth}px).`);
+    if (scenario.tab === 'Diagnostics' && (metrics.diagnosticFontPx ?? 0) < 11) throw new Error(`${scenario.name}: diagnostics text is too small (${metrics.diagnosticFontPx}px).`);
 
-  const image = await window.webContents.capturePage();
-  const png = image.toPNG();
-  if (!png.length) throw new Error(`${scenario.name}: empty screenshot.`);
-  await fs.writeFile(path.join(output, `${scenario.name}.png`), png);
-  captures.push({ ...scenario, ...metrics, bytes: png.length });
+    const image = await window.webContents.capturePage();
+    const png = image.toPNG();
+    if (!png.length) throw new Error(`${scenario.name}: empty screenshot.`);
+    await fs.writeFile(path.join(output, `${scenario.name}.png`), png);
+    captures.push({ ...scenario, ...metrics, bytes: png.length });
+  }
+
+  await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), captures }, null, 2), 'utf8');
+  window.destroy();
+  ipcMain.removeHandler('app:bootstrap');
+  app.quit();
 }
 
-await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), captures }, null, 2), 'utf8');
-window.destroy();
-ipcMain.removeHandler('app:bootstrap');
-app.quit();
+void main().catch((error) => {
+  console.error(error);
+  app.exit(1);
+});
