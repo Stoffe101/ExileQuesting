@@ -14,7 +14,7 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-async function updater(currentVersion = '0.1.1', repository = 'Stoffe101/ExileQuesting-Releases') {
+async function updater(currentVersion = '0.1.1', repository = 'Stoffe101/ExileQuesting') {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'exilequesting-update-test-'));
   tempDirs.push(directory);
   return new AppUpdater({ repository, currentVersion, updatesDirectory: directory, packaged: true, onState: () => undefined });
@@ -28,7 +28,7 @@ function release(version: string, bytes: Uint8Array, overrides: Record<string, u
       id: 1,
       name: `ExileQuesting-${version}-setup.exe`,
       size: bytes.byteLength,
-      browser_download_url: `https://github.com/Stoffe101/ExileQuesting-Releases/releases/download/v${version}/ExileQuesting-${version}-setup.exe`,
+      browser_download_url: `https://github.com/Stoffe101/ExileQuesting/releases/download/v${version}/ExileQuesting-${version}-setup.exe`,
       digest: `sha256:${digest}`,
       ...overrides,
     }],
@@ -53,7 +53,7 @@ describe('release metadata validation', () => {
 
   it('rejects non-GitHub or non-release download URLs', () => {
     expect(parseLatestRelease(release('0.1.2', bytes, { browser_download_url: 'https://evil.example/ExileQuesting-0.1.2-setup.exe' }))).toBeNull();
-    expect(parseLatestRelease(release('0.1.2', bytes, { browser_download_url: 'https://github.com/Stoffe101/ExileQuesting-Releases/raw/main/ExileQuesting-0.1.2-setup.exe' }))).toBeNull();
+    expect(parseLatestRelease(release('0.1.2', bytes, { browser_download_url: 'https://github.com/Stoffe101/ExileQuesting/raw/main/ExileQuesting-0.1.2-setup.exe' }))).toBeNull();
   });
 
   it('rejects impossible or oversized installer metadata', () => {
@@ -64,15 +64,22 @@ describe('release metadata validation', () => {
 });
 
 describe('AppUpdater failure simulation', () => {
-  it('routes the private source repository through the public release-only feed', async () => {
+  it('checks the public ExileQuesting repository directly', async () => {
     const bytes = new TextEncoder().encode('installer');
     let requestedUrl = '';
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       requestedUrl = String(input);
       return jsonResponse(release('0.1.1', bytes));
     }) as typeof fetch;
-    expect((await (await updater('0.1.1', 'Stoffe101/ExileQuesting')).check()).status).toBe('up-to-date');
-    expect(requestedUrl).toContain('/repos/Stoffe101/ExileQuesting-Releases/releases/latest');
+    expect((await (await updater()).check()).status).toBe('up-to-date');
+    expect(requestedUrl).toContain('/repos/Stoffe101/ExileQuesting/releases/latest');
+  });
+
+  it('explains when no stable release has been published yet', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({}, 404)) as typeof fetch;
+    const state = await (await updater()).check();
+    expect(state.status).toBe('error');
+    expect(state.message).toMatch(/No stable ExileQuesting GitHub Release/i);
   });
 
   it('reports up-to-date without downloading', async () => {
