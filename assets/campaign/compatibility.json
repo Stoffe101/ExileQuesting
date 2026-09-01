@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "Lailloken/Exile-UI",
+    "guidePath": "data/english/[leveltracker] default guide.json",
+    "areasPath": "data/english/[leveltracker] areas.json",
+    "supportedCommit": "2bbbd05237b11be19774979dd4e64ec982f31c0c"
+  },
+  "adapterVersion": 2,
+  "campaignSchemaVersion": 2,
+  "updatedAt": "2026-09-01T20:00:00+02:00"
+}
