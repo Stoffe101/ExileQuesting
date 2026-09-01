@@ -4,16 +4,21 @@ ExileQuesting is a modern Path of Exile campaign companion focused on one promis
 
 > Get from Twilight Strand to maps without wondering where to go, what to collect, or why the route is asking you to do it.
 
-The current `0.1.0` foundation provides:
+The current campaign foundation provides:
 
 - a complete Acts 1–10 route derived from Exile-UI's proven campaign data;
-- a readable annotation layer with beginner explanations, warnings, and speedrun cues;
+- semantic player-facing route actions instead of exposing raw upstream markup;
+- a glance-first Overlay V2 built around **NOW / DON'T MISS / NEXT**;
+- independent Compact, Focus, and Coach overlay presentation modes;
+- independent Beginner, Balanced, and Racer guidance depth;
+- overlay typography presets plus advanced objective/action/guidance/label/status sizing;
 - automatic area tracking through the log file the user explicitly selects;
-- a compact always-on-top overlay plus a full desktop manager;
+- strict internal-area events, hybrid filesystem watching + polling fallback, and bounded startup reconciliation;
+- XP pacing, passive/trial progress, and confidence-rated layout hints;
 - league-start, optional-objective, guidance-depth, and bandit route settings;
-- manual next/back controls when automatic detection is unavailable;
-- staged upstream updates with structural validation and a last-known-good fallback;
-- diagnostics, persistent settings/progress, configurable global hotkeys, and tray controls;
+- manual correction plus undoable confidence-rated progress history;
+- staged upstream updates with structural validation, a data-only compatibility manifest, and a last-known-good fallback;
+- live diagnostics, persistent settings/progress, configurable global hotkeys, tray controls, and first-run onboarding;
 - a real Windows NSIS installer and a separate portable `.exe` build.
 
 ## Safety boundary
@@ -41,6 +46,7 @@ Validation:
 ```bash
 npm run typecheck
 npm test
+npm run audit:campaign
 npm run build
 ```
 
@@ -50,35 +56,41 @@ Windows packages:
 npm run dist
 ```
 
-`release/` will contain both an NSIS setup executable and a portable executable. The GitHub Actions Windows workflow performs the authoritative Windows packaging test and uploads both files as a workflow artifact.
+`release/` will contain both an NSIS setup executable and a portable executable. The GitHub Actions Windows workflow performs the authoritative Windows packaging test and smoke-tests both the portable and installed application.
 
 ## Campaign data updates
 
-The bundled route is pinned to an exact Exile-UI commit. At runtime, ExileQuesting:
+The bundled route is pinned to an exact Exile-UI commit. ExileQuesting starts entirely from local verified data so network availability can never block application startup.
 
-1. asks GitHub whether Exile-UI's `main` commit changed;
-2. downloads changed campaign files to memory;
-3. validates act count, route shape, area data, step count, and unresolved references;
-4. writes the accepted data atomically to the app data folder;
-5. keeps the previous verified dataset active if any step fails.
+After startup, update checks:
 
-The application never activates a new upstream file just because it exists.
+1. load a strictly validated, data-only compatibility definition;
+2. ask GitHub whether Exile-UI's `main` commit changed;
+3. download campaign files for an immutable upstream commit into staging;
+4. validate act count, route shape, area data, step count, and references;
+5. write accepted data atomically to the app-data folder;
+6. keep the previous verified dataset active if any step fails.
+
+The application never activates a new upstream file merely because it exists or parses successfully. Repository CI separately reports relevant upstream file changes, act-by-act route differences, and semantic annotation coverage for review.
+
+## Campaign content quality
+
+The bundled route currently contains 228 pages. `npm run audit:campaign` verifies that every page exposes at least one decisive structured-action signal and reports upstream token/jargon leakage candidates, bespoke guidance coverage, and warning coverage. See [docs/CAMPAIGN_AUDIT.md](docs/CAMPAIGN_AUDIT.md).
 
 ## Project direction
 
-The architecture reserves independent modules for:
+The next major milestone is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model.
 
-- PoB import and build-stage understanding;
-- gem acquisition and link transitions;
-- passive-tree milestones;
+Later modules include:
+
 - build-specific loot-filter generation;
 - gear checkpoints and resistance repair;
-- a step-by-step Crafting Coach with clipboard item validation;
+- clipboard item parsing and Gear Coach;
+- a step-by-step Crafting Coach with item-state validation;
 - route splits, run history, and personal-best comparisons.
 
-See [docs/RESEARCH.md](docs/RESEARCH.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
+See [docs/RESEARCH.md](docs/RESEARCH.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/OVERLAY_V2.md](docs/OVERLAY_V2.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Attribution and license
 
 ExileQuesting's source is MIT licensed. Campaign data derived from Exile-UI remains subject to its MIT license and attribution. XileHUD was studied as a GPL-3.0 reference; no XileHUD source is incorporated into this MIT codebase. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
