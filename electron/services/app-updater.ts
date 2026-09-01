@@ -14,9 +14,6 @@ interface AppUpdaterOptions {
   log?: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
 }
 
-const SOURCE_REPOSITORY = 'Stoffe101/ExileQuesting';
-const PUBLIC_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting-Releases';
-
 export class AppUpdater {
   private state: AppUpdateState;
   private release: ParsedAppRelease | null = null;
@@ -24,10 +21,6 @@ export class AppUpdater {
   private activeDownload: Promise<AppUpdateState> | null = null;
 
   constructor(private options: AppUpdaterOptions) {
-    // The source repository intentionally remains private. Installed applications
-    // must never carry a GitHub token, so production update metadata and installers
-    // live in the public release-only repository instead.
-    if (this.options.repository === SOURCE_REPOSITORY) this.options.repository = PUBLIC_RELEASE_REPOSITORY;
     this.state = {
       status: options.packaged ? 'idle' : 'disabled',
       currentVersion: options.currentVersion,
@@ -60,7 +53,7 @@ export class AppUpdater {
       });
       if (!response.ok) {
         const feedHint = response.status === 404
-          ? ' The public ExileQuesting release feed has not been published yet. The application can still be used normally; no GitHub credential is embedded in the app.'
+          ? ' No stable ExileQuesting GitHub Release has been published yet. The application can still be used normally.'
           : '';
         throw new Error(`GitHub release check returned HTTP ${response.status}.${feedHint}`);
       }
