@@ -123,7 +123,7 @@ export class AppUpdater {
       const response = await fetch(release.setupAsset.browser_download_url, {
         headers: { 'User-Agent': `ExileQuesting/${this.options.currentVersion}` },
         redirect: 'follow',
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(15 * 60 * 1000),
       });
       if (!response.ok || !response.body) throw new Error(`Update download returned HTTP ${response.status}.`);
       const handle = await fs.open(temporaryPath, 'w');
