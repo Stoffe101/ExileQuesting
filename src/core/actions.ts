@@ -15,7 +15,7 @@ function cleanToken(value: string): string {
   return value
     .replace(/\s*;;\s*/g, ' — ')
     .replace(/\(color:[^)]+\)/gi, '')
-    .replace(/\(lvl:(\d+)\)/gi, 'level $1')
+    .replace(/\(lvl:(\d+(?:-\d+)?)\)/gi, 'level $1')
     .replace(/\(ms\)/gi, 'movement speed')
     .replace(/\(quest:\(?([^)]+?)\)?\)/gi, (_match, token: string) => questTokenLabel(token))
     .replace(/\(img:[^)]+\)/gi, '')
