@@ -103,10 +103,5 @@ jobs:
         run: |
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $checksum = Get-Item "release/$($setup.Name).sha256"
-          $notes = @"
-          ExileQuesting ${{ github.ref_name }}
-
-          Windows installer published from the verified ExileQuesting release pipeline.
-          Source build: ${{ github.sha }}
-          "@
+          $notes = "ExileQuesting ${{ github.ref_name }}`n`nWindows installer published from the verified ExileQuesting release pipeline.`nSource build: ${{ github.sha }}"
           gh release create "${{ github.ref_name }}" $setup.FullName $checksum.FullName --repo $env:RELEASE_REPOSITORY --target main --title "ExileQuesting ${{ github.ref_name }}" --notes $notes
