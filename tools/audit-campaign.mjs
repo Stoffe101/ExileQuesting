@@ -13,10 +13,10 @@ function areaIds(lines) {
   return [...lines.join(' ').matchAll(/areaid([\w_]+)/gi)].map((match) => match[1]);
 }
 
-function annotationFor(act, lines) {
+function annotationMatchIndex(act, lines) {
   const ids = areaIds(lines);
   const haystack = lines.join(' ').toLowerCase();
-  return annotations.find(({ selector }) => selector.act === act
+  return annotations.findIndex(({ selector }) => selector.act === act
     && (!selector.areaId || ids.includes(selector.areaId))
     && (selector.contains ?? []).every((part) => haystack.includes(part.toLowerCase())));
 }
@@ -37,13 +37,16 @@ function actionKind(line) {
   return 'unknown';
 }
 
+const matchedAnnotationIndexes = new Set();
 const rows = [];
 for (let actIndex = 0; actIndex < guide.length; actIndex += 1) {
   const act = actIndex + 1;
   for (let index = 0; index < guide[actIndex].length; index += 1) {
     const lines = linesFor(guide[actIndex][index]);
     const kinds = lines.map(actionKind);
-    const annotation = annotationFor(act, lines);
+    const annotationIndex = annotationMatchIndex(act, lines);
+    if (annotationIndex >= 0) matchedAnnotationIndexes.add(annotationIndex);
+    const annotation = annotationIndex >= 0 ? annotations[annotationIndex] : undefined;
     rows.push({
       act,
       step: index + 1,
@@ -56,6 +59,10 @@ for (let actIndex = 0; actIndex < guide.length; actIndex += 1) {
     });
   }
 }
+
+const unmatchedAnnotations = annotations
+  .map((annotation, index) => ({ annotation, index }))
+  .filter(({ index }) => !matchedAnnotationIndexes.has(index));
 
 const byAct = Array.from({ length: 10 }, (_, i) => i + 1).map((act) => {
   const actRows = rows.filter((row) => row.act === act);
@@ -85,12 +92,19 @@ const report = [
   `- Pages with at least one decisive structured-action signal: **${structured}/${total}**`,
   `- Context-only / manual-review candidates: **${contextOnly}**`,
   `- Pages with bespoke guidance annotations: **${annotated}**`,
+  `- Guidance selectors currently unmatched/stale: **${unmatchedAnnotations.length}/${annotations.length}**`,
   `- Pages with explicit warning copy: **${warnings}**`,
   `- Raw source lines containing upstream token/jargon patterns: **${suspicious}** (expected in source data; these must not leak into Focus UI)`,
   '',
   '| Act | Pages | Structured | Context-only | Annotated | Warnings |',
   '|---:|---:|---:|---:|---:|---:|',
   ...byAct.map((row) => `| ${row.act} | ${row.steps} | ${row.structured} | ${row.contextOnly} | ${row.annotations} | ${row.warnings} |`),
+  '',
+  '## Unmatched guidance selectors',
+  '',
+  ...(unmatchedAnnotations.length
+    ? unmatchedAnnotations.map(({ annotation, index }) => `- #${index + 1}: \`${JSON.stringify(annotation.selector)}\` — ${annotation.title ?? annotation.summary ?? 'untitled guidance'}`)
+    : ['All guidance selectors match at least one bundled route page.']),
   '',
   '## Review rule',
   '',
