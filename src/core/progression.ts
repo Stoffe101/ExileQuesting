@@ -6,53 +6,77 @@ export interface ProgressDecision {
   confidence: ProgressConfidence;
 }
 
+export interface ProgressionOptions {
+  isStepEnabled?: (step: CampaignStep, index: number) => boolean;
+  maxLookAhead?: number;
+  recentLookBehind?: number;
+}
+
 function normalizeAreaName(value?: string): string | undefined {
   return value?.toLowerCase().replace(/^the\s+/, '').replace(/[.!]$/, '').trim();
+}
+
+function matchesArea(step: CampaignStep, event: Pick<ZoneEvent, 'areaId' | 'areaName'>): 'id' | 'name' | null {
+  if (event.areaId && step.targetAreaId === event.areaId) return 'id';
+  const normalizedName = normalizeAreaName(event.areaName);
+  if (normalizedName && normalizeAreaName(step.targetArea) === normalizedName) return 'name';
+  return null;
 }
 
 export function decideProgression(
   steps: CampaignStep[],
   currentProgress: number,
   event: Pick<ZoneEvent, 'areaId' | 'areaName'>,
+  options: ProgressionOptions = {},
 ): ProgressDecision | null {
   if (!event.areaId && !event.areaName) return null;
-  const normalizedName = normalizeAreaName(event.areaName);
-  const start = Math.max(0, currentProgress - 3);
-  const end = Math.min(steps.length, currentProgress + 28);
+  const maxLookAhead = Math.max(1, options.maxLookAhead ?? 28);
+  const recentLookBehind = Math.max(0, options.recentLookBehind ?? 3);
+  const enabled = options.isStepEnabled ?? (() => true);
+  const start = Math.max(0, currentProgress);
+  const end = Math.min(steps.length, currentProgress + maxLookAhead);
 
-  if (event.areaId) {
-    for (let index = start; index < end; index += 1) {
-      const step = steps[index];
-      if (step.targetAreaId !== event.areaId) continue;
-      const to = Math.min(index + 1, steps.length - 1);
-      if (to === currentProgress) return null;
-      return { to, reason: `Internal area ID ${event.areaId} matched the route transition.`, confidence: 'verified' };
-    }
+  let forwardMatch: { index: number; kind: 'id' | 'name' } | undefined;
+  for (let index = start; index < end; index += 1) {
+    const step = steps[index];
+    if (!enabled(step, index)) continue;
+    const kind = matchesArea(step, event);
+    if (!kind) continue;
+    forwardMatch = { index, kind };
+    break;
   }
+  if (!forwardMatch) return null;
 
-  if (normalizedName) {
-    for (let index = start; index < end; index += 1) {
-      const step = steps[index];
-      if (normalizeAreaName(step.targetArea) !== normalizedName) continue;
-      const to = Math.min(index + 1, steps.length - 1);
-      if (to === currentProgress) return null;
-      return { to, reason: `Displayed area name ${event.areaName} matched a nearby route transition.`, confidence: 'inferred' };
-    }
+  // A recently completed matching transition usually means a duplicate log event or
+  // the player briefly backtracked. Do not skip several objectives to a later repeat
+  // of the same area. A match on the current/next route page is still allowed so
+  // intentional return trips such as side-zone -> parent-zone continue to work.
+  const recentStart = Math.max(0, currentProgress - recentLookBehind);
+  const hasRecentMatch = steps
+    .slice(recentStart, currentProgress)
+    .some((step, offset) => enabled(step, recentStart + offset) && Boolean(matchesArea(step, event)));
+  if (hasRecentMatch && forwardMatch.index > currentProgress + 1) return null;
+
+  const to = Math.min(forwardMatch.index + 1, steps.length - 1);
+  if (to <= currentProgress) return null;
+  if (forwardMatch.kind === 'id') {
+    return { to, reason: `Internal area ID ${event.areaId} matched the next valid route transition.`, confidence: 'verified' };
   }
-  return null;
+  return { to, reason: `Displayed area name ${event.areaName} matched the next valid route transition.`, confidence: 'inferred' };
 }
 
 function closestGlobalMatch(
   steps: CampaignStep[],
   savedProgress: number,
   detected: Pick<ZoneEvent, 'areaId' | 'areaName'>,
+  isEnabled: (step: CampaignStep, index: number) => boolean = () => true,
 ): { index: number; confidence: ProgressConfidence } | undefined {
   const normalizedName = normalizeAreaName(detected.areaName);
   const idMatches = detected.areaId
-    ? steps.map((step, index) => ({ step, index })).filter(({ step }) => step.targetAreaId === detected.areaId)
+    ? steps.map((step, index) => ({ step, index })).filter(({ step, index }) => isEnabled(step, index) && step.targetAreaId === detected.areaId)
     : [];
   const nameMatches = !idMatches.length && normalizedName
-    ? steps.map((step, index) => ({ step, index })).filter(({ step }) => normalizeAreaName(step.targetArea) === normalizedName)
+    ? steps.map((step, index) => ({ step, index })).filter(({ step, index }) => isEnabled(step, index) && normalizeAreaName(step.targetArea) === normalizedName)
     : [];
   const candidates = idMatches.length ? idMatches : nameMatches;
   if (!candidates.length) return undefined;
@@ -90,9 +114,10 @@ export function reconcileStartup(
   steps: CampaignStep[],
   savedProgress: number,
   detected: Pick<ZoneEvent, 'areaId' | 'areaName'> | undefined,
+  isEnabled: (step: CampaignStep, index: number) => boolean = () => true,
 ): StartupReconciliation {
   if (!detected?.areaId && !detected?.areaName) return { state: 'none' };
-  const match = closestGlobalMatch(steps, savedProgress, detected);
+  const match = closestGlobalMatch(steps, savedProgress, detected, isEnabled);
   if (!match || match.index === savedProgress) return { state: 'none' };
   const distance = Math.abs(match.index - savedProgress);
   if (distance <= 3 && match.confidence === 'verified') return { state: 'none' };
