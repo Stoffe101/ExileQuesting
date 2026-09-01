@@ -19,6 +19,7 @@ import { validateLayoutHints } from '../src/core/layouts';
 import { deterministicChunks, replayClientLogChunks, type LogReplayReport } from '../src/core/log-replay';
 import { normalizeSettingsDocument } from '../src/core/persistence';
 import { appendHistory, decideProgression, makeHistoryEntry, reconcileStartup } from '../src/core/progression';
+import { runCampaignSimulationSuite } from '../src/core/simulation-suite';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import {
   appendRunHistory,
@@ -68,7 +69,7 @@ const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
 const DEFAULT_AREAS_PATH = 'data/english/[leveltracker] areas.json';
 const REMOTE_COMPATIBILITY_URL = 'https://raw.githubusercontent.com/Stoffe101/ExileQuesting/main/assets/campaign/compatibility.json';
-const APP_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting-Releases';
+const APP_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting';
 const CAMPAIGN_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const APP_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const MAX_REPLAY_BYTES = 64 * 1024 * 1024;
@@ -295,7 +296,7 @@ async function finishCampaignRun(): Promise<void> {
   const result = finishRun(runSession); runSession = result.session; if (result.history) runHistory = appendRunHistory(runHistory, result.history); await saveRunState(); broadcastState();
 }
 
-async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay'): Promise<void> {
+async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay' | 'lab'): Promise<void> {
   const base = process.env.VITE_DEV_SERVER_URL;
   if (base) await window.loadURL(`${base}?mode=${mode}`);
   else await window.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), { query: { mode } });
@@ -360,8 +361,9 @@ function registerHotkeys(): void {
 }
 function openPreplaytestLab(): void {
   if (labWindow && !labWindow.isDestroyed()) { labWindow.show(); labWindow.focus(); return; }
-  labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'));
+  labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'), !app.isPackaged);
   wireWindowDiagnostics(labWindow, 'Pre-playtest Lab');
+  void loadRenderer(labWindow, 'lab').catch((error) => log.error('Failed to load Pre-playtest Lab UI.', error));
   labWindow.on('closed', () => { labWindow = null; overlayDemo = null; broadcastState(); });
 }
 
@@ -605,6 +607,7 @@ function registerIpc(): void {
   ipcMain.handle('overlay:reset-position', async () => { if (!overlayWindow) return runtimeState(); settings.overlayPosition = { preset: 'top-right', locked: false, snapToEdges: true }; placeOverlay(); await saveSettings(); broadcastState(); return runtimeState(); });
   ipcMain.handle('overlay:demo', (_event, value: unknown) => { overlayDemo = sanitizeDemo(value); overlayWindow?.showInactive(); broadcastState(); return overlayState(); });
   ipcMain.handle('overlay:demo-stop', () => { overlayDemo = null; broadcastState(); return runtimeState(); });
+  ipcMain.handle('simulation:run', () => runCampaignSimulationSuite(dataset));
   ipcMain.handle('campaign:check', async () => { await checkCampaignUpdates(); return runtimeState(); });
   ipcMain.handle('reward:confirm', async (_event, stepId: string, confirmed: boolean) => {
     if (typeof stepId !== 'string' || stepId.length > 256 || !dataset.steps.some((step) => step.id === stepId && step.permanentReward)) return runtimeState();

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { scheduleWindowsUpdate } from './update-handoff';
 import type { AppUpdateState } from '../../src/core/types';
 import { isNewerVersion, parseLatestRelease, parseSha256Digest, type ParsedAppRelease } from '../../src/core/updates';
 
@@ -175,16 +176,11 @@ export class AppUpdater {
   async installOnExit(): Promise<boolean> {
     if (!this.downloadedPath || this.state.status !== 'ready') return false;
     try {
-      await fs.access(this.downloadedPath);
-      const commandProcessor = process.env.ComSpec || 'cmd.exe';
-      const quotedInstaller = `"${this.downloadedPath.replace(/"/g, '""')}"`;
-      const command = `timeout /t 2 /nobreak >nul & start "" ${quotedInstaller} /S`;
-      const child = spawn(commandProcessor, ['/d', '/s', '/c', command], {
-        detached: true,
-        windowsHide: true,
-        stdio: 'ignore',
+      await scheduleWindowsUpdate({
+        installerPath: this.downloadedPath,
+        updatesDirectory: this.options.updatesDirectory,
+        log: this.options.log,
       });
-      child.unref();
       this.options.log?.info(`Scheduled update installer after exit: ${this.downloadedPath}`);
       return true;
     } catch (error) {
