@@ -1,0 +1,40 @@
+name: Final tiny preplaytest patch once
+
+on:
+  push:
+    branches: [codex/pre-playtest-simulator-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Finalize settings and visual assertions [bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pre-playtest-simulator-hardening
+      - name: Patch
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const file='electron/main.ts';
+          let text=fs.readFileSync(file,'utf8');
+          const fromSave="async function saveSettings(): Promise<void> { await store.write('settings.json', settings); }";
+          const toSave="async function saveSettings(): Promise<void> { await store.saveSettings(settings); }";
+          if(!text.includes(toSave)){if(!text.includes(fromSave))throw new Error('settings save anchor missing');text=text.replace(fromSave,toSave)}
+          const anchor="    await new Promise((resolve) => setTimeout(resolve, 450));\n    const image = await overlayWindow.capturePage();";
+          const code="(() => { const shell=document.querySelector('.overlay-shell'); if(!shell) return {missing:true}; const root=document.documentElement; const body=document.body; return {missing:false, innerWidth:window.innerWidth, shellClientWidth:shell.clientWidth, shellScrollWidth:shell.scrollWidth, rootScrollWidth:root.scrollWidth, bodyScrollWidth:body.scrollWidth}; })()";
+          const inserted="    await new Promise((resolve) => setTimeout(resolve, 450));\n    const layout = await overlayWindow.webContents.executeJavaScript("+JSON.stringify(code)+", true) as { missing: boolean; innerWidth?: number; shellClientWidth?: number; shellScrollWidth?: number; rootScrollWidth?: number; bodyScrollWidth?: number };\n    if (layout.missing) throw new Error(`Visual scenario ${scenario.name} did not render .overlay-shell.`);\n    const innerWidth = Number(layout.innerWidth ?? 0);\n    if (Number(layout.shellScrollWidth ?? 0) > Number(layout.shellClientWidth ?? 0) + 3 || Number(layout.rootScrollWidth ?? 0) > innerWidth + 3 || Number(layout.bodyScrollWidth ?? 0) > innerWidth + 3) throw new Error(`Visual scenario ${scenario.name} has horizontal overflow.`);\n    const image = await overlayWindow.capturePage();";
+          if(!text.includes('Visual scenario ${scenario.name} has horizontal overflow.')){if(!text.includes(anchor))throw new Error('visual anchor missing');text=text.replace(anchor,inserted)}
+          fs.writeFileSync(file,text);
+          NODE
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git commit -m "Finalize settings and visual assertions [bot]"
+          git push origin HEAD:codex/pre-playtest-simulator-hardening
