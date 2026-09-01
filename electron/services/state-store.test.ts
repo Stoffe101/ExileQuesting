@@ -30,7 +30,8 @@ function profile(id: string): BuildProfile {
       treeStages: [],
       skillStages: [],
       itemStages: [],
-      skillGroups: [],
+      activeSkillGroups: [],
+      warnings: [],
       notes: '',
     },
   };
