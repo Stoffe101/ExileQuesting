@@ -5,6 +5,7 @@ import {
   elapsedRunMs,
   emptyRunSession,
   finishRun,
+  pauseRun,
   recordActTransition,
   recordRunArea,
   startRun,
@@ -42,6 +43,17 @@ describe('campaign run timing', () => {
     expect(session.townTimeMs).toBe(0);
     session = recordRunArea(session, '1_1_2', new Date('2026-09-01T10:03:00Z'));
     expect(session.townTimeMs).toBe(120_000);
+  });
+
+  it('does not include explicitly paused time in town time', () => {
+    let session = startRun(emptyRunSession(), 1, new Date('2026-09-01T10:00:00Z'));
+    session = recordRunArea(session, '1_1_town', new Date('2026-09-01T10:01:00Z'));
+    session = pauseRun(session, new Date('2026-09-01T10:02:00Z'));
+    expect(session.townTimeMs).toBe(60_000);
+    session = startRun(session, 1, new Date('2026-09-01T10:12:00Z'));
+    session = recordRunArea(session, '1_1_2', new Date('2026-09-01T10:13:00Z'));
+    expect(session.townTimeMs).toBe(120_000);
+    expect(elapsedRunMs(session, Date.parse('2026-09-01T10:13:00Z'))).toBe(180_000);
   });
 
   it('records act splits using total elapsed run time', () => {
