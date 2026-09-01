@@ -591,8 +591,16 @@ function registerIpc(): void {
   ipcMain.handle('overlay:hide', () => overlayWindow?.hide());
   ipcMain.handle('overlay:toggle', toggleOverlay);
   ipcMain.handle('overlay:content-size', async (_event, height: number) => {
-    if (!overlayWindow || !Number.isFinite(height)) return;
-    markProgrammaticOverlayMove(); settings.overlayPosition = resizeOverlayToContent(overlayWindow, height, settings); await saveSettings();
+    const targetWindow = overlayWindow;
+    if (!targetWindow || targetWindow.isDestroyed() || !Number.isFinite(height)) return;
+    try {
+      markProgrammaticOverlayMove();
+      settings.overlayPosition = resizeOverlayToContent(targetWindow, height, settings);
+      if (!visualSmokeArgument && !overlaySoakArgument) await saveSettings();
+    } catch (error) {
+      if (targetWindow.isDestroyed()) return;
+      throw error;
+    }
   });
   ipcMain.handle('overlay:reset-position', async () => { if (!overlayWindow) return runtimeState(); settings.overlayPosition = { preset: 'top-right', locked: false, snapToEdges: true }; placeOverlay(); await saveSettings(); broadcastState(); return runtimeState(); });
   ipcMain.handle('overlay:demo', (_event, value: unknown) => { overlayDemo = sanitizeDemo(value); overlayWindow?.showInactive(); broadcastState(); return overlayState(); });

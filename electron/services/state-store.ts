@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-profiles';
 import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, settingsDocument } from '../../src/core/persistence';
@@ -7,6 +8,8 @@ import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } f
 const MAX_USER_JSON_BYTES = 4 * 1024 * 1024;
 
 export class StateStore {
+  private writeQueues = new Map<string, Promise<void>>();
+
   constructor(private root: string) {}
 
   path(name: string): string {
@@ -19,11 +22,36 @@ export class StateStore {
   }
 
   async write(name: string, value: unknown): Promise<void> {
-    const target = this.path(name);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    const temporary = `${target}.${process.pid}.${Date.now()}.tmp`;
-    await fs.writeFile(temporary, JSON.stringify(value, null, 2), 'utf8');
-    await fs.rename(temporary, target);
+    const previous = this.writeQueues.get(name) ?? Promise.resolve();
+    const operation = previous.catch(() => undefined).then(async () => {
+      const target = this.path(name);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+      await fs.writeFile(temporary, JSON.stringify(value, null, 2), 'utf8');
+      try {
+        let lastError: unknown;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            await fs.rename(temporary, target);
+            return;
+          } catch (error) {
+            lastError = error;
+            const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : '';
+            if (!['EPERM', 'EBUSY', 'EACCES'].includes(code) || attempt === 4) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 10 * (attempt + 1)));
+          }
+        }
+        throw lastError;
+      } finally {
+        await fs.rm(temporary, { force: true }).catch(() => undefined);
+      }
+    });
+    this.writeQueues.set(name, operation);
+    try {
+      await operation;
+    } finally {
+      if (this.writeQueues.get(name) === operation) this.writeQueues.delete(name);
+    }
   }
 
   async loadSettings(defaults: AppSettings): Promise<AppSettings> {
