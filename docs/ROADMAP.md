@@ -42,17 +42,45 @@
 - [x] semantic upstream CI report and campaign audit tooling
 - [x] stale bespoke guidance selector audit and repair
 - [x] expanded coaching for high-value bosses, quest items and permanent rewards
-- [ ] full in-game Acts 1–10 regression run
-- [ ] multi-monitor / mixed-DPI placement regression pass
+
+## 0.1.2 — pre-playtest simulator + hardening
+
+- [x] deterministic full Acts 1–10 simulator using production campaign/progression code
+- [x] league-start, optional-content and every bandit route variant in simulation
+- [x] duplicate, display-name and backtrack/revisit event injection
+- [x] recent-area history protection against false future progression
+- [x] automatic progression skips disabled conditional route pages safely
+- [x] deterministic Client.txt chunk/noise/fuzz replay
+- [x] sandboxed Pre-playtest Lab with non-mutating Overlay Demo Mode
+- [x] captured Client.txt replay UI and exportable versioned replay bundles
+- [x] semantic campaign linter and route-action regression coverage
+- [x] explicit persisted-settings schema migration and shared StateStore
+- [x] updater malformed metadata/network/size/hash/interruption failure matrix
+- [x] strict external/data URL allowlists and bounded remote responses
+- [x] Windows overlay visual regression at 100%, 125% and 150% scale factors
+- [x] Compact / Default / Large / Extra Large typography visual coverage
+- [x] Electron overlay show/hide/resize lifecycle soak with CPU/memory baseline artifact
+- [x] Windows NSIS build + clean silent install + packaged startup + silent uninstall gate
+- [x] PoB XML/export/pobb.in parser foundation
+- [x] bounded pobb.in raw-fetch service
+- [x] persistent normalized Build Profiles and narrow IPC boundary
+- [x] tagged releases rerun campaign simulation, semantic lint, overlay visuals, soak and installed-app smoke testing
+- [ ] capture real full-campaign Client.txt fixtures during the first live run
+- [ ] validate always-on-top/click-through/combat readability against Path of Exile
+- [ ] real multi-monitor / mixed-DPI placement regression pass
 - [ ] public release feed for end-user app updates (repo or dedicated release repo)
-- [ ] expand reviewed layout hints and bespoke guidance where live testing identifies weak pages
+- [ ] expand reviewed layout hints and bespoke guidance where live testing identifies weak decisions
+
+See `PRE_PLAYTEST.md` for the exact automation/live-test boundary.
 
 ## 0.2 — PoB to Play
 
-- [ ] paste export code or pobb.in URL
-- [ ] local `.xml` build discovery
-- [ ] background decompression and XML validation
-- [ ] named gem/tree/item stages
+The parser, bounded pobb.in fetcher and Build Profile persistence are already established by 0.1.2. This milestone turns that foundation into a player-facing planner.
+
+- [ ] paste export code or pobb.in URL in the manager
+- [ ] local `.xml` build discovery/import UX
+- [ ] background import/decompression workflow
+- [ ] stage-selection and active Build Profile UI
 - [ ] class-aware quest reward and vendor plan
 - [ ] link colours, socket counts, and gem transitions
 - [ ] passive milestone overlay
@@ -92,7 +120,8 @@
 
 ## Release requirements for every milestone
 
-- type check, runtime dependency audit, campaign audit, and tests pass;
+- type check, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
+- Windows overlay visual matrix and lifecycle soak pass;
 - Windows NSIS installer builds and survives an installed-app smoke test on GitHub Actions;
 - packaged resource paths are exercised;
 - startup and failure paths produce diagnostic logs;
