@@ -12,7 +12,7 @@ permissions:
 jobs:
   package-windows:
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
@@ -28,6 +28,8 @@ jobs:
       - run: npm run audit:campaign
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
+      - name: Smoke test Pre-playtest Lab controls
+        run: npm run smoke:lab
       - name: Render manager responsive matrix
         run: npm run visual:manager
       - uses: actions/upload-artifact@v4
@@ -62,7 +64,7 @@ jobs:
           $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
           if ($setup.Count -ne 1) { throw "Expected exactly one NSIS setup executable, found $($setup.Count)." }
           $setup | Format-Table Name, Length
-      - name: Smoke test installed build
+      - name: Smoke test installed build and updater handoff
         shell: pwsh
         run: |
           $setup = Get-Item release/ExileQuesting-*-setup.exe
@@ -74,6 +76,20 @@ jobs:
           if (-not (Test-Path $installedExe)) { throw "Installer completed but ExileQuesting.exe was not installed." }
           $installedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
           if ($installedRun.ExitCode -ne 0) { throw "Installed startup smoke test failed with exit code $($installedRun.ExitCode)." }
+
+          npm run smoke:update-handoff
+          $handoffDir = Join-Path $env:RUNNER_TEMP "ExileQuestingUpdateHandoff"
+          node .tmp/smoke-update-handoff.cjs $setup.FullName $handoffDir $installedExe
+          $resultFile = Join-Path $handoffDir 'last-update-result.json'
+          for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }
+          if (-not (Test-Path $resultFile)) { throw 'Updater handoff did not produce a result within 60 seconds.' }
+          $handoff = Get-Content $resultFile -Raw | ConvertFrom-Json
+          if ($handoff.status -ne 'installed' -or $handoff.exitCode -ne 0 -or -not $handoff.relaunched) {
+            throw "Updater handoff failed: $($handoff | ConvertTo-Json -Compress)"
+          }
+          if (-not (Test-Path $installedExe)) { throw 'Updater handoff removed the installed executable.' }
+          Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Milliseconds 500
 
           $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
           if (Test-Path $uninstaller) {
