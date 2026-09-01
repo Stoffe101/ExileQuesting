@@ -11,7 +11,7 @@ permissions:
 jobs:
   release-windows:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
       GH_TOKEN: ${{ github.token }}
@@ -34,13 +34,34 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run audit:campaign
+      - run: npm run lint:campaign
+      - run: npm run simulate:campaign
+      - name: Render release overlay visual matrix
+        run: npm run visual:overlay
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ExileQuesting-release-overlay-visuals-${{ github.sha }}
+          path: artifacts/visual/**/*
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Soak release overlay lifecycle
+        run: npm run soak:overlay
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ExileQuesting-release-overlay-soak-${{ github.sha }}
+          path: artifacts/soak/**/*
+          if-no-files-found: warn
+          retention-days: 30
       - run: npm run dist
       - name: Smoke test installed release
         shell: pwsh
         run: |
-          $setup = Get-Item release/ExileQuesting-*-setup.exe
+          $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
+          if ($setup.Count -ne 1) { throw "Expected exactly one NSIS setup executable, found $($setup.Count)." }
           $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseSmoke"
-          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+          $install = Start-Process -FilePath $setup[0].FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Silent installer failed with exit code $($install.ExitCode)." }
           $installedExe = Join-Path $installDir "ExileQuesting.exe"
           if (-not (Test-Path $installedExe)) { throw "Release installer did not install ExileQuesting.exe." }

@@ -1,6 +1,6 @@
 {
   "name": "exilequesting",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A modern, build-aware Path of Exile campaign companion.",
   "main": "dist-electron/main.cjs",
   "author": "Stoffe101",
@@ -13,7 +13,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:stress": "vitest run src/core/stress.test.ts",
     "audit:campaign": "node tools/audit-campaign.mjs",
+    "lint:campaign": "esbuild tools/lint-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/lint-campaign.mjs && node .tmp/lint-campaign.mjs",
+    "simulate:campaign": "esbuild tools/simulate-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/simulate-campaign.mjs && node .tmp/simulate-campaign.mjs",
+    "visual:overlay": "npm run build && electron --force-device-scale-factor=1 . --visual-smoke=artifacts/visual/100 && electron --force-device-scale-factor=1.25 . --visual-smoke=artifacts/visual/125 && electron --force-device-scale-factor=1.5 . --visual-smoke=artifacts/visual/150",
+    "soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",
+    "verify:preplaytest": "npm run typecheck && npm test && npm run audit:campaign && npm run lint:campaign && npm run simulate:campaign",
     "check:upstream": "node tools/check-upstream.mjs",
     "dist": "npm run build && electron-builder --win nsis",
     "dist:dir": "npm run build && electron-builder --dir",
@@ -61,7 +67,12 @@
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {

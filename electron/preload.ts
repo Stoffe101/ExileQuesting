@@ -1,5 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSettings, RuntimeState } from '../src/core/types';
+import type { BuildProfile } from '../src/core/build-profiles';
+import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
+
+export interface ReplayResult {
+  sourcePath: string;
+  chunks: number;
+  lines: number;
+  parsedEvents: number;
+  finalProgress: number;
+  errors: string[];
+  decisions: Array<{
+    event: { type: string; areaId?: string; areaName?: string; areaLevel?: number; raw?: string };
+    progressBefore: number;
+    progressAfter: number;
+    reason: string;
+  }>;
+}
 
 const api = {
   bootstrap: (): Promise<RuntimeState> => ipcRenderer.invoke('app:bootstrap'),
@@ -13,6 +29,8 @@ const api = {
   toggleOverlay: (): Promise<void> => ipcRenderer.invoke('overlay:toggle'),
   reportOverlayContentHeight: (height: number): Promise<void> => ipcRenderer.invoke('overlay:content-size', height),
   resetOverlayPosition: (): Promise<RuntimeState> => ipcRenderer.invoke('overlay:reset-position'),
+  previewOverlay: (config: { progress: number; mode: OverlayMode; characterLevel?: number; areaLevel?: number }): Promise<RuntimeState> => ipcRenderer.invoke('overlay:demo', config),
+  stopOverlayPreview: (): Promise<RuntimeState> => ipcRenderer.invoke('overlay:demo-stop'),
   checkCampaignUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('campaign:check'),
   confirmReward: (stepId: string, confirmed: boolean): Promise<RuntimeState> => ipcRenderer.invoke('reward:confirm', stepId, confirmed),
   startRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:start'),
@@ -26,6 +44,11 @@ const api = {
   openDiagnosticsFolder: (): Promise<void> => ipcRenderer.invoke('diagnostics:open'),
   copyDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:copy'),
   exportDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:export'),
+  replayDiagnostics: (): Promise<ReplayResult | null> => ipcRenderer.invoke('diagnostics:replay'),
+  exportReplayBundle: (): Promise<boolean> => ipcRenderer.invoke('diagnostics:replay-export'),
+  listBuildProfiles: (): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:list'),
+  importBuildProfile: (input: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:import', input),
+  deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
   onState: (callback: (state: RuntimeState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);
     ipcRenderer.on('state:changed', listener);

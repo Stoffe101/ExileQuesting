@@ -6,14 +6,22 @@ const ACTION_LABELS: Record<RouteActionType, string> = {
   relog: 'Relog', craft: 'Crafting recipe', build: 'Build', warning: 'Warning', context: 'Route clue',
 };
 
+function questTokenLabel(token: string): string {
+  const readable = token.replace(/[()]/g, '').replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
+  return readable ? `the ${readable} quest item` : 'the quest item';
+}
+
 function cleanToken(value: string): string {
   return value
+    .replace(/\s*;;\s*/g, ' — ')
     .replace(/\(color:[^)]+\)/gi, '')
-    .replace(/\(lvl:(\d+)\)/gi, 'level $1')
+    .replace(/\(lvl:(\d+(?:-\d+)?)\)/gi, 'level $1')
     .replace(/\(ms\)/gi, 'movement speed')
+    .replace(/\(quest:\(?([^)]+?)\)?\)/gi, (_match, token: string) => questTokenLabel(token))
     .replace(/\(img:[^)]+\)/gi, '')
     .replace(/\(hint\)_*/gi, '')
     .replace(/\b(leaguestart|twinkrun):\s*/gi, '')
+    .replace(/\barena:([\w' -]+)/gi, '$1')
     .replace(/<([^>]+)>/g, '$1')
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
@@ -33,9 +41,9 @@ function areaNameFromLine(raw: string, areas: Map<string, AreaRecord>): string |
 }
 
 function parseQuest(raw: string): RouteAction | null {
-  const match = raw.match(/\(quest:([^)]+)\)/i);
+  const match = raw.match(/\(quest:\(?([^)]+?)\)?\)/i);
   if (!match) return null;
-  const token = match[1].replaceAll('_', ' ').trim();
+  const token = match[1].replace(/[()]/g, '').replaceAll('_', ' ').trim();
   const lower = token.toLowerCase();
   if (lower.includes('book') || lower.includes('passive')) {
     return makeAction('passive', 'Claim the passive-point reward', raw, true);
@@ -81,7 +89,8 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('craft', 'Collect the crafting recipe', raw));
   }
 
-  if (/\brelog\b|log\s*out/i.test(lower)) {
+  const isRelog = /\brelog\b|log\s*out/i.test(lower);
+  if (isRelog) {
     actions.push(makeAction('relog', destination ? `Relog, then travel to ${destination}` : 'Relog to town', raw));
   }
 
@@ -89,13 +98,13 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('portal', destination ? `Use a portal for ${destination}` : 'Use the planned portal', raw));
   }
 
-  const kill = cleanedRaw.match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level)\b|$)/i);
+  const kill = cleanedRaw.match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level|the\s+\S+\s+quest\s+item)\b|\s*\|\||$)/i);
   if (kill) {
     const target = kill[1].replace(/\bchest\b.*$/i, '').trim();
     if (target) actions.push(makeAction('kill', `Kill ${target}`, raw));
   }
 
-  const collectWords = /\b(?:take|collect|grab|pick up|obtain)\s+([^,;]+?)(?=\s+(?:and|then|from|before|after)\b|$)/i.exec(cleanedRaw);
+  const collectWords = /\b(?:take|collect|grab|pick up|obtain)\s+([^,;]+?)(?=\s+(?:and|then|from|before|after)\b|\s*\|\||$)/i.exec(cleanedRaw);
   if (collectWords && !/waypoint/i.test(collectWords[1])) {
     actions.push(makeAction('collect', collectWords[0].trim(), raw));
   }
@@ -103,8 +112,15 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
   const quest = parseQuest(raw);
   if (quest) actions.push(quest);
 
-  const questNpc = cleanedRaw.match(/^quest\s+([a-z' -]+?)(?::|\s+-)/i);
-  if (questNpc) actions.push(makeAction('talk', `Talk to ${sentence(questNpc[1])}`, raw));
+  // Exile-UI commonly prefixes quest turn-ins with the quest icon and then the
+  // NPC name, e.g. `(img:quest) tarkleigh: <the_caged_brute>`. The icon itself
+  // is removed from display text, so preserve the NPC interaction semantically.
+  if (/\(img:quest\)/i.test(raw)) {
+    const npc = cleanedRaw.match(/^([a-z][a-z' -]{1,40})\s*:/i);
+    if (npc) actions.push(makeAction('talk', `Talk to ${sentence(npc[1])}`, raw));
+  }
+  const explicitNpc = cleanedRaw.match(/\b(?:talk|speak)\s+to\s+([a-z][a-z' -]{1,40})(?=\s+(?:for|about|then|and)\b|$)/i);
+  if (explicitNpc) actions.push(makeAction('talk', `Talk to ${sentence(explicitNpc[1])}`, raw));
 
   if (/\bbuy[_ ]gems\b|\bbuy\b.*\bgem/i.test(lower)) {
     actions.push(makeAction('gem', 'Buy the required gems', raw));
@@ -114,8 +130,11 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('vendor', 'Check the vendor', raw));
   }
 
-  const explicitEnter = /\b(?:enter|go to|continue to|travel to|head to|waypoint to)\b/i.test(cleanedRaw);
-  if (destination && explicitEnter && !actions.some((action) => action.type === 'relog')) {
+  // Every non-hint area reference in Exile-UI is a route transition signal. The
+  // author uses many forms besides literal `enter`: follow wall/road, reach,
+  // directional `go`, boats, waypoint travel, and similar shorthand. Treating
+  // those as context made otherwise valid route pages non-actionable in Focus.
+  if (destination && !isRelog) {
     actions.push(makeAction('travel', `Enter ${destination}`, raw));
   }
 
@@ -173,5 +192,5 @@ export function actionLabel(type: RouteActionType): string {
 }
 
 export function looksUnhumanized(value: string): boolean {
-  return /areaid|\(img:|\(quest:|\(hint\)|\bquest\s+[a-z]+:|\b[a-z]+_[a-z]+\b/i.test(value);
+  return /areaid|\(img:|\(quest:|\(hint\)|\(lvl:|\barena:|\bquest\s+[a-z]+:|\b[a-z]+_[a-z]+\b/i.test(value);
 }
