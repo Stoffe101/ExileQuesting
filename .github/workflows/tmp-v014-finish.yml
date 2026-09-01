@@ -1,4 +1,4 @@
-name: Temporary v0.1.4 finishing pass
+name: Temporary v0.1.4 finishing pass source-only
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Finish Lab and updater verification wiring
+      - name: Finish Lab and updater source wiring
         shell: bash
         run: |
           python - <<'PY'
@@ -33,28 +33,19 @@ jobs:
                   raise SystemExit(f'Expected text not found in {path}: {old[:140]!r}')
               p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          # Main-process Lab smoke mode.
           rep('electron/main.ts',
               "const overlaySoakArgument = process.argv.find((argument) => argument.startsWith('--overlay-soak='));\n",
               "const overlaySoakArgument = process.argv.find((argument) => argument.startsWith('--overlay-soak='));\nconst isLabSmokeTest = process.argv.includes('--lab-smoke');\n")
 
           export_handler = '''  ipcMain.handle('simulation:run', () => runCampaignSimulationSuite(dataset));\n  ipcMain.handle('simulation:export', async () => {\n    const scenarios = runCampaignSimulationSuite(dataset);\n    const options: Electron.SaveDialogOptions = {\n      title: 'Export ExileQuesting campaign simulation',\n      defaultPath: `ExileQuesting-campaign-simulation-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,\n      filters: [{ name: 'ExileQuesting simulation', extensions: ['json'] }],\n    };\n    const owner = labWindow && !labWindow.isDestroyed() ? labWindow : mainWindow;\n    const result = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options);\n    if (result.canceled || !result.filePath) return false;\n    await fs.writeFile(result.filePath, JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), appVersion: app.getVersion(), campaign: dataset.source, scenarios }, null, 2), 'utf8');\n    return true;\n  });\n'''
-          rep('electron/main.ts',
-              "  ipcMain.handle('simulation:run', () => runCampaignSimulationSuite(dataset));\n",
-              export_handler)
+          rep('electron/main.ts', "  ipcMain.handle('simulation:run', () => runCampaignSimulationSuite(dataset));\n", export_handler)
 
           lab_smoke = '''    if (isLabSmokeTest) {\n      overlayWindow = createOverlayWindow();\n      labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'), false);\n      wireWindowDiagnostics(labWindow, 'Pre-playtest Lab smoke');\n      await loadRenderer(labWindow, 'lab');\n      await waitForRenderer(labWindow);\n      const smoke = await labWindow.webContents.executeJavaScript(`(async () => {\n        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));\n        const deadline = Date.now() + 6000;\n        while (!document.querySelector('[data-testid="lab-ready"]') && Date.now() < deadline) await wait(100);\n        const ready = Boolean(document.querySelector('[data-testid="lab-ready"]'));\n        const api = window.exileQuesting;\n        const preview = document.querySelector('[data-testid="lab-preview"]');\n        const walk = document.querySelector('[data-testid="lab-autowalk"]');\n        const slider = document.querySelector('input[type="range"]');\n        if (!ready || !api || !preview || !walk || !slider) return { ready, bridge: Boolean(api), controls: false };\n        preview.click();\n        await wait(350);\n        const before = Number(slider.value);\n        walk.click();\n        await wait(2100);\n        const after = Number(slider.value);\n        walk.click();\n        const scenarios = await api.runCampaignSimulation();\n        return { ready, bridge: true, controls: true, before, after, scenarioCount: scenarios.length, allPassed: scenarios.every((item) => item.report.passed) };\n      })()`, true) as { ready: boolean; bridge: boolean; controls?: boolean; before?: number; after?: number; scenarioCount?: number; allPassed?: boolean };\n      if (!smoke.ready || !smoke.bridge || !smoke.controls || Number(smoke.after) <= Number(smoke.before) || smoke.scenarioCount !== 6 || !smoke.allPassed || !overlayWindow.isVisible()) {\n        throw new Error(`Pre-playtest Lab smoke failed: ${JSON.stringify(smoke)}`);\n      }\n      log.info('Pre-playtest Lab smoke passed.', smoke);\n      app.exit(0);\n      return;\n    }\n\n'''
-          rep('electron/main.ts',
-              "    if (visualSmokeArgument || overlaySoakArgument) {\n",
-              lab_smoke + "    if (visualSmokeArgument || overlaySoakArgument) {\n")
-          rep('electron/main.ts',
-              "    if (isSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }\n",
-              "    if (isSmokeTest || isLabSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }\n")
+          rep('electron/main.ts', "    if (visualSmokeArgument || overlaySoakArgument) {\n", lab_smoke + "    if (visualSmokeArgument || overlaySoakArgument) {\n")
+          rep('electron/main.ts', "    if (isSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }\n", "    if (isSmokeTest || isLabSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }\n")
 
-          # Remove the obsolete child_process import; the updater handoff owns process spawning now.
           rep('electron/services/app-updater.ts', "import { spawn } from 'node:child_process';\n", "")
 
-          # Make the simulator CLI use the exact same profile suite as the Lab.
           p = Path('tools/simulate-campaign.ts')
           text = p.read_text(encoding='utf-8')
           text = text.replace("import { simulateCanonicalCampaign, simulationReportMarkdown } from '../src/core/simulator';", "import { simulationReportMarkdown } from '../src/core/simulator';\nimport { runCampaignSimulationSuite } from '../src/core/simulation-suite';")
@@ -63,30 +54,9 @@ jobs:
           text = text[:start] + "const results = runCampaignSimulationSuite(dataset);" + text[end:].replace("\n\nconst results = scenarios.map((scenario) => ({ ...scenario, report: simulateCanonicalCampaign(dataset, scenario.options) }));", "", 1)
           p.write_text(text, encoding='utf-8')
 
-          # Package scripts.
           p = Path('package.json')
           text = p.read_text(encoding='utf-8')
           text = text.replace('"soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",', '"soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",\n    "smoke:lab": "npm run build && electron . --lab-smoke",\n    "smoke:update-handoff": "esbuild tools/smoke-update-handoff.ts --bundle --platform=node --format=cjs --outfile=.tmp/smoke-update-handoff.cjs",', 1)
-          p.write_text(text, encoding='utf-8')
-
-          # Windows package pipeline: Lab smoke + real update handoff over an installed copy.
-          p = Path('.github/workflows/windows-package.yml')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('      - run: npm run simulate:campaign\n', '      - run: npm run simulate:campaign\n      - name: Smoke test Pre-playtest Lab controls\n        run: npm run smoke:lab\n', 1)
-          marker = '''          $installedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru\n          if ($installedRun.ExitCode -ne 0) { throw "Installed startup smoke test failed with exit code $($installedRun.ExitCode)." }\n\n          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"\n'''
-          addition = '''          $installedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru\n          if ($installedRun.ExitCode -ne 0) { throw "Installed startup smoke test failed with exit code $($installedRun.ExitCode)." }\n\n          npm run smoke:update-handoff\n          $handoffDir = Join-Path $env:RUNNER_TEMP "ExileQuestingUpdateHandoff"\n          node .tmp/smoke-update-handoff.cjs $setup.FullName $handoffDir $installedExe\n          $resultFile = Join-Path $handoffDir 'last-update-result.json'\n          for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }\n          if (-not (Test-Path $resultFile)) { throw 'Updater handoff did not produce a result within 60 seconds.' }\n          $handoff = Get-Content $resultFile -Raw | ConvertFrom-Json\n          if ($handoff.status -ne 'installed' -or $handoff.exitCode -ne 0 -or -not $handoff.relaunched) { throw "Updater handoff failed: $($handoff | ConvertTo-Json -Compress)" }\n          Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force\n          Start-Sleep -Milliseconds 500\n\n          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"\n'''
-          if marker not in text: raise SystemExit('Windows installed smoke marker not found')
-          text = text.replace(marker, addition, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # Release pipeline receives the same two gates.
-          p = Path('.github/workflows/release.yml')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('      - run: npm run simulate:campaign\n', '      - run: npm run simulate:campaign\n      - name: Smoke test Pre-playtest Lab controls\n        run: npm run smoke:lab\n', 1)
-          marker = '''          $run = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru\n          if ($run.ExitCode -ne 0) { throw "Installed release smoke test failed with exit code $($run.ExitCode)." }\n          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"\n'''
-          addition = '''          $run = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru\n          if ($run.ExitCode -ne 0) { throw "Installed release smoke test failed with exit code $($run.ExitCode)." }\n          npm run smoke:update-handoff\n          $handoffDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseUpdateHandoff"\n          node .tmp/smoke-update-handoff.cjs $setup[0].FullName $handoffDir $installedExe\n          $resultFile = Join-Path $handoffDir 'last-update-result.json'\n          for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }\n          if (-not (Test-Path $resultFile)) { throw 'Release updater handoff did not produce a result within 60 seconds.' }\n          $handoff = Get-Content $resultFile -Raw | ConvertFrom-Json\n          if ($handoff.status -ne 'installed' -or $handoff.exitCode -ne 0 -or -not $handoff.relaunched) { throw "Release updater handoff failed: $($handoff | ConvertTo-Json -Compress)" }\n          Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force\n          Start-Sleep -Milliseconds 500\n          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"\n'''
-          if marker not in text: raise SystemExit('Release installed smoke marker not found')
-          text = text.replace(marker, addition, 1)
           p.write_text(text, encoding='utf-8')
           PY
       - name: Synchronize package-lock scripts/version
@@ -95,6 +65,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+Stoffe101@users.noreply.github.com'
-          git add electron/main.ts electron/services/app-updater.ts tools/simulate-campaign.ts package.json package-lock.json .github/workflows/windows-package.yml .github/workflows/release.yml
-          git commit -m 'Harden Lab and updater with real smoke coverage'
+          git add electron/main.ts electron/services/app-updater.ts tools/simulate-campaign.ts package.json package-lock.json
+          git commit -m 'Harden Lab and updater source wiring'
           git push origin HEAD:codex/v0.1.4-lab-updater-hotfix
