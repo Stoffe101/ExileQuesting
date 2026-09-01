@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-windows:
@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 45
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      GH_TOKEN: ${{ github.token }}
+      RELEASE_REPOSITORY: Stoffe101/ExileQuesting-Releases
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,9 +78,26 @@ jobs:
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $hash = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLower()
           "$hash  $($setup.Name)" | Set-Content -Encoding ascii "release/$($setup.Name).sha256"
-      - name: Publish GitHub release
+      - name: Verify public release credentials
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
+            throw "Missing RELEASE_REPO_TOKEN. Add a fine-grained token with Contents: Read and write for Stoffe101/ExileQuesting-Releases to this repository's Actions secrets."
+          }
+          gh repo view $env:RELEASE_REPOSITORY --json nameWithOwner,visibility | Out-Null
+      - name: Publish public GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
         run: |
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $checksum = Get-Item "release/$($setup.Name).sha256"
-          gh release create "${{ github.ref_name }}" $setup.FullName $checksum.FullName --verify-tag --generate-notes --title "ExileQuesting ${{ github.ref_name }}"
+          $notes = @"
+          ExileQuesting ${{ github.ref_name }}
+
+          Windows installer published from the verified ExileQuesting release pipeline.
+          Source build: ${{ github.sha }}
+          "@
+          gh release create "${{ github.ref_name }}" $setup.FullName $checksum.FullName --repo $env:RELEASE_REPOSITORY --target main --title "ExileQuesting ${{ github.ref_name }}" --notes $notes
