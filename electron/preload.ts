@@ -10,7 +10,7 @@ export interface ReplayResult {
   finalProgress: number;
   errors: string[];
   decisions: Array<{
-    event: { type: string; areaId?: string; areaName?: string; areaLevel?: number };
+    event: { type: string; areaId?: string; areaName?: string; areaLevel?: number; raw?: string };
     progressBefore: number;
     progressAfter: number;
     reason: string;
@@ -45,6 +45,7 @@ const api = {
   copyDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:copy'),
   exportDiagnostics: (): Promise<void> => ipcRenderer.invoke('diagnostics:export'),
   replayDiagnostics: (): Promise<ReplayResult | null> => ipcRenderer.invoke('diagnostics:replay'),
+  exportReplayBundle: (): Promise<boolean> => ipcRenderer.invoke('diagnostics:replay-export'),
   listBuildProfiles: (): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:list'),
   importBuildProfile: (input: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:import', input),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
