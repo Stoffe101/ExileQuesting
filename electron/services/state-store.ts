@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-profiles';
 import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson } from '../../src/core/persistence';
 import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from '../../src/core/types';
 
@@ -43,5 +44,14 @@ export class StateStore {
   async loadRewards(allowedStepIds?: Set<string>): Promise<Set<string>> {
     try { return normalizeRewardDocument(await this.readUnknown('reward-audit.json'), allowedStepIds); }
     catch { return new Set(); }
+  }
+
+  async loadBuildProfiles(): Promise<BuildProfile[]> {
+    try { return normalizeBuildProfiles(await this.readUnknown('build-profiles.json')); }
+    catch { return []; }
+  }
+
+  async saveBuildProfiles(profiles: BuildProfile[]): Promise<void> {
+    await this.write('build-profiles.json', normalizeBuildProfiles(profiles));
   }
 }
