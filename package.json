@@ -4,7 +4,7 @@
   "description": "A modern, build-aware Path of Exile campaign companion.",
   "main": "dist-electron/main.cjs",
   "author": "Stoffe101",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 npm run dev:electron\"",
     "dev:electron": "npm run build:electron && electron .",
@@ -57,7 +57,9 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "extraResources": [
       {
