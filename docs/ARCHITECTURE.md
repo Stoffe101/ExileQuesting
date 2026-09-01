@@ -26,7 +26,7 @@ flowchart TD
   Domain --> Manager["Desktop manager"]
   Domain --> Overlay["Compact / Focus / Coach overlay"]
 
-  Releases["GitHub Releases"] --> AppUpdate["Installed-app updater"]
+  Releases["Public GitHub Releases"] --> AppUpdate["Installed-app updater"]
   AppUpdate --> Installer["Verified NSIS setup"]
 ```
 
@@ -116,7 +116,7 @@ Any failure keeps the existing verified in-memory/bundled dataset active. Remote
 
 `electron/services/app-updater.ts` intentionally updates the installed NSIS application, not individual app files.
 
-1. Query the stable GitHub Releases endpoint.
+1. Query the public `Stoffe101/ExileQuesting` stable GitHub Releases endpoint.
 2. Require a non-draft, non-prerelease semantic version newer than the running application.
 3. Require the exact `ExileQuesting-<version>-setup.exe` asset.
 4. Download to a `.partial` file under Electron `userData/updates`.
@@ -124,9 +124,9 @@ Any failure keeps the existing verified in-memory/bundled dataset active. Remote
 6. Atomically rename the completed installer.
 7. Only after explicit user action, schedule the NSIS installer after ExileQuesting exits.
 
-No GitHub credential is embedded in the app. Consequently, normal clients cannot consume a private GitHub release feed. A public repository or dedicated public release repository is a deployment requirement before distributing self-update to external users.
+No GitHub credential is embedded in the installed app. The public source repository is also the release feed, so ordinary clients can query release metadata anonymously.
 
-`.github/workflows/release.yml` is tag driven. It requires the Git tag to match `package.json`, reruns validation, builds the NSIS installer, smoke-tests an actual installation, creates a SHA-256 checksum and publishes the GitHub Release. Portable distribution is intentionally not maintained.
+`.github/workflows/release.yml` is release-version driven. A package-version change merged to `main` runs the complete release gate and publishes that version if it does not already exist; an explicit matching version tag is also supported. The workflow reruns validation, manager and overlay visual regression, overlay lifecycle soak, builds the NSIS installer, smoke-tests a real installation, creates a SHA-256 checksum and publishes the GitHub Release using the repository-scoped Actions token. Portable distribution is intentionally not maintained.
 
 ## Crash and failure recovery
 
@@ -158,7 +158,13 @@ Mutable state lives under Electron `userData`:
 - `updates/*` downloaded setup files;
 - `logs/main.log`.
 
-JSON writes use a temporary sibling file followed by rename. The installer does not delete user data during normal update/uninstall flows.
+JSON writes use serialized atomic temporary-file replacement. The installer does not delete user data during normal update/uninstall flows.
+
+## Licensing boundary
+
+ExileQuesting's own code is distributed under PolyForm Noncommercial License 1.0.0 for current and future releases. That project license does not relicense third-party material.
+
+The normalized Exile-UI campaign snapshot remains under Exile-UI's MIT terms and attribution, recorded in `THIRD_PARTY_NOTICES.md`. XileHUD remains reference-only GPL-3.0 material and no XileHUD implementation is incorporated. Package and installer contents carry the project license plus third-party notices.
 
 ## Current module boundaries
 
@@ -186,6 +192,7 @@ src/ui
   reliability     updater/run/audit/recovery/trace surfaces
   styles          base visual system
   reliability.css reliability feature styling
+  responsive.css manager viewport/responsive behavior
 ```
 
 PoB, Gear Coach and Crafting Coach should continue to enter through pure typed core modules rather than expanding Electron/main-process logic directly.

@@ -52,10 +52,10 @@ export class AppUpdater {
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) {
-        const privateHint = response.status === 404
-          ? ' The release repository must be public (or moved to a separate public release repository) before end-user updates can work; ExileQuesting never embeds a GitHub token.'
+        const feedHint = response.status === 404
+          ? ' No stable ExileQuesting GitHub Release has been published yet. The application can still be used normally.'
           : '';
-        throw new Error(`GitHub release check returned HTTP ${response.status}.${privateHint}`);
+        throw new Error(`GitHub release check returned HTTP ${response.status}.${feedHint}`);
       }
       const release = parseLatestRelease(await response.json());
       if (!release) throw new Error('The latest GitHub release does not contain a valid ExileQuesting setup asset.');

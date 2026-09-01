@@ -103,7 +103,7 @@ The area database contains campaign IDs, human-readable names, area levels, alte
 
 ### Adaptation decision
 
-ExileQuesting does not fork the AHK application. It consumes the MIT-licensed campaign data through an adapter and maps each route page to our own `CampaignStep` schema. Our UI, settings, persistence, updater, annotations, and future PoB/crafting systems depend only on that normalized schema.
+ExileQuesting does not fork the AHK application. It consumes the MIT-licensed campaign data through an adapter and maps each route page to our own `CampaignStep` schema. Our UI, settings, persistence, updater, annotations, and future PoB/crafting systems depend only on that normalized schema. ExileQuesting's own current code is licensed separately under PolyForm Noncommercial License 1.0.0; bundled Exile-UI material retains its MIT terms and attribution.
 
 ## XileHUD deep audit
 
@@ -129,7 +129,7 @@ XileHUD is a large Electron/TypeScript overlay covering PoE1 and PoE2. The repos
 
 ### Ideas not copied directly
 
-- XileHUD is GPL-3.0-only. Incorporating its source would require ExileQuesting as a combined work to follow GPL distribution requirements. ExileQuesting is currently MIT, so the implementation in this repository is independent.
+- XileHUD is GPL-3.0-only. ExileQuesting's implementation is independent and no XileHUD source or bundled data is incorporated. Its GPL obligations therefore remain isolated from this codebase.
 - XileHUD's very broad feature surface creates a large main process and many windows. ExileQuesting starts with a small campaign core and module boundaries before adding build/crafting scope.
 - Some current XileHUD code indicates zone detection work exists in more than one UI path. ExileQuesting centralizes log watching in one main-process service.
 
@@ -250,7 +250,7 @@ The previous problems described by the project owner—applications freezing dur
 - no Windows-runner packaging test;
 - no distinction between installer and portable storage expectations.
 
-Mitigations implemented in `0.1.0`:
+Mitigations implemented in the foundation and subsequent hardening releases:
 
 - network and log work run asynchronously in the main process;
 - renderer displays only after `ready-to-show`;
@@ -261,8 +261,9 @@ Mitigations implemented in `0.1.0`:
 - renderer has `nodeIntegration: false`, `contextIsolation: true`, and sandboxing;
 - global startup/rejection logging writes a known diagnostic file;
 - the app falls back to bundled data when cached data is malformed;
-- both NSIS and portable targets are built on `windows-latest`;
-- CI runs type checking, unit tests, and production renderer/main builds first;
+- the NSIS installer is built on `windows-latest`, then installed, started and uninstalled in CI;
+- portable distribution is intentionally not maintained;
+- CI runs type checking, unit tests, simulator/lint gates, responsive manager visuals, overlay visuals and soak tests before packaging;
 - app ID remains stable so upgrades/uninstall identity is not accidentally broken.
 
 Remaining distribution reality: unsigned Windows binaries can trigger SmartScreen. That cannot be honestly “coded away”; a trusted code-signing certificate is required for the best installation experience.
@@ -297,4 +298,3 @@ Remaining distribution reality: unsigned Windows binaries can trigger SmartScree
 ### Later module
 
 Crafting Coach should use independently sourced, licensed PoE data and optional supported integrations. It should convert build gear into weighted goals, offer budget/recommended/high-end paths, explain every action, and validate the manually copied item at stop conditions. It must never automate crafting.
-

@@ -1,0 +1,608 @@
+/* Responsive manager shell
+ *
+ * The overlay owns its own sizing rules. These overrides only target the desktop
+ * manager so content remains readable and reachable across 1080p, 1440p,
+ * ultrawide displays, and resized windows.
+ */
+
+:root {
+  --manager-content-max: 1680px;
+  --manager-gutter: clamp(20px, 2.25vw, 42px);
+  --manager-block-gap: clamp(12px, 1.1vw, 18px);
+}
+
+.app-shell {
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar,
+.manager-main {
+  min-height: 0;
+}
+
+.sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.manager-main {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.manager-main > .page {
+  min-width: 0;
+  min-height: 0;
+}
+
+.page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(24px, 3.25vh, 38px) var(--manager-gutter) clamp(34px, 5vh, 58px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Keep wide displays deliberate without turning the UI into a tiny island. */
+.page > * {
+  width: min(100%, var(--manager-content-max));
+  margin-inline: auto;
+}
+
+/* Scrollbars are intentionally visible in the manager. Hidden scroll affordance
+ * was one of the problems exposed by the first real 1080p test. */
+.page,
+.sidebar,
+.step-list,
+.step-detail,
+.audit-list,
+.trace-list {
+  scrollbar-width: auto;
+  scrollbar-color: #4b5669 #11151d;
+}
+
+.page::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.step-list::-webkit-scrollbar,
+.step-detail::-webkit-scrollbar,
+.audit-list::-webkit-scrollbar,
+.trace-list::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.page::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track,
+.step-list::-webkit-scrollbar-track,
+.step-detail::-webkit-scrollbar-track,
+.audit-list::-webkit-scrollbar-track,
+.trace-list::-webkit-scrollbar-track {
+  background: #11151d;
+  border-radius: 20px;
+}
+
+.page::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb,
+.step-list::-webkit-scrollbar-thumb,
+.step-detail::-webkit-scrollbar-thumb,
+.audit-list::-webkit-scrollbar-thumb,
+.trace-list::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 2px solid #11151d;
+  border-radius: 20px;
+  background: #4b5669;
+}
+
+.page-heading {
+  margin-bottom: clamp(20px, 2.5vh, 30px);
+}
+
+.page-heading h1 {
+  font-size: clamp(30px, 2vw, 40px);
+}
+
+.page-heading p {
+  max-width: 76ch;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.compact-heading h1 {
+  font-size: clamp(28px, 1.8vw, 34px);
+}
+
+/* Overview */
+.metric-grid,
+.dashboard-grid,
+.overview-secondary-grid {
+  gap: var(--manager-block-gap);
+}
+
+.metric {
+  min-height: 128px;
+}
+
+.metric > span,
+.metric small {
+  font-size: 11px;
+}
+
+.metric strong.text-value {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.panel-copy {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.connection-row small {
+  font-size: 10px;
+}
+
+.reward-stats span {
+  font-size: 10px;
+}
+
+/* Campaign. Keep the useful two-pane experience when room exists, but give the
+ * panes an adaptive viewport height and real scrolling. */
+.guide-page {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.guide-page > .page-heading,
+.guide-page > .act-tabs,
+.guide-page > .guide-layout {
+  flex: 0 0 auto;
+}
+
+.guide-layout {
+  height: clamp(520px, calc(100vh - 245px), 900px);
+  min-height: 520px;
+}
+
+.step-list,
+.step-detail {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.step-list button {
+  min-height: 58px;
+}
+
+.step-list button strong {
+  font-size: 12px;
+}
+
+.step-list button small,
+.step-detail .step-title-row p {
+  font-size: 10px;
+}
+
+/* Settings should read like application settings, not firmware labels. */
+.settings-grid {
+  gap: var(--manager-block-gap);
+}
+
+.settings-section {
+  padding: 20px 22px;
+}
+
+.section-title h2 {
+  font-size: 15px;
+}
+
+.section-title > span {
+  font-size: 9px;
+}
+
+.setting-row {
+  min-height: 62px;
+}
+
+.setting-row strong,
+.file-picker strong {
+  font-size: 12px;
+}
+
+.setting-row small,
+.file-picker small,
+.setting-note,
+.slider-field > span,
+.field > span,
+.field select,
+.segmented-control button,
+.position-grid button {
+  font-size: 11px;
+}
+
+.file-picker small {
+  max-width: min(54vw, 720px);
+}
+
+.slider-field em {
+  font-size: 10px;
+}
+
+/* Diagnostics was visually undersized in the first real Windows screenshots.
+ * Troubleshooting information is intentionally a little larger than ordinary
+ * secondary manager copy. */
+.diagnostics-page .panel-copy,
+.diagnostics-page .source-message {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.diagnostic-grid {
+  gap: var(--manager-block-gap);
+}
+
+.diagnostic-card {
+  padding: clamp(20px, 1.4vw, 24px);
+}
+
+.diagnostic-list {
+  grid-template-columns: clamp(145px, 10vw, 185px) minmax(0, 1fr);
+  margin-top: 12px;
+}
+
+.diagnostic-list dt,
+.diagnostic-list dd {
+  padding: 10px 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.diagnostic-list dt {
+  padding-right: 12px;
+  color: #929cad;
+  font-weight: 600;
+}
+
+.diagnostic-list dd {
+  color: #d9dee6;
+}
+
+.history-list > div {
+  grid-template-columns: 82px 74px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 10px;
+}
+
+.history-list span,
+.history-list strong,
+.history-list small,
+.history-list p {
+  font-size: 11px;
+}
+
+.diagnostic-summary {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.diagnostic-summary > div {
+  min-width: 0;
+  padding: 14px;
+}
+
+.diagnostic-summary span,
+.diagnostic-summary small {
+  font-size: 11px;
+}
+
+.diagnostic-summary strong {
+  font-size: 15px;
+}
+
+.trace-entry {
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 12px;
+}
+
+.trace-entry > span,
+.trace-entry small,
+.trace-entry p {
+  font-size: 11px;
+}
+
+.trace-entry strong {
+  font-size: 12px;
+}
+
+.trace-list,
+.audit-list {
+  max-height: min(440px, 48vh);
+  padding-right: 4px;
+}
+
+.audit-item strong {
+  font-size: 12px;
+}
+
+.audit-item small,
+.audit-summary small,
+.more-copy,
+.empty-copy {
+  font-size: 11px;
+}
+
+/* Reliability / updater UI */
+.update-status {
+  align-items: flex-start;
+}
+
+.update-status strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.update-status p,
+.release-notes p,
+.recovery-banner p {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* Medium desktop / default app window. The CSS breakpoint is based on the full
+ * Electron viewport, so it intentionally triggers before content becomes cramped
+ * behind the sidebar. */
+@media (max-width: 1500px) {
+  :root {
+    --manager-gutter: clamp(18px, 2.2vw, 30px);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side-stack {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .settings-grid,
+  .diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wide-section,
+  .wide-diagnostic,
+  .update-panel {
+    grid-column: auto;
+  }
+
+  .overview-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostic-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1250px) {
+  .app-shell {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .topbar {
+    padding-inline: 18px;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .side-stack,
+  .knowledge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-layout {
+    grid-template-columns: minmax(270px, .78fr) minmax(0, 1.3fr);
+  }
+
+  .typography-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .position-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Narrow resized manager. The app is still fully usable rather than relying on
+ * a giant minimum desktop canvas. */
+@media (max-width: 1050px) {
+  .app-shell {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding-inline: 10px;
+  }
+
+  .brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .brand > div:last-child,
+  .sidebar-footer small,
+  .sidebar nav button:not(.active)::after {
+    display: none;
+  }
+
+  .sidebar nav button {
+    justify-content: center;
+    width: 54px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .sidebar nav button i {
+    width: auto;
+    font-size: 17px;
+  }
+
+  .sidebar-footer {
+    align-items: center;
+    padding-inline: 0;
+  }
+
+  .status-pill {
+    font-size: 0;
+  }
+
+  .topbar > div:first-child span {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .guide-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+
+  .step-list,
+  .step-detail {
+    max-height: min(520px, 58vh);
+  }
+
+  .metric-grid,
+  .diagnostic-summary,
+  .audit-summary,
+  .run-clock-row {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-grid > :last-child {
+    grid-column: auto;
+  }
+
+  .heading-actions,
+  .setting-actions,
+  .update-status,
+  .reward-confirm-card,
+  .recovery-banner,
+  .diagnostic-recovery {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .page-heading .heading-actions {
+    width: 100%;
+  }
+
+  .page-heading .heading-actions > button {
+    flex: 1;
+  }
+}
+
+@media (max-height: 820px) {
+  .page {
+    padding-top: 20px;
+    padding-bottom: 34px;
+  }
+
+  .page-heading {
+    margin-bottom: 18px;
+  }
+
+  .metric {
+    min-height: 112px;
+    padding-block: 15px;
+  }
+
+  .guide-layout {
+    height: max(470px, calc(100vh - 205px));
+    min-height: 470px;
+  }
+}
+
+/* Ultrawide displays get a wider reading canvas and slightly larger secondary
+ * typography. The goal is to use the monitor without stretching every panel from
+ * bezel to bezel or making the manager look miniature. */
+@media (min-width: 2200px) {
+  :root {
+    --manager-content-max: 2200px;
+    --manager-gutter: clamp(40px, 4vw, 96px);
+  }
+
+  .page-heading h1 {
+    font-size: 42px;
+  }
+
+  .page-heading p {
+    font-size: 15px;
+  }
+
+  .metric > span,
+  .metric small,
+  .panel-copy,
+  .connection-row small,
+  .reward-stats span {
+    font-size: 12px;
+  }
+
+  .action-line {
+    font-size: 13px;
+  }
+
+  .section-title h2 {
+    font-size: 16px;
+  }
+
+  .section-title > span {
+    font-size: 10px;
+  }
+
+  .setting-row strong,
+  .file-picker strong,
+  .step-list button strong {
+    font-size: 13px;
+  }
+
+  .setting-row small,
+  .file-picker small,
+  .setting-note,
+  .slider-field > span,
+  .field > span,
+  .field select,
+  .segmented-control button,
+  .position-grid button,
+  .step-list button small,
+  .step-detail .step-title-row p {
+    font-size: 12px;
+  }
+}
