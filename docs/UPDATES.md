@@ -7,15 +7,15 @@ ExileQuesting uses the public `Stoffe101/ExileQuesting` GitHub Releases feed for
 - Source and release repository: `Stoffe101/ExileQuesting`
 - Installed applications read the public GitHub Releases API anonymously.
 - No GitHub token, PAT, repository credential, or Actions secret is embedded in ExileQuesting.
-- The tagged release workflow builds, verifies, installs, smoke-tests, hashes, and then publishes the Windows setup executable and checksum as a normal GitHub Release.
+- The release workflow builds, verifies, installs, smoke-tests, hashes, and then publishes the Windows setup executable and checksum as a normal GitHub Release.
 
 ## Publishing an application release
 
-The application version in `package.json` should match the pushed version tag. `package-lock.json` is kept in sync as repository metadata.
+The release version comes from `package.json`, with `package-lock.json` kept in sync as repository metadata.
 
-For example, version `0.1.3` is released from tag `v0.1.3`.
+A version bump merged to `main` triggers the release workflow automatically. For example, merging version `0.1.3` creates release tag `v0.1.3` after the complete release gate passes. An explicit matching `v*.*.*` tag is also supported.
 
-The release workflow gates publication on:
+Before publication, the workflow requires:
 
 - production dependency audit;
 - TypeScript typecheck;
@@ -29,7 +29,7 @@ The release workflow gates publication on:
 - clean install, installed-app startup smoke test, and uninstall;
 - SHA-256 checksum generation.
 
-Only after those checks pass does the workflow publish the setup executable and checksum to the repository's GitHub Releases page using the built-in GitHub Actions token.
+Only after those checks pass does the workflow publish the setup executable and checksum to the repository's GitHub Releases page using the built-in repository-scoped GitHub Actions token. If that version's release already exists, the verified build completes without replacing the published release.
 
 ## Installed update flow
 
