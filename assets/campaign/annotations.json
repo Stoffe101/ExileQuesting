@@ -1,0 +1,193 @@
+[
+  {
+    "selector": { "act": 1, "contains": ["kill hillock"] },
+    "title": "Defeat Hillock and enter Lioneye's Watch",
+    "summary": "Stay close enough to keep attacking, sidestep his slow overhead slam, then enter town.",
+    "details": ["Pick up and equip the weapon beside your character before engaging.", "You only need Hillock—do not clear the beach."],
+    "why": "Hillock unlocks the first town, your first skill reward, vendors, and the campaign route.",
+    "speedrun": "Fight beside the town gate so the exit is only a few steps away after the kill."
+  },
+  {
+    "selector": { "act": 1, "areaId": "1_1_2", "contains": ["tarkleigh"] },
+    "title": "Claim your first reward and reach The Coast",
+    "summary": "Take the build-appropriate gem, check vendors for linked sockets and movement-speed boots, then leave town quickly.",
+    "details": ["Socket colours and links matter more than item rarity during early leveling.", "A three-link matching your planned skill can be a larger damage gain than a rare item."],
+    "speedrun": "Know your reward and vendor targets before entering town; town indecision is one of the largest controllable time losses."
+  },
+  {
+    "selector": { "act": 1, "areaId": "1_1_3", "contains": ["3_glyphs"] },
+    "title": "Collect the three glyphs in Mud Flats",
+    "summary": "Open the three Rhoa nests, take every glyph, then use them at the large submerged wall.",
+    "details": ["You do not need to full-clear Mud Flats.", "Keep moving sideways when Rhoas begin a charge."],
+    "warning": "Do not leave with fewer than three glyphs; the wall will not open.",
+    "speedrun": "The streams and shoreline geometry are more useful navigation cues than random monster packs."
+  },
+  {
+    "selector": { "act": 1, "contains": ["chemist's strongbox"] },
+    "title": "Defeat Brutus and leave immediately",
+    "summary": "Complete the prison route, kill Brutus, then return to town for the movement-skill reward.",
+    "details": ["The Chemist's Strongbox is optional; only detour when it is close.", "Keep moving during Brutus's wind-ups rather than trying to tank every hit."],
+    "speedrun": "Use the logout/relog route after the boss instead of running backwards through the prison."
+  },
+  {
+    "selector": { "act": 1, "contains": ["kill merveil"] },
+    "title": "Defeat Merveil and begin Act 2",
+    "summary": "Follow the water flow through the caverns, manage cold damage, and take the Southern Forest exit after the fight.",
+    "details": ["Cold resistance is unusually valuable for this fight.", "Merveil's second phase is safer when you keep repositioning instead of standing in overlapping effects."],
+    "speedrun": "The direction of flowing water is a repeatable layout clue for both Cavern of Anger and the lair."
+  },
+  {
+    "selector": { "act": 2, "areaId": "1_2_6_2", "contains": ["fidelitas"] },
+    "title": "Clear Chamber of Sins and take the Baleful Gem",
+    "summary": "Complete the trial on league start, kill Fidelitas, take the Baleful Gem, and relog to town.",
+    "why": "The Baleful Gem is mandatory for opening the path through the Vaal Ruins later in the act.",
+    "warning": "Confirm the quest item is in your inventory before leaving the boss room.",
+    "speedrun": "The waypoint on level two points toward the exit; start and boss arena tend to occupy opposing corners."
+  },
+  {
+    "selector": { "act": 2, "areaId": "1_2_10", "contains": ["kill weaver"] },
+    "title": "Kill The Weaver and secure Maligaro's Spike",
+    "summary": "Follow the webbed passages to the nest, kill The Weaver, and pick up Maligaro's Spike.",
+    "details": ["The chambers are effectively linear once you identify the correct side of Western Forest.", "Circle the arena to avoid being surrounded by spider adds."],
+    "why": "Maligaro's Spike is required to remove the roots blocking the Vaal Ruins.",
+    "warning": "Do not leave the arena without Maligaro's Spike.",
+    "speedrun": "Search the side of Western Forest without the waypoint for Weaver's Chambers."
+  },
+  {
+    "selector": { "act": 2, "contains": ["kill arteri"] },
+    "title": "Resolve the bandits and reopen the road",
+    "summary": "Follow the selected bandit plan exactly, then kill Captain Arteri and break the Thaumetic Seal.",
+    "details": ["The route changes depending on whether you help a bandit or kill all three.", "The app keeps incompatible bandit branches hidden when your choice is set correctly."],
+    "why": "Breaking the seal opens the passage that reconnects Act 1's Prisoner's Gate and completes The Way Forward.",
+    "speedrun": "Use waypoints and planned relogs between bandit objectives instead of retracing Western Forest."
+  },
+  {
+    "selector": { "act": 2, "contains": ["kill oversoul"] },
+    "title": "Defeat the Vaal Oversoul",
+    "summary": "Climb the Ancient Pyramid, defeat the Oversoul, relog, and waypoint directly to the City of Sarn.",
+    "details": ["Move away when the boss raises an arm for a slam.", "Do not wait beside the burrow point; continue clearing spawned enemies."],
+    "speedrun": "After the first pyramid floor, staircases commonly alternate toward opposite corners."
+  },
+  {
+    "selector": { "act": 3, "areaId": "1_3_10_1", "contains": ["bust_1"] },
+    "title": "Collect the three Platinum Busts",
+    "summary": "Use the sewer landmarks to collect all three busts, activate the waypoint, and continue to the Marketplace.",
+    "warning": "Missing a bust forces an expensive return trip later.",
+    "speedrun": "Room size and the first bust position help predict which side contains the remaining objective."
+  },
+  {
+    "selector": { "act": 3, "contains": ["if_you're_below_lvl_23"] },
+    "title": "Check your level before The Docks",
+    "summary": "Catch up only if needed, then take the Battlefront ribbon spool and continue to The Docks.",
+    "why": "Being too far below the area level reduces experience and can leave damage or defenses behind the route.",
+    "speedrun": "Kill dense magic packs while moving; do not stop for isolated tanky rares just to satisfy a level target."
+  },
+  {
+    "selector": { "act": 3, "contains": ["kill dominus"] },
+    "title": "Defeat Dominus and enter the Aqueduct",
+    "summary": "Reach the rooftop, finish both phases, then take the exit straight into Act 4.",
+    "details": ["Bleed removal is valuable for the second phase.", "Keep the arena transition path clear of dropped items and unnecessary interactions."],
+    "speedrun": "The upper Sceptre uses repeating rotations; recognize the stair pattern instead of clearing each room."
+  },
+  {
+    "selector": { "act": 4, "contains": ["kill voll"] },
+    "title": "Kill Voll and take Deshret's Banner",
+    "summary": "Cross the Dried Lake, defeat Voll, take the banner, and use it at the mine entrance.",
+    "warning": "Confirm Deshret's Banner dropped before leaving Voll's arena.",
+    "speedrun": "The Dried Lake is open; commit to broad directional sweeps instead of checking every edge."
+  },
+  {
+    "selector": { "act": 4, "contains": ["kill malachai"] },
+    "title": "Defeat Malachai and finish Act 4",
+    "summary": "Complete the three organ wings, defeat Malachai, and speak to Dialla to reach Act 5.",
+    "details": ["Treat each organ boss as a checkpoint and refill flasks between encounters when practical.", "Malachai's arena punishes standing still; prioritize survival over squeezing in one extra attack."],
+    "speedrun": "The organ order should minimize backtracking from the central harvest rather than follow perceived difficulty."
+  },
+  {
+    "selector": { "act": 5, "contains": ["kill kitava"] },
+    "title": "Defeat Kitava and prepare for the resistance penalty",
+    "summary": "Finish the Act 5 Kitava encounter, then immediately reassess elemental resistances in Act 6.",
+    "details": ["After Kitava, all elemental resistances are reduced by 30%.", "Use the crafting bench to patch the weakest resistance before continuing."],
+    "why": "The campaign's second half assumes you compensate for the first permanent resistance penalty.",
+    "warning": "Do not judge your defenses by the values you had before this fight."
+  },
+  {
+    "selector": { "act": 6, "areaId": "2_6_2", "contains": ["clear"] },
+    "title": "Clear the Twilight Strand for Lilly Roth",
+    "summary": "Remove every undead monster from the beach, then speak to Lilly to unlock her full gem shop.",
+    "details": ["This detour is especially valuable when your build transitions gems after Act 5.", "Use the vendor search reminder before opening Lilly's inventory."],
+    "why": "Lilly sells virtually every purchasable gem, making later build fixes much easier."
+  },
+  {
+    "selector": { "act": 6, "contains": ["kill tukohama"] },
+    "title": "Defeat Tukohama for a permanent reward",
+    "summary": "Enter the Karui Fortress, defeat Tukohama, and claim the Book of Skill in town.",
+    "warning": "The passive-point turn-in is easy to forget because the main route continues elsewhere.",
+    "speedrun": "Complete the fortress in the same pass through the Coast to avoid a later waypoint detour."
+  },
+  {
+    "selector": { "act": 6, "contains": ["kill brine king"] },
+    "title": "Defeat the Brine King",
+    "summary": "Cross the reef, finish the Brine King encounter, and sail to the Broken Bridge in Act 7.",
+    "details": ["Avoid getting trapped by the shrinking arena during the storm phases.", "Cold and lightning resistance make mistakes less punishing."],
+    "speedrun": "Keep moving during invulnerability phases so you are positioned for the next safe opening."
+  },
+  {
+    "selector": { "act": 7, "contains": ["kill gruthkul"] },
+    "title": "Defeat Gruthkul and take the Fireflies route",
+    "summary": "Finish the Den, collect the permanent reward, and continue the planned Forest Encampment loop.",
+    "warning": "Claim the Book of Skill when the route returns to town.",
+    "speedrun": "Bundle optional-looking permanent-reward objectives into natural waypoint loops; never make a separate late-act trip."
+  },
+  {
+    "selector": { "act": 7, "contains": ["kill arakaali"] },
+    "title": "Defeat Arakaali and enter Act 8",
+    "summary": "Navigate the Temple of Decay, defeat Arakaali, and follow the bridge into the Sarn Ramparts.",
+    "details": ["Keep moving when web effects and adds begin to overlap.", "The arena transition is the act exit; no town return is required."],
+    "speedrun": "Temple floors use repeated edge and staircase cues—commit to the pattern instead of clearing dead ends."
+  },
+  {
+    "selector": { "act": 8, "contains": ["kill doedre"] },
+    "title": "Defeat Doedre and choose the efficient sewer exit",
+    "summary": "Kill Doedre, use the correct sewer branch, and continue the Lunaris/Solaris objective loop.",
+    "details": ["Doedre's arena mechanics become safer when you actively use the valve rather than ignoring debuff stacks."],
+    "speedrun": "The post-boss sewer choice determines which half of the act you reach; verify the next objective before leaving."
+  },
+  {
+    "selector": { "act": 8, "contains": ["kill solaris"] },
+    "title": "Defeat Solaris and Lunaris",
+    "summary": "Bring both moon and sun orbs to the Harbour Bridge, defeat the sisters, and enter the Blood Aqueduct.",
+    "warning": "You need both quest orbs before the final Act 8 encounter opens.",
+    "speedrun": "Treat the two temple wings as one planned loop with waypoint returns, not two independent searches."
+  },
+  {
+    "selector": { "act": 9, "contains": ["kill garukhan"] },
+    "title": "Defeat Garukhan for the passive point",
+    "summary": "Complete the side objective while already passing the Quarry, then claim its Book of Skill.",
+    "why": "This permanent reward is worth the short detour and should not be postponed until after the campaign.",
+    "speedrun": "The Quarry is a hub—finish every required branch before committing to the Belly of the Beast route."
+  },
+  {
+    "selector": { "act": 9, "contains": ["kill the depraved trinity"] },
+    "title": "Defeat the Depraved Trinity",
+    "summary": "Complete the Rotting Core, defeat all three bosses, and take the portal to Oriath Docks.",
+    "details": ["Focus on the currently vulnerable target and keep the center clear for transitions."],
+    "speedrun": "Use the portal created after the encounter; there is no reason to backtrack through the core."
+  },
+  {
+    "selector": { "act": 10, "contains": ["kill vilenta"] },
+    "title": "Defeat Vilenta for the final optional passive point",
+    "summary": "Take the Control Blocks detour, defeat Vilenta, and claim the Book of Skill before finishing the campaign.",
+    "warning": "This is optional for story progression but not optional for a complete passive-point total.",
+    "speedrun": "Do it during the natural Control Blocks pass; returning after Kitava is slower."
+  },
+  {
+    "selector": { "act": 10, "contains": ["kill kitava"] },
+    "title": "Defeat Kitava and enter maps",
+    "summary": "Finish the final campaign encounter, claim pending quest rewards, and verify permanent passives with /passives.",
+    "details": ["Kitava applies another 30% resistance penalty for a total campaign penalty of 60%.", "Before mapping, cap elemental resistances, check flask setup, finish Labyrinth plans, and review your first gear checkpoint."],
+    "why": "This is the transition from campaign routing to atlas progression.",
+    "warning": "Entering maps with uncapped elemental resistances is one of the most common and avoidable early failures."
+  }
+]
+

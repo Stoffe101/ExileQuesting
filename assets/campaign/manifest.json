@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "repository": "Lailloken/Exile-UI",
+  "commit": "2bbbd05237b11be19774979dd4e64ec982f31c0c",
+  "fetchedAt": "2026-09-01T00:00:00Z",
+  "files": {
+    "guide": "data/english/[leveltracker] default guide.json",
+    "areas": "data/english/[leveltracker] areas.json"
+  },
+  "license": "MIT"
+}
+
