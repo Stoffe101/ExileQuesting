@@ -56,6 +56,7 @@ function makeAction(type: RouteActionType, title: string, sourceLine: string, cr
 
 function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
   const lower = raw.toLowerCase();
+  const cleanedRaw = cleanToken(raw);
   const destination = areaNameFromLine(raw, areas);
   const actions: RouteAction[] = [];
 
@@ -65,9 +66,10 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     return actions;
   }
 
-  if (lower.includes('(img:waypoint)') || /\bwaypoint\b/.test(lower)) {
-    if (/activate|click|take|get|grab|waypoint to/i.test(lower)) {
-      actions.push(makeAction('waypoint', destination ? `Activate the ${destination} waypoint` : 'Activate the waypoint', raw));
+  const waypointMarker = /\(img:waypoint\)/i.test(raw);
+  if (waypointMarker || /\bwaypoint\b/.test(lower)) {
+    if (waypointMarker || /activate|click|take|get|grab|waypoint to/i.test(lower)) {
+      actions.push(makeAction('waypoint', destination ? `Activate the waypoint in ${destination}` : 'Activate the waypoint', raw));
     }
   }
 
@@ -87,21 +89,21 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('portal', destination ? `Use a portal for ${destination}` : 'Use the planned portal', raw));
   }
 
-  const kill = cleanToken(raw).match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level)\b|$)/i);
+  const kill = cleanedRaw.match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level)\b|$)/i);
   if (kill) {
     const target = kill[1].replace(/\bchest\b.*$/i, '').trim();
     if (target) actions.push(makeAction('kill', `Kill ${target}`, raw));
   }
 
-  const collectWords = /\b(?:take|collect|grab|pick up|obtain)\s+([^,;]+?)(?=\s+(?:and|then|from|before|after)\b|$)/i.exec(cleanToken(raw));
+  const collectWords = /\b(?:take|collect|grab|pick up|obtain)\s+([^,;]+?)(?=\s+(?:and|then|from|before|after)\b|$)/i.exec(cleanedRaw);
   if (collectWords && !/waypoint/i.test(collectWords[1])) {
-    actions.push(makeAction('collect', `${collectWords[0].trim()}`, raw));
+    actions.push(makeAction('collect', collectWords[0].trim(), raw));
   }
 
   const quest = parseQuest(raw);
   if (quest) actions.push(quest);
 
-  const questNpc = cleanToken(raw).match(/^quest\s+([a-z' -]+?)(?::|\s+-)/i);
+  const questNpc = cleanedRaw.match(/^quest\s+([a-z' -]+?)(?::|\s+-)/i);
   if (questNpc) actions.push(makeAction('talk', `Talk to ${sentence(questNpc[1])}`, raw));
 
   if (/\bbuy[_ ]gems\b|\bbuy\b.*\bgem/i.test(lower)) {
@@ -112,7 +114,7 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('vendor', 'Check the vendor', raw));
   }
 
-  const explicitEnter = /\b(?:enter|go to|continue to|travel to|head to|waypoint to)\b/i.test(cleanToken(raw));
+  const explicitEnter = /\b(?:enter|go to|continue to|travel to|head to|waypoint to)\b/i.test(cleanedRaw);
   if (destination && explicitEnter && !actions.some((action) => action.type === 'relog')) {
     actions.push(makeAction('travel', `Enter ${destination}`, raw));
   }
