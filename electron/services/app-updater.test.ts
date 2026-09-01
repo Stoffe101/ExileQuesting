@@ -14,10 +14,10 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-async function updater(currentVersion = '0.1.1') {
+async function updater(currentVersion = '0.1.1', repository = 'Stoffe101/ExileQuesting-Releases') {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'exilequesting-update-test-'));
   tempDirs.push(directory);
-  return new AppUpdater({ repository: 'Stoffe101/ExileQuesting-Releases', currentVersion, updatesDirectory: directory, packaged: true, onState: () => undefined });
+  return new AppUpdater({ repository, currentVersion, updatesDirectory: directory, packaged: true, onState: () => undefined });
 }
 
 function release(version: string, bytes: Uint8Array, overrides: Record<string, unknown> = {}) {
@@ -64,6 +64,14 @@ describe('release metadata validation', () => {
 });
 
 describe('AppUpdater failure simulation', () => {
+  it('routes the private source repository through the public release-only feed', async () => {
+    const bytes = new TextEncoder().encode('installer');
+    const fetchMock = vi.fn(async () => jsonResponse(release('0.1.1', bytes)));
+    globalThis.fetch = fetchMock as typeof fetch;
+    expect((await (await updater('0.1.1', 'Stoffe101/ExileQuesting')).check()).status).toBe('up-to-date');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/repos/Stoffe101/ExileQuesting-Releases/releases/latest');
+  });
+
   it('reports up-to-date without downloading', async () => {
     const bytes = new TextEncoder().encode('installer');
     globalThis.fetch = vi.fn(async () => jsonResponse(release('0.1.1', bytes))) as typeof fetch;
