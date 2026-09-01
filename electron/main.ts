@@ -76,6 +76,7 @@ const MAX_REPLAY_BYTES = 64 * 1024 * 1024;
 const isSmokeTest = process.argv.includes('--smoke-test');
 const visualSmokeArgument = process.argv.find((argument) => argument.startsWith('--visual-smoke='));
 const overlaySoakArgument = process.argv.find((argument) => argument.startsWith('--overlay-soak='));
+const isLabSmokeTest = process.argv.includes('--lab-smoke');
 
 const DEFAULT_SETTINGS: AppSettings = {
   logPath: '', guidanceMode: 'beginner', leagueStart: true, bandit: 'none', showOptional: true, autoAdvance: true, autoShowOnZoneChange: true,
@@ -608,6 +609,19 @@ function registerIpc(): void {
   ipcMain.handle('overlay:demo', (_event, value: unknown) => { overlayDemo = sanitizeDemo(value); overlayWindow?.showInactive(); broadcastState(); return overlayState(); });
   ipcMain.handle('overlay:demo-stop', () => { overlayDemo = null; broadcastState(); return runtimeState(); });
   ipcMain.handle('simulation:run', () => runCampaignSimulationSuite(dataset));
+  ipcMain.handle('simulation:export', async () => {
+    const scenarios = runCampaignSimulationSuite(dataset);
+    const options: Electron.SaveDialogOptions = {
+      title: 'Export ExileQuesting campaign simulation',
+      defaultPath: `ExileQuesting-campaign-simulation-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+      filters: [{ name: 'ExileQuesting simulation', extensions: ['json'] }],
+    };
+    const owner = labWindow && !labWindow.isDestroyed() ? labWindow : mainWindow;
+    const result = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return false;
+    await fs.writeFile(result.filePath, JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), appVersion: app.getVersion(), campaign: dataset.source, scenarios }, null, 2), 'utf8');
+    return true;
+  });
   ipcMain.handle('campaign:check', async () => { await checkCampaignUpdates(); return runtimeState(); });
   ipcMain.handle('reward:confirm', async (_event, stepId: string, confirmed: boolean) => {
     if (typeof stepId !== 'string' || stepId.length > 256 || !dataset.steps.some((step) => step.id === stepId && step.permanentReward)) return runtimeState();
@@ -723,6 +737,40 @@ else {
     initializeAppUpdater();
     registerIpc();
 
+    if (isLabSmokeTest) {
+      overlayWindow = createOverlayWindow();
+      labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'), false);
+      wireWindowDiagnostics(labWindow, 'Pre-playtest Lab smoke');
+      await loadRenderer(labWindow, 'lab');
+      await waitForRenderer(labWindow);
+      const smoke = await labWindow.webContents.executeJavaScript(`(async () => {
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const deadline = Date.now() + 6000;
+        while (!document.querySelector('[data-testid="lab-ready"]') && Date.now() < deadline) await wait(100);
+        const ready = Boolean(document.querySelector('[data-testid="lab-ready"]'));
+        const api = window.exileQuesting;
+        const preview = document.querySelector('[data-testid="lab-preview"]');
+        const walk = document.querySelector('[data-testid="lab-autowalk"]');
+        const slider = document.querySelector('input[type="range"]');
+        if (!ready || !api || !preview || !walk || !slider) return { ready, bridge: Boolean(api), controls: false };
+        preview.click();
+        await wait(350);
+        const before = Number(slider.value);
+        walk.click();
+        await wait(2100);
+        const after = Number(slider.value);
+        walk.click();
+        const scenarios = await api.runCampaignSimulation();
+        return { ready, bridge: true, controls: true, before, after, scenarioCount: scenarios.length, allPassed: scenarios.every((item) => item.report.passed) };
+      })()`, true) as { ready: boolean; bridge: boolean; controls?: boolean; before?: number; after?: number; scenarioCount?: number; allPassed?: boolean };
+      if (!smoke.ready || !smoke.bridge || !smoke.controls || Number(smoke.after) <= Number(smoke.before) || smoke.scenarioCount !== 6 || !smoke.allPassed || !overlayWindow.isVisible()) {
+        throw new Error(`Pre-playtest Lab smoke failed: ${JSON.stringify(smoke)}`);
+      }
+      log.info('Pre-playtest Lab smoke passed.', smoke);
+      app.exit(0);
+      return;
+    }
+
     if (visualSmokeArgument || overlaySoakArgument) {
       overlayWindow = createOverlayWindow();
       if (visualSmokeArgument) await runVisualSmoke(visualSmokeArgument);
@@ -741,7 +789,7 @@ else {
     if (settings.autoCheckAppUpdates) { appUpdateTimer = setInterval(() => void appUpdater?.check(), APP_UPDATE_CHECK_INTERVAL_MS); setTimeout(() => void appUpdater?.check(), 8_000); }
   }).catch((error) => {
     log.error('Fatal startup failure.', error);
-    if (isSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }
+    if (isSmokeTest || isLabSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }
     void dialog.showErrorBox('ExileQuesting could not start', `The application hit a startup error. A diagnostic log was written to:\n${log.transports.file.getFile().path}\n\n${error instanceof Error ? error.message : String(error)}`);
     app.quit();
   });

@@ -1,7 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { normalizeCampaign } from '../src/core/campaign';
-import { simulateCanonicalCampaign, simulationReportMarkdown } from '../src/core/simulator';
+import { simulationReportMarkdown } from '../src/core/simulator';
+import { runCampaignSimulationSuite } from '../src/core/simulation-suite';
 import type { GuidanceAnnotation, LayoutHint, RawAreas, RawGuide } from '../src/core/types';
 
 const root = process.cwd();
@@ -24,16 +25,7 @@ const dataset = normalizeCampaign(guide, areas, annotations, {
   license: 'MIT',
 }, layouts);
 
-const scenarios = [
-  { name: 'League start · all optional · kill all bandits', options: { leagueStart: true, showOptional: true, bandit: 'none' as const } },
-  { name: 'League start · optional hidden', options: { leagueStart: true, showOptional: false, bandit: 'none' as const } },
-  { name: 'Twink/non-league-start · all optional', options: { leagueStart: false, showOptional: true, bandit: 'none' as const } },
-  { name: 'Bandit · Alira', options: { leagueStart: true, showOptional: true, bandit: 'alira' as const } },
-  { name: 'Bandit · Kraityn', options: { leagueStart: true, showOptional: true, bandit: 'kraityn' as const } },
-  { name: 'Bandit · Oak', options: { leagueStart: true, showOptional: true, bandit: 'oak' as const } },
-];
-
-const results = scenarios.map((scenario) => ({ ...scenario, report: simulateCanonicalCampaign(dataset, scenario.options) }));
+const results = runCampaignSimulationSuite(dataset);
 const outputDir = path.join(root, 'artifacts', 'simulation');
 await mkdir(outputDir, { recursive: true });
 await writeFile(path.join(outputDir, 'campaign-simulation.json'), JSON.stringify(results, null, 2), 'utf8');
