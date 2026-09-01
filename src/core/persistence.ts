@@ -9,20 +9,12 @@ export const MAX_RUN_HISTORY = 20;
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
-
-function boolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
+function boolean(value: unknown, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function finite(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
 }
-
-function boundedString(value: unknown, fallback: string, max = 4096): string {
-  return typeof value === 'string' && value.length <= max ? value : fallback;
-}
-
+function boundedString(value: unknown, fallback: string, max = 4096): string { return typeof value === 'string' && value.length <= max ? value : fallback; }
 function enumValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? value as T : fallback;
 }
@@ -46,7 +38,7 @@ export function normalizeSettingsDocument(value: unknown, defaults: AppSettings)
     autoAdvance: boolean(source.autoAdvance, defaults.autoAdvance),
     autoShowOnZoneChange: boolean(source.autoShowOnZoneChange, defaults.autoShowOnZoneChange),
     overlayOpacity: finite(source.overlayOpacity, defaults.overlayOpacity, 0.35, 1),
-    overlayScale: finite(source.overlayScale, defaults.overlayScale, 0.7, 2),
+    overlayScale: finite(source.overlayScale, defaults.overlayScale, 0.75, 1.5),
     overlayClickThrough: boolean(source.overlayClickThrough, defaults.overlayClickThrough),
     overlayMode: enumValue(source.overlayMode, ['focus', 'compact', 'coach'] as const, defaults.overlayMode),
     overlayTypography: {
@@ -90,19 +82,16 @@ function validHistoryEntry(value: unknown): value is ProgressHistoryEntry {
   const item = record(value);
   return Boolean(item && typeof item.id === 'string' && typeof item.at === 'string' && Number.isInteger(item.from) && Number.isInteger(item.to) && typeof item.reason === 'string' && ['verified', 'inferred', 'manual'].includes(String(item.confidence)));
 }
-
 export function normalizeProgressDocument(value: unknown, maxStepIndex: number): { progress: number; history: ProgressHistoryEntry[] } {
   const source = record(value) ?? {};
   const progress = Math.max(0, Math.min(maxStepIndex, Number.isInteger(source.progress) ? Number(source.progress) : 0));
   const history = Array.isArray(source.history) ? source.history.filter(validHistoryEntry).slice(-MAX_PROGRESS_HISTORY) : [];
   return { progress, history };
 }
-
 function validRunHistory(value: unknown): value is RunHistoryEntry {
   const item = record(value);
   return Boolean(item && typeof item.id === 'string' && typeof item.startedAt === 'string' && typeof item.finishedAt === 'string' && Number.isFinite(item.totalMs) && Number(item.totalMs) >= 0 && Array.isArray(item.splits));
 }
-
 export function normalizeRunDocument(value: unknown): { session: RunSession; history: RunHistoryEntry[] } {
   const source = record(value) ?? {};
   const candidate = record(source.session);
@@ -120,7 +109,6 @@ export function normalizeRunDocument(value: unknown): { session: RunSession; his
   const history = Array.isArray(source.history) ? source.history.filter(validRunHistory).slice(-MAX_RUN_HISTORY) : [];
   return { session, history };
 }
-
 export function normalizeRewardDocument(value: unknown, allowedStepIds?: Set<string>): Set<string> {
   const source = record(value) ?? {};
   const ids = Array.isArray(source.confirmedStepIds) ? source.confirmedStepIds.filter((id): id is string => typeof id === 'string' && id.length <= 256) : [];
