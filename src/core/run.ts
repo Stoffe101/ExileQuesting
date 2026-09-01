@@ -78,20 +78,22 @@ export function recordActTransition(session: RunSession, nextAct: number, now = 
 
 export function finishRun(session: RunSession, now = new Date()): { session: RunSession; history?: RunHistoryEntry } {
   if (!session.startedAt || session.state === 'idle' || session.state === 'finished') return { session };
+  const startedAt = session.startedAt;
+  const finishedAt = now.toISOString();
   let settled = settleTownTime(session, now);
   const elapsedMs = elapsedRunMs(settled, now.getTime());
   const splits: ActSplit[] = [...settled.splits];
   const currentAct = settled.currentAct;
   if (currentAct && !splits.some((split) => split.act === currentAct)) {
-    splits.push({ act: currentAct, at: now.toISOString(), elapsedMs });
+    splits.push({ act: currentAct, at: finishedAt, elapsedMs });
   }
-  settled = { ...settled, state: 'finished', finishedAt: now.toISOString(), pausedAt: undefined, splits };
+  settled = { ...settled, state: 'finished', finishedAt, pausedAt: undefined, splits };
   return {
     session: settled,
     history: {
-      id: `${settled.startedAt}:${settled.finishedAt}`,
-      startedAt: settled.startedAt,
-      finishedAt: settled.finishedAt,
+      id: `${startedAt}:${finishedAt}`,
+      startedAt,
+      finishedAt,
       totalMs: elapsedMs,
       townTimeMs: settled.townTimeMs,
       splits,
