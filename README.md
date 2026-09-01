@@ -4,6 +4,8 @@ ExileQuesting is a modern Path of Exile campaign companion focused on one promis
 
 > Get from Twilight Strand to maps without wondering where to go, what to collect, or why the route is asking you to do it.
 
+Current development milestone: **v0.1.2 pre-playtest simulator + hardening**.
+
 The current campaign foundation provides:
 
 - a complete Acts 1–10 route derived from Exile-UI's proven campaign data;
@@ -24,7 +26,10 @@ The current campaign foundation provides:
 - staged upstream updates with structural validation, a data-only compatibility manifest, and a last-known-good fallback;
 - installed-application update checking, verified installer download, and restart-to-install flow;
 - live diagnostics, persistent settings/progress, configurable global hotkeys, tray controls, and first-run onboarding;
-- a Windows NSIS installer validated by GitHub Actions.
+- a deterministic Acts 1–10 campaign simulator, captured-log replay and replay-bundle export;
+- a Pre-playtest Lab for browsing any route page in the real overlay without mutating saved progress;
+- Windows overlay visual regression at multiple DPI scale factors plus a real Electron window lifecycle soak;
+- a Windows NSIS installer validated through clean install, installed-app startup and uninstall in GitHub Actions.
 
 ## Safety boundary
 
@@ -46,15 +51,38 @@ npm install
 npm run dev
 ```
 
-Validation:
+Complete deterministic pre-playtest verification:
 
 ```bash
-npm audit --omit=dev
-npm run typecheck
+npm run verify:preplaytest
+```
+
+That runs type checking, unit/regression tests, the 228-page campaign audit, semantic campaign lint and the full Acts 1–10 simulator.
+
+Useful focused commands:
+
+```bash
 npm test
 npm run audit:campaign
-npm run build
+npm run lint:campaign
+npm run simulate:campaign
+npm run visual:overlay
+npm run soak:overlay
 ```
+
+`npm run visual:overlay` and `npm run soak:overlay` launch the real Electron overlay in dedicated test modes. The Windows GitHub Actions workflow additionally renders the visual matrix at 100%, 125% and 150% Chromium scale factors, checks DOM overflow, runs the overlay lifecycle soak, builds the installer, installs it into a clean directory, launches the installed application in smoke-test mode, and silently uninstalls it.
+
+### Pre-playtest Lab
+
+Run the application normally and open **Pre-playtest Lab** from the tray menu. The Lab can:
+
+- preview any campaign page in Compact, Focus or Coach without changing real campaign progress;
+- override simulated character and area levels;
+- auto-walk through the campaign overlay for content review;
+- replay a captured `Client.txt` through the real parser/progression pipeline without mutating live progress;
+- export the latest replay as a JSON regression bundle with app/campaign provenance and route decisions.
+
+Any real detection bug found during live play should be reduced to a captured fixture and kept as a permanent regression test.
 
 Windows installer:
 
@@ -62,11 +90,11 @@ Windows installer:
 npm run dist
 ```
 
-`release/` contains the NSIS setup executable. Portable distribution is intentionally not maintained. The GitHub Actions Windows workflow installs the package silently into a clean test directory, launches the installed application in smoke-test mode, and uninstalls it again.
+`release/` contains the NSIS setup executable. Portable distribution is intentionally not maintained.
 
 ## Application releases and updates
 
-A version tag such as `v0.2.0` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns the complete validation suite, builds and smoke-tests the NSIS installer, generates a SHA-256 checksum, and then publishes the GitHub Release.
+A version tag such as `v0.1.2` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns deterministic verification, overlay visual regression, overlay lifecycle soak and the installed-app smoke test, generates a SHA-256 checksum, and only then publishes the GitHub Release.
 
 The installed application can check the stable release feed, download the exact `ExileQuesting-<version>-setup.exe` asset, validate its reported size and GitHub-provided SHA-256 digest when available, then schedule the installer after ExileQuesting exits. No GitHub credential is embedded in the application.
 
@@ -91,9 +119,21 @@ The application never activates a new upstream file merely because it exists or 
 
 The bundled route contains 228 pages. `npm run audit:campaign` verifies that every page exposes at least one decisive structured-action signal and reports upstream token/jargon leakage candidates, bespoke guidance coverage, stale selector coverage, and warning coverage. High-value campaign coaching is maintained separately from the upstream route so upstream changes can be audited without replacing our teaching layer.
 
+## What automation cannot replace
+
+The remaining campaign-release checks need a real Path of Exile session and real Windows hardware:
+
+- actual Client.txt event order/timing and any log forms not represented by fixtures;
+- always-on-top and click-through behavior over the game;
+- global hotkeys while PoE has focus;
+- glance readability during combat;
+- real multi-monitor and mixed-DPI placement;
+- whether guidance appears at the right moment, not merely whether it is logically correct;
+- final SmartScreen/end-user installer and update behavior.
+
 ## Project direction
 
-The next major milestone after the campaign reliability pass is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model.
+The next major milestone after real campaign validation is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model. A bounded PoB parser, pobb.in fetch service and persistent Build Profile foundation already exist in v0.1.2.
 
 Later modules include:
 
@@ -103,7 +143,7 @@ Later modules include:
 - clipboard item parsing and Gear Coach;
 - a step-by-step Crafting Coach with item-state validation.
 
-See [docs/RESEARCH.md](docs/RESEARCH.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/OVERLAY_V2.md](docs/OVERLAY_V2.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
+See [docs/PRE_PLAYTEST.md](docs/PRE_PLAYTEST.md), [docs/RESEARCH.md](docs/RESEARCH.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/OVERLAY_V2.md](docs/OVERLAY_V2.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Attribution and license
 
