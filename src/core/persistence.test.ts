@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson } from './persistence';
+import { migrateSettingsDocument, normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, SETTINGS_SCHEMA_VERSION, settingsDocument } from './persistence';
 import type { AppSettings } from './types';
 
 const defaults: AppSettings = {
@@ -13,12 +13,26 @@ const defaults: AppSettings = {
 };
 
 describe('persistence migrations', () => {
-  it('loads a sparse legacy settings document with current defaults', () => {
-    const result = normalizeSettingsDocument({ guidanceMode: 'racer', overlayOpacity: 0.7 }, defaults);
+  it('loads a sparse unversioned v0 settings document with current defaults', () => {
+    const legacy = { guidanceMode: 'racer', overlayOpacity: 0.7 };
+    expect(migrateSettingsDocument(legacy)).toMatchObject({ schemaVersion: SETTINGS_SCHEMA_VERSION, settings: legacy });
+    const result = normalizeSettingsDocument(legacy, defaults);
     expect(result.guidanceMode).toBe('racer');
     expect(result.overlayOpacity).toBe(0.7);
     expect(result.overlayTypography).toEqual(defaults.overlayTypography);
     expect(result.hotkeys).toEqual(defaults.hotkeys);
+  });
+
+  it('round-trips the explicit v1 settings envelope', () => {
+    const saved = settingsDocument({ ...defaults, guidanceMode: 'balanced', overlayScale: 1.25 });
+    expect(saved.schemaVersion).toBe(1);
+    expect(normalizeSettingsDocument(saved, defaults)).toMatchObject({ guidanceMode: 'balanced', overlayScale: 1.25 });
+  });
+
+  it('does not trust unknown fields from a newer settings envelope', () => {
+    const result = normalizeSettingsDocument({ schemaVersion: 99, settings: { guidanceMode: 'racer', madeUpDangerousFlag: true } }, defaults);
+    expect(result.guidanceMode).toBe('racer');
+    expect('madeUpDangerousFlag' in result).toBe(false);
   });
 
   it('clamps hostile/extreme settings instead of trusting persisted JSON', () => {
