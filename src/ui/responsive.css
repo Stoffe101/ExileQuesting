@@ -49,7 +49,7 @@
   scrollbar-gutter: stable;
 }
 
-/* Keep ultrawide displays from stretching every card into a runway. */
+/* Keep wide displays deliberate without turning the UI into a tiny island. */
 .page > * {
   width: min(100%, var(--manager-content-max));
   margin-inline: auto;
@@ -238,10 +238,12 @@
   font-size: 10px;
 }
 
-/* Diagnostics was visually undersized in the first real 1080p screenshots. */
+/* Diagnostics was visually undersized in the first real Windows screenshots.
+ * Troubleshooting information is intentionally a little larger than ordinary
+ * secondary manager copy. */
 .diagnostics-page .panel-copy,
 .diagnostics-page .source-message {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -254,14 +256,14 @@
 }
 
 .diagnostic-list {
-  grid-template-columns: clamp(140px, 10vw, 175px) minmax(0, 1fr);
+  grid-template-columns: clamp(145px, 10vw, 185px) minmax(0, 1fr);
   margin-top: 12px;
 }
 
 .diagnostic-list dt,
 .diagnostic-list dd {
   padding: 10px 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -276,7 +278,7 @@
 }
 
 .history-list > div {
-  grid-template-columns: 76px 70px minmax(0, 1fr);
+  grid-template-columns: 82px 74px minmax(0, 1fr);
   gap: 10px;
   padding: 9px 10px;
 }
@@ -285,7 +287,7 @@
 .history-list strong,
 .history-list small,
 .history-list p {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .diagnostic-summary {
@@ -301,15 +303,15 @@
 
 .diagnostic-summary span,
 .diagnostic-summary small {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .diagnostic-summary strong {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .trace-entry {
-  grid-template-columns: 82px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   gap: 12px;
   padding: 11px 12px;
 }
@@ -317,16 +319,16 @@
 .trace-entry > span,
 .trace-entry small,
 .trace-entry p {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .trace-entry strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .trace-list,
 .audit-list {
-  max-height: min(420px, 48vh);
+  max-height: min(440px, 48vh);
   padding-right: 4px;
 }
 
@@ -338,7 +340,7 @@
 .audit-summary small,
 .more-copy,
 .empty-copy {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* Reliability / updater UI */
@@ -548,19 +550,59 @@
   }
 }
 
-/* On ultrawide displays, preserve a deliberate reading column rather than
- * scaling information density with monitor width. */
+/* Ultrawide displays get a wider reading canvas and slightly larger secondary
+ * typography. The goal is to use the monitor without stretching every panel from
+ * bezel to bezel or making the manager look miniature. */
 @media (min-width: 2200px) {
   :root {
-    --manager-content-max: 1780px;
-    --manager-gutter: clamp(34px, 4vw, 86px);
+    --manager-content-max: 2200px;
+    --manager-gutter: clamp(40px, 4vw, 96px);
   }
 
   .page-heading h1 {
-    font-size: 40px;
+    font-size: 42px;
   }
 
   .page-heading p {
-    font-size: 14px;
+    font-size: 15px;
+  }
+
+  .metric > span,
+  .metric small,
+  .panel-copy,
+  .connection-row small,
+  .reward-stats span {
+    font-size: 12px;
+  }
+
+  .action-line {
+    font-size: 13px;
+  }
+
+  .section-title h2 {
+    font-size: 16px;
+  }
+
+  .section-title > span {
+    font-size: 10px;
+  }
+
+  .setting-row strong,
+  .file-picker strong,
+  .step-list button strong {
+    font-size: 13px;
+  }
+
+  .setting-row small,
+  .file-picker small,
+  .setting-note,
+  .slider-field > span,
+  .field > span,
+  .field select,
+  .segmented-control button,
+  .position-grid button,
+  .step-list button small,
+  .step-detail .step-title-row p {
+    font-size: 12px;
   }
 }
