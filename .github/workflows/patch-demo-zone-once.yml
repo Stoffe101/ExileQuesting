@@ -1,0 +1,40 @@
+name: Patch realistic overlay demo zone once
+
+on:
+  push:
+    branches: [codex/pre-playtest-simulator-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pre-playtest-simulator-hardening
+          fetch-depth: 0
+      - name: Patch demo zone inference
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'electron/main.ts';
+          let text = fs.readFileSync(file, 'utf8');
+          const from = `  const step = dataset.steps[demoProgress];\n  const areaLevel = overlayDemo.areaLevel ?? step.areaLevel;\n  const level = overlayDemo.characterLevel ?? Math.max(1, (areaLevel ?? 1) - 2);`;
+          const to = `  const step = dataset.steps[demoProgress];\n  const previousAreaStep = dataset.steps.slice(0, demoProgress).reverse().find((candidate) => enabled(candidate) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));\n  const detectedArea = previousAreaStep?.targetAreaId ? dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;\n  const areaLevel = overlayDemo.areaLevel ?? detectedArea?.lvl ?? previousAreaStep?.areaLevel ?? step.areaLevel;\n  const level = overlayDemo.characterLevel ?? Math.max(1, (areaLevel ?? 1) - 2);`;
+          if (!text.includes(from)) throw new Error('Could not locate overlay demo inference anchor.');
+          text = text.replace(from, to);
+          text = text.replace("    currentZone: step.targetArea ?? 'Overlay demo',\n    currentAreaId: step.targetAreaId,", "    currentZone: previousAreaStep?.targetArea ?? (demoProgress === 0 ? 'Waiting for zone detection' : 'Overlay demo'),\n    currentAreaId: previousAreaStep?.targetAreaId,");
+          fs.writeFileSync(file, text);
+          NODE
+      - name: Commit patch and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git rm .github/workflows/patch-demo-zone-once.yml
+          git commit -m "Make overlay demo zone semantics realistic [bot]"
+          git push origin HEAD:codex/pre-playtest-simulator-hardening
