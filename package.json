@@ -17,6 +17,7 @@
     "audit:campaign": "node tools/audit-campaign.mjs",
     "lint:campaign": "esbuild tools/lint-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/lint-campaign.mjs && node .tmp/lint-campaign.mjs",
     "simulate:campaign": "esbuild tools/simulate-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/simulate-campaign.mjs && node .tmp/simulate-campaign.mjs",
+    "visual:overlay": "npm run build && electron . --visual-smoke=artifacts/visual",
     "verify:preplaytest": "npm run typecheck && npm test && npm run audit:campaign && npm run lint:campaign && npm run simulate:campaign",
     "check:upstream": "node tools/check-upstream.mjs",
     "dist": "npm run build && electron-builder --win nsis",
@@ -47,27 +48,10 @@
     "appId": "dev.stoffe.exilequesting",
     "productName": "ExileQuesting",
     "asar": true,
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "assets/campaign",
-        "to": "campaign"
-      }
-    ],
-    "win": {
-      "icon": "build/icon.ico",
-      "target": [
-        { "target": "nsis", "arch": ["x64"] }
-      ]
-    },
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
+    "extraResources": [{ "from": "assets/campaign", "to": "campaign" }],
+    "win": { "icon": "build/icon.ico", "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
