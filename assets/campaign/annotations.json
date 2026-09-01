@@ -15,12 +15,19 @@
     "speedrun": "Know your reward and vendor targets before entering town; town indecision is one of the largest controllable time losses."
   },
   {
-    "selector": { "act": 1, "areaId": "1_1_3", "contains": ["3_glyphs"] },
+    "selector": { "act": 1, "contains": ["3_glyphs"] },
     "title": "Collect the three glyphs in Mud Flats",
     "summary": "Open the three Rhoa nests, take every glyph, then use them at the large submerged wall.",
     "details": ["You do not need to full-clear Mud Flats.", "Keep moving sideways when Rhoas begin a charge."],
     "warning": "Do not leave with fewer than three glyphs; the wall will not open.",
     "speedrun": "The streams and shoreline geometry are more useful navigation cues than random monster packs."
+  },
+  {
+    "selector": { "act": 1, "contains": ["kill hailrake"] },
+    "title": "Kill Hailrake and take the Medicine Chest",
+    "summary": "Follow the shoreline route, kill Hailrake, take the chest, then use the planned relog back to town.",
+    "warning": "Take the Medicine Chest before leaving Tidal Island.",
+    "speedrun": "Keep the return trip short by relogging once the quest item is secured."
   },
   {
     "selector": { "act": 1, "contains": ["chemist's strongbox"] },
@@ -30,6 +37,12 @@
     "speedrun": "Use the logout/relog route after the boss instead of running backwards through the prison."
   },
   {
+    "selector": { "act": 1, "contains": ["kill fairgraves"] },
+    "title": "Finish Fairgraves while passing Ship Graveyard",
+    "summary": "Complete the Fairgraves objective during the natural route through Ship Graveyard so it does not become a separate return trip.",
+    "speedrun": "Bundle side objectives into the first pass through an area whenever the route already takes you beside them."
+  },
+  {
     "selector": { "act": 1, "contains": ["kill merveil"] },
     "title": "Defeat Merveil and begin Act 2",
     "summary": "Follow the water flow through the caverns, manage cold damage, and take the Southern Forest exit after the fight.",
@@ -37,7 +50,7 @@
     "speedrun": "The direction of flowing water is a repeatable layout clue for both Cavern of Anger and the lair."
   },
   {
-    "selector": { "act": 2, "areaId": "1_2_6_2", "contains": ["fidelitas"] },
+    "selector": { "act": 2, "contains": ["fidelitas"] },
     "title": "Clear Chamber of Sins and take the Baleful Gem",
     "summary": "Complete the trial on league start, kill Fidelitas, take the Baleful Gem, and relog to town.",
     "why": "The Baleful Gem is mandatory for opening the path through the Vaal Ruins later in the act.",
@@ -45,7 +58,7 @@
     "speedrun": "The waypoint on level two points toward the exit; start and boss arena tend to occupy opposing corners."
   },
   {
-    "selector": { "act": 2, "areaId": "1_2_10", "contains": ["kill weaver"] },
+    "selector": { "act": 2, "contains": ["kill weaver"] },
     "title": "Kill The Weaver and secure Maligaro's Spike",
     "summary": "Follow the webbed passages to the nest, kill The Weaver, and pick up Maligaro's Spike.",
     "details": ["The chambers are effectively linear once you identify the correct side of Western Forest.", "Circle the arena to avoid being surrounded by spider adds."],
@@ -69,7 +82,7 @@
     "speedrun": "After the first pyramid floor, staircases commonly alternate toward opposite corners."
   },
   {
-    "selector": { "act": 3, "areaId": "1_3_10_1", "contains": ["bust_1"] },
+    "selector": { "act": 3, "contains": ["bust_1"] },
     "title": "Collect the three Platinum Busts",
     "summary": "Use the sewer landmarks to collect all three busts, activate the waypoint, and continue to the Marketplace.",
     "warning": "Missing a bust forces an expensive return trip later.",
@@ -112,7 +125,7 @@
     "warning": "Do not judge your defenses by the values you had before this fight."
   },
   {
-    "selector": { "act": 6, "areaId": "2_6_2", "contains": ["clear"] },
+    "selector": { "act": 6, "contains": ["kill everything"] },
     "title": "Clear the Twilight Strand for Lilly Roth",
     "summary": "Remove every undead monster from the beach, then speak to Lilly to unlock her full gem shop.",
     "details": ["This detour is especially valuable when your build transitions gems after Act 5.", "Use the vendor search reminder before opening Lilly's inventory."],
@@ -126,11 +139,35 @@
     "speedrun": "Complete the fortress in the same pass through the Coast to avoid a later waypoint detour."
   },
   {
-    "selector": { "act": 6, "contains": ["kill brine king"] },
+    "selector": { "act": 6, "contains": ["kill abberath"] },
+    "title": "Defeat Abberath during the Prisoner's Gate pass",
+    "summary": "Take the side passage, defeat Abberath, then continue the main route instead of returning later.",
+    "warning": "This objective contributes a permanent passive-point reward after turn-in."
+  },
+  {
+    "selector": { "act": 6, "contains": ["kill ryslatha"] },
+    "title": "Defeat Ryslatha before leaving the Wetlands loop",
+    "summary": "Finish Ryslatha while the route already has you in the Wetlands, then use the planned relog to town.",
+    "warning": "Do not postpone permanent-reward side objectives when they are already on your route."
+  },
+  {
+    "selector": { "act": 6, "contains": ["kill tsoa"] },
     "title": "Defeat the Brine King",
-    "summary": "Cross the reef, finish the Brine King encounter, and sail to the Broken Bridge in Act 7.",
+    "summary": "Navigate the reef, finish the Brine King encounter, and return to Lioneye's Watch for the Act 7 transition.",
     "details": ["Avoid getting trapped by the shrinking arena during the storm phases.", "Cold and lightning resistance make mistakes less punishing."],
     "speedrun": "Keep moving during invulnerability phases so you are positioned for the next safe opening."
+  },
+  {
+    "selector": { "act": 7, "contains": ["kill maligaro"] },
+    "title": "Kill Maligaro and secure the Black Venom",
+    "summary": "Use the map device route, kill Maligaro, take the quest item, then portal back to Chamber of Sins.",
+    "warning": "Take the Black Venom before using the return portal."
+  },
+  {
+    "selector": { "act": 7, "contains": ["kill greust"] },
+    "title": "Defeat Greust while crossing the Ashen Fields",
+    "summary": "Follow the road, finish Greust, and continue directly into Northern Forest.",
+    "warning": "Remember the related permanent reward when the route next returns to town."
   },
   {
     "selector": { "act": 7, "contains": ["kill gruthkul"] },
@@ -161,18 +198,48 @@
     "speedrun": "Treat the two temple wings as one planned loop with waypoint returns, not two independent searches."
   },
   {
-    "selector": { "act": 9, "contains": ["kill garukhan"] },
+    "selector": { "act": 9, "contains": ["kill basilisk"] },
+    "title": "Kill the Basilisk and take the Acid",
+    "summary": "Finish the Basilisk objective during the Vastiri route, take the quest item, then relog to Highgate.",
+    "warning": "Take the Acid before leaving the area."
+  },
+  {
+    "selector": { "act": 9, "contains": ["kill shakari"] },
+    "title": "Defeat Shakari before returning to Highgate",
+    "summary": "Find the sand pit, kill Shakari, then use the planned relog back to town.",
+    "warning": "Claim the associated Book of Skill on the next Highgate stop."
+  },
+  {
+    "selector": { "act": 9, "contains": ["arena:garukhan"] },
     "title": "Defeat Garukhan for the passive point",
-    "summary": "Complete the side objective while already passing the Quarry, then claim its Book of Skill.",
+    "summary": "Complete the Garukhan side objective while already passing the Quarry, then claim its Book of Skill.",
     "why": "This permanent reward is worth the short detour and should not be postponed until after the campaign.",
     "speedrun": "The Quarry is a hub—finish every required branch before committing to the Belly of the Beast route."
   },
   {
-    "selector": { "act": 9, "contains": ["kill the depraved trinity"] },
+    "selector": { "act": 9, "contains": ["kill adus"] },
+    "title": "Kill General Adus and take the Trarthan Powder",
+    "summary": "Follow the refinery route to the quest icon, kill Adus, take the powder, then relog to Highgate.",
+    "warning": "Take the Trarthan Powder before leaving the refinery."
+  },
+  {
+    "selector": { "act": 9, "contains": ["kill depraved_trinity"] },
     "title": "Defeat the Depraved Trinity",
-    "summary": "Complete the Rotting Core, defeat all three bosses, and take the portal to Oriath Docks.",
+    "summary": "Complete the Rotting Core, defeat all three bosses, and take the route to Oriath Docks.",
     "details": ["Focus on the currently vulnerable target and keep the center clear for transitions."],
-    "speedrun": "Use the portal created after the encounter; there is no reason to backtrack through the core."
+    "speedrun": "Use the transition created after the encounter; there is no reason to backtrack through the core."
+  },
+  {
+    "selector": { "act": 10, "contains": ["kill plaguewing"] },
+    "title": "Kill Plaguewing on the way into Ravaged Square",
+    "summary": "Take Plaguewing during the rooftop route, then continue immediately into Ravaged Square.",
+    "warning": "Its reward is bundled into a later town turn-in, so do not forget it when you return to Lani."
+  },
+  {
+    "selector": { "act": 10, "contains": ["kill avarius"] },
+    "title": "Defeat Avarius and return to Oriath Docks",
+    "summary": "Follow the Desecrated Chambers edge route, kill Avarius, then waypoint directly back to town.",
+    "warning": "The later Lani turn-in can include a permanent reward from this route."
   },
   {
     "selector": { "act": 10, "contains": ["kill vilenta"] },
@@ -188,6 +255,12 @@
     "details": ["Kitava applies another 30% resistance penalty for a total campaign penalty of 60%.", "Before mapping, cap elemental resistances, check flask setup, finish Labyrinth plans, and review your first gear checkpoint."],
     "why": "This is the transition from campaign routing to atlas progression.",
     "warning": "Entering maps with uncapped elemental resistances is one of the most common and avoidable early failures."
+  },
+  {
+    "selector": { "act": 10, "contains": ["/passives"] },
+    "title": "Audit permanent rewards before mapping",
+    "summary": "Type /passives in Path of Exile and compare the result with ExileQuesting before you begin maps.",
+    "warning": "Fix missing passive quests now; they become much easier to forget once atlas progression begins.",
+    "why": "The in-game /passives command is the authoritative final check for campaign passive-point quests."
   }
 ]
-

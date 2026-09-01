@@ -1,3 +1,7 @@
+import { buildRouteActions } from './actions';
+import { hintsForArea } from './layouts';
+import { decideProgression } from './progression';
+import { isPermanentRewardStep } from './rewards';
 import type {
   AreaRecord,
   CampaignCondition,
@@ -5,22 +9,15 @@ import type {
   CampaignStep,
   CampaignValidation,
   GuidanceAnnotation,
+  LayoutHint,
   RawAreas,
   RawGuide,
   RawStep,
 } from './types';
 
 const ICON_LABELS: Record<string, string> = {
-  waypoint: 'Waypoint',
-  quest: 'Quest',
-  portal: 'Portal',
-  arena: 'Boss arena',
-  lab: 'Trial',
-  craft: 'Crafting recipe',
-  town: 'Town',
-  hideout: 'Hideout',
-  help: 'Help',
-  chest: 'Reward',
+  waypoint: 'Waypoint', quest: 'Quest', portal: 'Portal', arena: 'Boss arena', lab: 'Trial', craft: 'Crafting recipe',
+  town: 'Town', hideout: 'Hideout', help: 'Help', chest: 'Reward',
 };
 
 function stableHash(value: string): string {
@@ -42,6 +39,10 @@ function slug(value: string): string {
     .slice(0, 44) || 'step';
 }
 
+function titleCase(value: string): string {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export function buildAreaLookup(rawAreas: RawAreas): Map<string, AreaRecord> {
   return new Map(rawAreas.flat().map((area) => [area.id, area]));
 }
@@ -49,21 +50,19 @@ export function buildAreaLookup(rawAreas: RawAreas): Map<string, AreaRecord> {
 export function extractAreaIds(lines: string[]): string[] {
   const ids: string[] = [];
   for (const line of lines) {
-    for (const match of line.matchAll(/areaid([\w_]+)/gi)) {
-      ids.push(match[1]);
-    }
+    for (const match of line.matchAll(/areaid([\w_]+)/gi)) ids.push(match[1]);
   }
   return ids;
 }
 
 export function humanizeLine(raw: string, areas: Map<string, AreaRecord>): string {
-  return raw
+  const human = raw
     .replace(/\s*;;\s*/g, ' — ')
     .replace(/\(color:[^)]+\)/gi, '')
     .replace(/\(lvl:(\d+)\)/gi, 'level $1')
-    .replace(/\(ms\)/gi, 'movement-speed')
+    .replace(/\(ms\)/gi, 'movement speed')
     .replace(/\(img:([^)]+)\)/gi, (_match, icon: string) => ICON_LABELS[icon.toLowerCase()] ?? icon.replaceAll('_', ' '))
-    .replace(/\(quest:([^)]+)\)/gi, (_match, quest: string) => quest.replaceAll('_', ' '))
+    .replace(/\(quest:([^)]+)\)/gi, (_match, quest: string) => `Quest: ${titleCase(quest)}`)
     .replace(/<([^>]+)>/g, (_match, token: string) => token.replaceAll('_', ' '))
     .replace(/areaid([\w_]+)/gi, (_match, id: string) => areas.get(id)?.name ?? id)
     .replace(/arena:([\w_]+)/gi, (_match, name: string) => name.replaceAll('_', ' '))
@@ -75,15 +74,15 @@ export function humanizeLine(raw: string, areas: Map<string, AreaRecord>): strin
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\s+([,.])/g, '$1')
-    .trim()
-    .replace(/^./, (character) => character.toUpperCase());
+    .trim();
+  return human ? human[0].toUpperCase() + human.slice(1) : human;
 }
 
 function tagsFor(lines: string[]): string[] {
   const text = lines.join(' ').toLowerCase();
   const tags: string[] = [];
   if (text.includes('waypoint')) tags.push('waypoint');
-  if (text.includes('quest:book') || text.includes('(quest:the_apex)')) tags.push('passive');
+  if (text.includes('quest:book') || text.includes('(quest:the_apex)') || /book_of_skill/i.test(text)) tags.push('passive');
   if (text.includes('(img:lab)') || text.includes('trial')) tags.push('trial');
   if (text.includes('kill ') || text.includes('arena:')) tags.push('boss');
   if (text.includes('relog')) tags.push('logout');
@@ -104,12 +103,7 @@ function linesFor(step: RawStep): string[] {
   return Array.isArray(step) ? step : step.lines;
 }
 
-function findAnnotation(
-  annotations: GuidanceAnnotation[],
-  act: number,
-  areaIds: string[],
-  lines: string[],
-): GuidanceAnnotation | undefined {
+function findAnnotation(annotations: GuidanceAnnotation[], act: number, areaIds: string[], lines: string[]): GuidanceAnnotation | undefined {
   const haystack = lines.join(' ').toLowerCase();
   return annotations.find(({ selector }) => {
     if (selector.act !== act) return false;
@@ -136,6 +130,7 @@ export function normalizeCampaign(
   rawAreas: RawAreas,
   annotations: GuidanceAnnotation[],
   source: CampaignDataset['source'],
+  layoutHints: LayoutHint[] = [],
 ): CampaignDataset {
   const areas = buildAreaLookup(rawAreas);
   const steps: CampaignStep[] = [];
@@ -155,17 +150,21 @@ export function normalizeCampaign(
       const signature = `${act}|${targetAreaId ?? ''}|${JSON.stringify(condition ?? null)}|${rawLines.join('|')}`;
       const occurrence = (signatureOccurrences.get(signature) ?? 0) + 1;
       signatureOccurrences.set(signature, occurrence);
+      const tags = tagsFor(rawLines);
+      const actions = buildRouteActions(rawLines, areas);
+      const id = `poe1.act${act}.${targetAreaId ?? 'route'}.${slug(rawLines[0] ?? '')}.${stableHash(signature)}.${occurrence}`;
       steps.push({
-        id: `poe1.act${act}.${targetAreaId ?? 'route'}.${slug(rawLines[0] ?? '')}.${stableHash(signature)}.${occurrence}`,
+        id,
         act,
         indexInAct,
-        title: annotation?.title ?? inferTitle(rawLines, target?.name),
+        title: annotation?.title ?? actions.find((action) => action.priority === 'now')?.title ?? inferTitle(rawLines, target?.name),
         targetAreaId,
         targetArea: target?.name,
         areaLevel: target?.lvl,
         lines: rawLines.map((line) => humanizeLine(line, areas)),
         rawLines,
-        tags: tagsFor(rawLines),
+        tags,
+        actions,
         condition,
         annotation: annotation ? {
           title: annotation.title,
@@ -175,18 +174,14 @@ export function normalizeCampaign(
           warning: annotation.warning,
           speedrun: annotation.speedrun,
         } : undefined,
+        layoutHints: hintsForArea(layoutHints, targetAreaId),
+        permanentReward: isPermanentRewardStep(tags),
       });
     });
     acts.push({ act, firstStep, stepCount: steps.length - firstStep });
   });
 
-  return {
-    schemaVersion: 1,
-    source,
-    steps,
-    acts,
-    areas: [...areas.values()],
-  };
+  return { schemaVersion: 2, source, steps, acts, areas: [...areas.values()] };
 }
 
 export function validateCampaign(rawGuide: unknown, rawAreas: unknown): CampaignValidation {
@@ -237,20 +232,11 @@ export function validateCampaign(rawGuide: unknown, rawAreas: unknown): Campaign
     valid: errors.length === 0,
     errors,
     warnings,
-    metrics: {
-      acts: guide.length,
-      steps,
-      areas: areas.length,
-      referencedAreas,
-      unresolvedAreaReferences: unresolved,
-    },
+    metrics: { acts: guide.length, steps, areas: areas.length, referencedAreas, unresolvedAreaReferences: unresolved },
   };
 }
 
-export function isStepEnabled(
-  step: CampaignStep,
-  options: { leagueStart: boolean; bandit: string; showOptional: boolean },
-): boolean {
+export function isStepEnabled(step: CampaignStep, options: { leagueStart: boolean; bandit: string; showOptional: boolean }): boolean {
   if (!options.showOptional && step.tags.includes('optional')) return false;
   if (!step.condition) return true;
   const values = Array.isArray(step.condition.value) ? step.condition.value : [step.condition.value];
@@ -264,14 +250,5 @@ export function findProgressForZone(
   currentProgress: number,
   event: { areaName?: string; areaId?: string },
 ): number | null {
-  const normalizedName = event.areaName?.toLowerCase().replace(/^the\s+/, '');
-  const start = Math.max(0, currentProgress - 3);
-  const end = Math.min(steps.length, currentProgress + 26);
-  for (let index = start; index < end; index += 1) {
-    const step = steps[index];
-    const idMatch = event.areaId && step.targetAreaId === event.areaId;
-    const nameMatch = normalizedName && step.targetArea?.toLowerCase().replace(/^the\s+/, '') === normalizedName;
-    if (idMatch || nameMatch) return Math.min(index + 1, steps.length - 1);
-  }
-  return null;
+  return decideProgression(steps, currentProgress, event)?.to ?? null;
 }

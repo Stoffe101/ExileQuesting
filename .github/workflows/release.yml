@@ -1,0 +1,65 @@
+name: Release Windows installer
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Verify tag matches application version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $tagVersion = "${{ github.ref_name }}".TrimStart('v')
+          if ($tagVersion -ne $package.version) {
+            throw "Tag version $tagVersion does not match package.json version $($package.version)."
+          }
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run audit:campaign
+      - run: npm run dist
+      - name: Smoke test installed release
+        shell: pwsh
+        run: |
+          $setup = Get-Item release/ExileQuesting-*-setup.exe
+          $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseSmoke"
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installer failed with exit code $($install.ExitCode)." }
+          $installedExe = Join-Path $installDir "ExileQuesting.exe"
+          if (-not (Test-Path $installedExe)) { throw "Release installer did not install ExileQuesting.exe." }
+          $run = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "Installed release smoke test failed with exit code $($run.ExitCode)." }
+          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
+          if (Test-Path $uninstaller) {
+            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "Release uninstall failed with exit code $($uninstall.ExitCode)." }
+          }
+      - name: Create SHA-256 checksum
+        shell: pwsh
+        run: |
+          $setup = Get-Item release/ExileQuesting-*-setup.exe
+          $hash = (Get-FileHash -Algorithm SHA256 $setup.FullName).Hash.ToLower()
+          "$hash  $($setup.Name)" | Set-Content -Encoding ascii "release/$($setup.Name).sha256"
+      - name: Publish GitHub release
+        shell: pwsh
+        run: |
+          $setup = Get-Item release/ExileQuesting-*-setup.exe
+          $checksum = Get-Item "release/$($setup.Name).sha256"
+          gh release create "${{ github.ref_name }}" $setup.FullName $checksum.FullName --verify-tag --generate-notes --title "ExileQuesting ${{ github.ref_name }}"

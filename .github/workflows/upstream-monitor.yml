@@ -19,18 +19,22 @@ jobs:
           node-version: 24
       - id: upstream
         run: node tools/check-upstream.mjs
+      - name: Generate bundled campaign audit
+        run: node tools/audit-campaign.mjs
       - name: Open compatibility review issue
         if: steps.upstream.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           LATEST: ${{ steps.upstream.outputs.latest }}
           PINNED: ${{ steps.upstream.outputs.pinned }}
+          VALID: ${{ steps.upstream.outputs.valid }}
+          RELEVANT: ${{ steps.upstream.outputs.relevant }}
+          ANNOTATIONS: ${{ steps.upstream.outputs.annotations }}
         shell: bash
         run: |
           existing=$(gh issue list --state open --search "Exile-UI compatibility review $LATEST in:title" --json number --jq 'length')
           if [ "$existing" = "0" ]; then
             gh issue create \
               --title "Exile-UI compatibility review $LATEST" \
-              --body "Exile-UI moved from \`$PINNED\` to \`$LATEST\`. The app will continue using its verified snapshot unless runtime validation accepts the new files. Review the semantic campaign diff, annotations, and importer before advancing the bundled fallback."
+              --body "Exile-UI moved from \`$PINNED\` to \`$LATEST\`.\n\n- Structural validation: **$VALID**\n- Relevant changed files: **$RELEVANT**\n- Existing semantic annotations still matching: **$ANNOTATIONS**\n\nThe workflow summary contains an act-by-act semantic route diff. ExileQuesting will continue using its last verified snapshot unless staged runtime validation accepts the new files. Parsing successfully is not approval: review route meaning, structured actions, annotations, and compatibility paths before advancing the bundled fallback."
           fi
-
