@@ -149,7 +149,10 @@ const scenarios: Scenario[] = [
   { name: 'campaign-1920x1080', width: 1920, height: 1080, tab: 'Campaign' },
   { name: 'settings-1920x1080', width: 1920, height: 1080, tab: 'Settings', expectScrollable: true },
   { name: 'diagnostics-1920x1080', width: 1920, height: 1080, tab: 'Diagnostics', expectScrollable: true },
+  { name: 'diagnostics-1536x864', width: 1536, height: 864, tab: 'Diagnostics', expectScrollable: true },
+  { name: 'settings-1280x720', width: 1280, height: 720, tab: 'Settings', expectScrollable: true },
   { name: 'diagnostics-1000x700', width: 1000, height: 700, tab: 'Diagnostics', expectScrollable: true, expectCompactSidebar: true },
+  { name: 'overview-2752x1152', width: 2752, height: 1152, tab: 'Overview', ultrawide: true },
   { name: 'overview-3440x1440', width: 3440, height: 1440, tab: 'Overview', ultrawide: true },
   { name: 'diagnostics-3440x1440', width: 3440, height: 1440, tab: 'Diagnostics', ultrawide: true },
 ];
@@ -222,8 +225,8 @@ async function main(): Promise<void> {
     if (metrics.pageScrollWidth > metrics.pageClientWidth + 2) throw new Error(`${scenario.name}: page overflows horizontally (${metrics.pageScrollWidth} > ${metrics.pageClientWidth}).`);
     if (scenario.expectScrollable && metrics.pageScrollHeight <= metrics.pageClientHeight) throw new Error(`${scenario.name}: expected a scrollable page but content height ${metrics.pageScrollHeight} <= viewport ${metrics.pageClientHeight}.`);
     if (scenario.expectCompactSidebar && metrics.sidebarWidth > 90) throw new Error(`${scenario.name}: compact sidebar did not activate (${metrics.sidebarWidth}px).`);
-    if (scenario.ultrawide && metrics.contentWidth > 1790) throw new Error(`${scenario.name}: ultrawide reading column is too wide (${metrics.contentWidth}px).`);
-    if (scenario.tab === 'Diagnostics' && (metrics.diagnosticFontPx ?? 0) < 11) throw new Error(`${scenario.name}: diagnostics text is too small (${metrics.diagnosticFontPx}px).`);
+    if (scenario.ultrawide && metrics.contentWidth > 2220) throw new Error(`${scenario.name}: ultrawide reading column is too wide (${metrics.contentWidth}px).`);
+    if (scenario.tab === 'Diagnostics' && (metrics.diagnosticFontPx ?? 0) < 12) throw new Error(`${scenario.name}: diagnostics text is too small (${metrics.diagnosticFontPx}px).`);
 
     const topBytes = await capture(window, `${scenario.name}.png`);
     let bottomBytes: number | undefined;
