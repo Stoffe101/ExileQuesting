@@ -5,8 +5,6 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -24,22 +22,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev
       - run: npm run typecheck
       - run: npm test
+      - run: npm run audit:campaign
       - run: npm run dist
-      - name: Verify expected executables
+      - name: Verify setup executable
         shell: pwsh
         run: |
-          $files = Get-ChildItem release -Filter *.exe
-          if ($files.Count -lt 2) { throw "Expected installer and portable executables." }
-          $files | Format-Table Name, Length
-      - name: Smoke test portable and installed builds
+          $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
+          if ($setup.Count -ne 1) { throw "Expected exactly one NSIS setup executable, found $($setup.Count)." }
+          $setup | Format-Table Name, Length
+      - name: Smoke test installed build
         shell: pwsh
         run: |
-          $portable = Get-Item release/ExileQuesting-*-portable.exe
-          $portableRun = Start-Process -FilePath $portable.FullName -ArgumentList '--smoke-test' -Wait -PassThru
-          if ($portableRun.ExitCode -ne 0) { throw "Portable startup smoke test failed with exit code $($portableRun.ExitCode)." }
-
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingSmoke"
           $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
@@ -57,7 +53,7 @@ jobs:
           }
       - uses: actions/upload-artifact@v4
         with:
-          name: ExileQuesting-Windows-${{ github.sha }}
-          path: release/*.exe
+          name: ExileQuesting-Windows-Setup-${{ github.sha }}
+          path: release/ExileQuesting-*-setup.exe
           if-no-files-found: error
           retention-days: 30
