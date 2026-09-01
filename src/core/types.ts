@@ -5,6 +5,9 @@ export type OverlayDensity = 'compact' | 'comfortable' | 'spacious';
 export type OverlayPositionPreset = 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' | 'custom';
 export type ProgressConfidence = 'verified' | 'inferred' | 'manual';
 export type XpPace = 'behind' | 'efficient' | 'overlevelled' | 'unknown';
+export type AppUpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'disabled' | 'error';
+export type RunState = 'idle' | 'running' | 'paused' | 'finished';
+export type RewardAuditStatus = 'pending' | 'route-passed' | 'confirmed';
 
 export type RouteActionType =
   | 'travel'
@@ -175,6 +178,10 @@ export interface AppSettings {
   reducedTransparency: boolean;
   onboardingComplete: boolean;
   launchMinimized: boolean;
+  autoCheckAppUpdates: boolean;
+  autoDownloadAppUpdates: boolean;
+  autoStartRunTimer: boolean;
+  showRunTimerInOverlay: boolean;
   hotkeys: {
     toggleOverlay: string;
     nextStep: string;
@@ -225,6 +232,22 @@ export interface RewardProgress {
   trials: { completed: number; knownTotal: number };
 }
 
+export interface RewardAuditItem {
+  stepId: string;
+  stepIndex: number;
+  act: number;
+  type: 'passive' | 'trial';
+  label: string;
+  status: RewardAuditStatus;
+}
+
+export interface RewardAudit {
+  passive: { confirmed: number; routePassed: number; knownTotal: number };
+  trials: { confirmed: number; routePassed: number; knownTotal: number };
+  items: RewardAuditItem[];
+  needsFinalPassivesAudit: boolean;
+}
+
 export interface XpGuidance {
   characterLevel?: number;
   areaLevel?: number;
@@ -256,6 +279,79 @@ export interface CampaignCompatibilityManifest {
   updatedAt: string;
 }
 
+export interface AppUpdateState {
+  status: AppUpdateStatus;
+  currentVersion: string;
+  latestVersion?: string;
+  releaseName?: string;
+  releaseNotes?: string;
+  publishedAt?: string;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  progress?: number;
+  message: string;
+  error?: string;
+}
+
+export interface ActSplit {
+  act: number;
+  at: string;
+  elapsedMs: number;
+}
+
+export interface RunSession {
+  state: RunState;
+  startedAt?: string;
+  pausedAt?: string;
+  pausedMs: number;
+  finishedAt?: string;
+  townTimeMs: number;
+  currentAct?: number;
+  splits: ActSplit[];
+  lastAreaId?: string;
+  lastZoneChangedAt?: string;
+}
+
+export interface RunHistoryEntry {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  totalMs: number;
+  townTimeMs: number;
+  splits: ActSplit[];
+}
+
+export interface RunStats {
+  session: RunSession;
+  elapsedMs: number;
+  previous?: RunHistoryEntry;
+  personalBest?: RunHistoryEntry;
+}
+
+export interface DetectionTraceEntry {
+  id: string;
+  at: string;
+  eventType: ZoneEventType;
+  areaId?: string;
+  areaName?: string;
+  areaLevel?: number;
+  progressBefore: number;
+  progressAfter: number;
+  stepIdBefore?: string;
+  stepIdAfter?: string;
+  confidence?: ProgressConfidence;
+  reason: string;
+  raw: string;
+}
+
+export interface RecoveryState {
+  previousSessionUnclean: boolean;
+  previousStartedAt?: string;
+  previousAppVersion?: string;
+  previousProgress?: number;
+  acknowledged: boolean;
+}
+
 export interface RuntimeState {
   settings: AppSettings;
   dataset: CampaignDataset;
@@ -267,10 +363,15 @@ export interface RuntimeState {
   characterLevel?: number;
   xpGuidance: XpGuidance;
   rewardProgress: RewardProgress;
+  rewardAudit: RewardAudit;
   progressHistory: ProgressHistoryEntry[];
   startupReconciliation: StartupReconciliation;
   logConnected: boolean;
   logDiagnostics: LogDiagnostics;
+  detectionTrace: DetectionTraceEntry[];
+  runStats: RunStats;
+  appUpdate: AppUpdateState;
+  recovery: RecoveryState;
   appVersion: string;
   diagnosticsPath: string;
 }
