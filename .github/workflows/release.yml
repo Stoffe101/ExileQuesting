@@ -15,7 +15,7 @@ permissions:
 jobs:
   release-windows:
     runs-on: windows-latest
-    timeout-minutes: 50
+    timeout-minutes: 55
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
@@ -41,6 +41,8 @@ jobs:
       - run: npm run audit:campaign
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
+      - name: Smoke test Pre-playtest Lab controls
+        run: npm run smoke:lab
       - name: Render release manager responsive matrix
         run: npm run visual:manager
       - uses: actions/upload-artifact@v4
@@ -69,7 +71,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - run: npm run dist
-      - name: Smoke test installed release
+      - name: Smoke test installed release and updater handoff
         shell: pwsh
         run: |
           $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
@@ -81,6 +83,21 @@ jobs:
           if (-not (Test-Path $installedExe)) { throw "Release installer did not install ExileQuesting.exe." }
           $run = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
           if ($run.ExitCode -ne 0) { throw "Installed release smoke test failed with exit code $($run.ExitCode)." }
+
+          npm run smoke:update-handoff
+          $handoffDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseUpdateHandoff"
+          node .tmp/smoke-update-handoff.cjs $setup[0].FullName $handoffDir $installedExe
+          $resultFile = Join-Path $handoffDir 'last-update-result.json'
+          for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }
+          if (-not (Test-Path $resultFile)) { throw 'Release updater handoff did not produce a result within 60 seconds.' }
+          $handoff = Get-Content $resultFile -Raw | ConvertFrom-Json
+          if ($handoff.status -ne 'installed' -or $handoff.exitCode -ne 0 -or -not $handoff.relaunched) {
+            throw "Release updater handoff failed: $($handoff | ConvertTo-Json -Compress)"
+          }
+          if (-not (Test-Path $installedExe)) { throw 'Release updater handoff removed the installed executable.' }
+          Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Milliseconds 500
+
           $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
           if (Test-Path $uninstaller) {
             $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
