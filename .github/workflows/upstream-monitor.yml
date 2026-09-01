@@ -1,0 +1,36 @@
+name: Exile-UI compatibility monitor
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: upstream
+        run: node tools/check-upstream.mjs
+      - name: Open compatibility review issue
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.upstream.outputs.latest }}
+          PINNED: ${{ steps.upstream.outputs.pinned }}
+        shell: bash
+        run: |
+          existing=$(gh issue list --state open --search "Exile-UI compatibility review $LATEST in:title" --json number --jq 'length')
+          if [ "$existing" = "0" ]; then
+            gh issue create \
+              --title "Exile-UI compatibility review $LATEST" \
+              --body "Exile-UI moved from \`$PINNED\` to \`$LATEST\`. The app will continue using its verified snapshot unless runtime validation accepts the new files. Review the semantic campaign diff, annotations, and importer before advancing the bundled fallback."
+          fi
+

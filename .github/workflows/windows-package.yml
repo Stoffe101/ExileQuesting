@@ -1,0 +1,63 @@
+name: Windows package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run dist
+      - name: Verify expected executables
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem release -Filter *.exe
+          if ($files.Count -lt 2) { throw "Expected installer and portable executables." }
+          $files | Format-Table Name, Length
+      - name: Smoke test portable and installed builds
+        shell: pwsh
+        run: |
+          $portable = Get-Item release/ExileQuesting-*-portable.exe
+          $portableRun = Start-Process -FilePath $portable.FullName -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($portableRun.ExitCode -ne 0) { throw "Portable startup smoke test failed with exit code $($portableRun.ExitCode)." }
+
+          $setup = Get-Item release/ExileQuesting-*-setup.exe
+          $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingSmoke"
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installer failed with exit code $($install.ExitCode)." }
+
+          $installedExe = Join-Path $installDir "ExileQuesting.exe"
+          if (-not (Test-Path $installedExe)) { throw "Installer completed but ExileQuesting.exe was not installed." }
+          $installedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($installedRun.ExitCode -ne 0) { throw "Installed startup smoke test failed with exit code $($installedRun.ExitCode)." }
+
+          $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
+          if (Test-Path $uninstaller) {
+            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed with exit code $($uninstall.ExitCode)." }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ExileQuesting-Windows-${{ github.sha }}
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30
