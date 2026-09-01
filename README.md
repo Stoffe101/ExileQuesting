@@ -4,7 +4,7 @@ ExileQuesting is a modern Path of Exile campaign companion focused on one promis
 
 > Get from Twilight Strand to maps without wondering where to go, what to collect, or why the route is asking you to do it.
 
-Current development milestone: **v0.1.2 pre-playtest simulator + hardening**.
+Current development milestone: **v0.1.3 responsive manager + update channel**.
 
 The current campaign foundation provides:
 
@@ -28,6 +28,7 @@ The current campaign foundation provides:
 - live diagnostics, persistent settings/progress, configurable global hotkeys, tray controls, and first-run onboarding;
 - a deterministic Acts 1–10 campaign simulator, captured-log replay and replay-bundle export;
 - a Pre-playtest Lab for browsing any route page in the real overlay without mutating saved progress;
+- Windows manager responsive regression for 1080p, compact/scaled viewports, and ultrawide displays;
 - Windows overlay visual regression at multiple DPI scale factors plus a real Electron window lifecycle soak;
 - a Windows NSIS installer validated through clean install, installed-app startup and uninstall in GitHub Actions.
 
@@ -66,11 +67,14 @@ npm test
 npm run audit:campaign
 npm run lint:campaign
 npm run simulate:campaign
+npm run visual:manager
 npm run visual:overlay
 npm run soak:overlay
 ```
 
-`npm run visual:overlay` and `npm run soak:overlay` launch the real Electron overlay in dedicated test modes. The Windows GitHub Actions workflow additionally renders the visual matrix at 100%, 125% and 150% Chromium scale factors, checks DOM overflow, runs the overlay lifecycle soak, builds the installer, installs it into a clean directory, launches the installed application in smoke-test mode, and silently uninstalls it.
+`npm run visual:manager` launches the real manager in a dedicated responsive-regression harness and captures Overview, Campaign, Settings and Diagnostics across representative desktop, scaled/compact and ultrawide viewports. It verifies horizontal overflow, real page scrolling, compact-sidebar fallback, ultrawide content width and Diagnostics readability.
+
+`npm run visual:overlay` and `npm run soak:overlay` launch the real Electron overlay in dedicated test modes. The Windows GitHub Actions workflow runs the manager matrix, renders the overlay at 100%, 125% and 150% Chromium scale factors, checks DOM overflow, runs the overlay lifecycle soak, builds the installer, installs it into a clean directory, launches the installed application in smoke-test mode, and silently uninstalls it.
 
 ### Pre-playtest Lab
 
@@ -94,11 +98,13 @@ npm run dist
 
 ## Application releases and updates
 
-A version tag such as `v0.1.2` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns deterministic verification, overlay visual regression, overlay lifecycle soak and the installed-app smoke test, generates a SHA-256 checksum, and only then publishes the GitHub Release.
+A version tag such as `v0.1.3` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns deterministic verification, manager and overlay visual regression, overlay lifecycle soak and the installed-app smoke test, generates a SHA-256 checksum, and only then publishes the GitHub Release.
 
-The installed application can check the stable release feed, download the exact `ExileQuesting-<version>-setup.exe` asset, validate its reported size and GitHub-provided SHA-256 digest when available, then schedule the installer after ExileQuesting exits. No GitHub credential is embedded in the application.
+The installed application checks the public `Stoffe101/ExileQuesting` stable release feed, downloads the exact `ExileQuesting-<version>-setup.exe` asset, validates its reported size and GitHub-provided SHA-256 digest when available, then schedules the installer after ExileQuesting exits. No GitHub credential is embedded in the application.
 
-**Current repository visibility note:** this repository is private. GitHub's anonymous release API cannot serve a private release feed to normal installed clients. Before shipping self-update to other users, either make the release repository public or publish installers from a dedicated public release repository. Do not solve this by embedding a personal access token in the app.
+A missing release or temporary GitHub outage never blocks application startup or campaign tracking.
+
+See [docs/UPDATES.md](docs/UPDATES.md) for the release/update contract.
 
 ## Campaign data updates
 
@@ -133,7 +139,7 @@ The remaining campaign-release checks need a real Path of Exile session and real
 
 ## Project direction
 
-The next major milestone after real campaign validation is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model. A bounded PoB parser, pobb.in fetch service and persistent Build Profile foundation already exist in v0.1.2.
+The next major milestone after real campaign validation is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model. A bounded PoB parser, pobb.in fetch service and persistent Build Profile foundation already exist.
 
 Later modules include:
 
@@ -147,4 +153,6 @@ See [docs/PRE_PLAYTEST.md](docs/PRE_PLAYTEST.md), [docs/RESEARCH.md](docs/RESEAR
 
 ## Attribution and license
 
-ExileQuesting's source is MIT licensed. Campaign data derived from Exile-UI remains subject to its MIT license and attribution. XileHUD was studied as a GPL-3.0 reference; no XileHUD source is incorporated into this MIT codebase. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+ExileQuesting is licensed for noncommercial use under **PolyForm Noncommercial License 1.0.0**. See [LICENSE](LICENSE) for the binding license reference and required notice.
+
+Campaign data derived from Exile-UI remains subject to Exile-UI's MIT license and attribution. XileHUD was studied as a GPL-3.0 reference; no XileHUD source is incorporated into ExileQuesting. Third-party material is not relicensed by ExileQuesting's PolyForm terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
