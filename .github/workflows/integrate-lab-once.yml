@@ -1,0 +1,64 @@
+name: Integrate pre-playtest lab once
+
+on:
+  push:
+    branches: [codex/pre-playtest-simulator-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-main:
+    if: github.event.head_commit.message != 'Integrate pre-playtest lab [bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pre-playtest-simulator-hardening
+          fetch-depth: 0
+      - name: Patch Electron entrypoint
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'electron/main.ts';
+          let text = fs.readFileSync(file, 'utf8');
+          const required = [
+            ["import { StateStore } from './services/state-store';", "import { StateStore } from './services/state-store';\nimport { createPreplaytestLab } from './services/preplaytest-lab';"],
+            ["let overlayWindow: BrowserWindow | null = null;", "let overlayWindow: BrowserWindow | null = null;\nlet labWindow: BrowserWindow | null = null;"],
+          ];
+          for (const [from, to] of required) {
+            if (!text.includes(to)) {
+              if (!text.includes(from)) throw new Error(`Could not find patch anchor: ${from}`);
+              text = text.replace(from, to);
+            }
+          }
+          const trayAnchor = "function createTray(): void {";
+          if (!text.includes('function openPreplaytestLab(): void {')) {
+            const labFunction = `function openPreplaytestLab(): void {\n  if (labWindow && !labWindow.isDestroyed()) { labWindow.show(); labWindow.focus(); return; }\n  labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'));\n  wireWindowDiagnostics(labWindow, 'Pre-playtest Lab');\n  labWindow.on('closed', () => { labWindow = null; overlayDemo = null; broadcastState(); });\n}\n`;
+            if (!text.includes(trayAnchor)) throw new Error('Could not find tray function anchor.');
+            text = text.replace(trayAnchor, `${labFunction}\n${trayAnchor}`);
+          }
+          const openEntry = "{ label: 'Open ExileQuesting', click: () => mainWindow?.show() }, { label: 'Toggle campaign overlay', click: toggleOverlay },";
+          const labEntry = "{ label: 'Open ExileQuesting', click: () => mainWindow?.show() }, { label: 'Pre-playtest Lab', click: openPreplaytestLab }, { label: 'Toggle campaign overlay', click: toggleOverlay },";
+          if (!text.includes(labEntry)) {
+            if (!text.includes(openEntry)) throw new Error('Could not find tray menu anchor.');
+            text = text.replace(openEntry, labEntry);
+          }
+          const ipcAnchor = "ipcMain.handle('app:bootstrap', () => runtimeState());";
+          const ipcReplacement = "ipcMain.handle('app:bootstrap', () => runtimeState());\n  ipcMain.handle('lab:open', () => openPreplaytestLab());";
+          if (!text.includes("ipcMain.handle('lab:open'")) {
+            if (!text.includes(ipcAnchor)) throw new Error('Could not find IPC anchor.');
+            text = text.replace(ipcAnchor, ipcReplacement);
+          }
+          fs.writeFileSync(file, text);
+          NODE
+      - name: Commit branch patch
+        shell: bash
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git commit -m "Integrate pre-playtest lab [bot]"
+          git push origin HEAD:codex/pre-playtest-simulator-hardening
