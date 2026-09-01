@@ -10,10 +10,19 @@ export interface ProgressionOptions {
   isStepEnabled?: (step: CampaignStep, index: number) => boolean;
   maxLookAhead?: number;
   recentLookBehind?: number;
+  currentAreaId?: string;
+  currentAreaName?: string;
 }
 
 function normalizeAreaName(value?: string): string | undefined {
   return value?.toLowerCase().replace(/^the\s+/, '').replace(/[.!]$/, '').trim();
+}
+
+function sameArea(left: Pick<ZoneEvent, 'areaId' | 'areaName'>, right: { areaId?: string; areaName?: string }): boolean {
+  if (left.areaId && right.areaId) return left.areaId === right.areaId;
+  const leftName = normalizeAreaName(left.areaName);
+  const rightName = normalizeAreaName(right.areaName);
+  return Boolean(leftName && rightName && leftName === rightName);
 }
 
 function matchesArea(step: CampaignStep, event: Pick<ZoneEvent, 'areaId' | 'areaName'>): 'id' | 'name' | null {
@@ -30,6 +39,7 @@ export function decideProgression(
   options: ProgressionOptions = {},
 ): ProgressDecision | null {
   if (!event.areaId && !event.areaName) return null;
+  if (sameArea(event, { areaId: options.currentAreaId, areaName: options.currentAreaName })) return null;
   const maxLookAhead = Math.max(1, options.maxLookAhead ?? 28);
   const recentLookBehind = Math.max(0, options.recentLookBehind ?? 3);
   const enabled = options.isStepEnabled ?? (() => true);
@@ -47,10 +57,10 @@ export function decideProgression(
   }
   if (!forwardMatch) return null;
 
-  // A recently completed matching transition usually means a duplicate log event or
-  // the player briefly backtracked. Do not skip several objectives to a later repeat
-  // of the same area. A match on the current/next route page is still allowed so
-  // intentional return trips such as side-zone -> parent-zone continue to work.
+  // A recently completed matching transition usually means the player briefly
+  // backtracked. Do not skip several objectives to a later repeat of the same
+  // area. A match on the current/next route page is still allowed so intentional
+  // return trips such as side-zone -> parent-zone continue to work.
   const recentStart = Math.max(0, currentProgress - recentLookBehind);
   const hasRecentMatch = steps
     .slice(recentStart, currentProgress)
