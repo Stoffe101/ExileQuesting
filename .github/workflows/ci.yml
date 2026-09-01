@@ -11,7 +11,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,4 +23,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run audit:campaign
+      - run: npm run lint:campaign
+      - run: npm run simulate:campaign
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ExileQuesting-preplaytest-${{ github.sha }}
+          path: artifacts/simulation/*
+          if-no-files-found: warn
+          retention-days: 30
       - run: npm run build
