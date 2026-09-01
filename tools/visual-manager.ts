@@ -114,13 +114,32 @@ function waitForLoad(window: BrowserWindow): Promise<void> {
   });
 }
 
+async function waitForManager(window: BrowserWindow): Promise<void> {
+  const deadline = Date.now() + 12_000;
+  let lastError = '';
+  while (Date.now() < deadline) {
+    try {
+      const ready = await window.webContents.executeJavaScript(`Boolean(document.querySelector('.app-shell') && document.querySelector('.sidebar nav button') && document.querySelector('.manager-main > .page'))`);
+      if (ready) return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Manager shell did not render after bootstrap.${lastError ? ` Last renderer error: ${lastError}` : ''}`);
+}
+
 async function switchTab(window: BrowserWindow, label: string): Promise<void> {
-  await window.webContents.executeJavaScript(`(() => {
+  await waitForManager(window);
+  const clicked = await window.webContents.executeJavaScript(`(() => {
     const button = [...document.querySelectorAll('.sidebar nav button')].find((node) => node.textContent?.includes(${JSON.stringify(label)}));
-    if (!button) throw new Error('Missing navigation button: ${label}');
+    if (!button) return false;
     button.click();
+    return true;
   })()`);
-  await new Promise((resolve) => setTimeout(resolve, 120));
+  if (!clicked) throw new Error(`Missing navigation button: ${label}`);
+  await new Promise((resolve) => setTimeout(resolve, 160));
+  await waitForManager(window);
 }
 
 interface Scenario { name: string; width: number; height: number; tab: string; expectScrollable?: boolean; expectCompactSidebar?: boolean; ultrawide?: boolean }
@@ -163,13 +182,18 @@ async function main(): Promise<void> {
     },
   });
 
+  window.webContents.on('render-process-gone', (_event, details) => console.error('Manager visual renderer exited.', details));
+  window.webContents.on('preload-error', (_event, preloadPath, error) => console.error(`Manager visual preload failed: ${preloadPath}`, error));
+
   const loading = waitForLoad(window);
   await window.loadFile(path.resolve('dist/index.html'));
   await loading;
+  await waitForManager(window);
 
   const captures: unknown[] = [];
   for (const scenario of scenarios) {
     window.setContentSize(scenario.width, scenario.height);
+    await new Promise((resolve) => setTimeout(resolve, 120));
     await switchTab(window, scenario.tab);
     const metrics = await window.webContents.executeJavaScript(`(() => {
       const page = document.querySelector('.manager-main > .page');
