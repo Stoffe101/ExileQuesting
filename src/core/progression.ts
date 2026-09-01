@@ -12,6 +12,8 @@ export interface ProgressionOptions {
   recentLookBehind?: number;
   currentAreaId?: string;
   currentAreaName?: string;
+  recentAreaIds?: readonly string[];
+  recentAreaNames?: readonly string[];
 }
 
 function normalizeAreaName(value?: string): string | undefined {
@@ -23,6 +25,12 @@ function sameArea(left: Pick<ZoneEvent, 'areaId' | 'areaName'>, right: { areaId?
   const leftName = normalizeAreaName(left.areaName);
   const rightName = normalizeAreaName(right.areaName);
   return Boolean(leftName && rightName && leftName === rightName);
+}
+
+function appearsInRecentAreaHistory(event: Pick<ZoneEvent, 'areaId' | 'areaName'>, options: ProgressionOptions): boolean {
+  if (event.areaId && options.recentAreaIds?.includes(event.areaId)) return true;
+  const name = normalizeAreaName(event.areaName);
+  return Boolean(name && options.recentAreaNames?.some((candidate) => normalizeAreaName(candidate) === name));
 }
 
 function matchesArea(step: CampaignStep, event: Pick<ZoneEvent, 'areaId' | 'areaName'>): 'id' | 'name' | null {
@@ -71,9 +79,16 @@ export function decideProgression(
   }
   if (!forwardMatch) return null;
 
+  // A zone that was visited only moments ago is a strong backtrack signal. It may
+  // still legitimately be the exact objective currently displayed, such as
+  // returning from a side zone to its parent. It must never be allowed to skip a
+  // different current objective merely because the same parent area reappears
+  // later in the route.
+  if (appearsInRecentAreaHistory(event, options) && forwardMatch.index > currentProgress) return null;
+
   // A recently completed matching transition usually means the player briefly
   // backtracked. Do not skip several objectives to a later repeat of the same
-  // area. A match on the current/next route page is still allowed so intentional
+  // area. A match on the current route page is still allowed so intentional
   // return trips such as side-zone -> parent-zone continue to work.
   const recentStart = Math.max(0, currentProgress - recentLookBehind);
   const hasRecentMatch = steps
