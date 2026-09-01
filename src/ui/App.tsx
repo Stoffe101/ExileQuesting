@@ -2,6 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { focusHint } from '../core/layouts';
 import { isStepEnabled } from '../core/campaign';
 import { summarizeActions } from '../core/actions';
+import {
+  DetectionTracePanel,
+  OverlayRunClock,
+  RecoveryBanner,
+  RewardAuditPanel,
+  RunDashboard,
+  RunSettings,
+  UpdatePanel,
+} from './reliability';
 import type {
   AppSettings,
   CampaignStep,
@@ -151,7 +160,7 @@ function Overlay({ state }: { state: RuntimeState }) {
 
   const actSteps = state.dataset.steps.filter((candidate) => candidate.act === step.act);
   const actProgress = Math.round(((step.indexInAct + 1) / Math.max(1, actSteps.length)) * 100);
-  const location = state.currentZone ?? step.targetArea ?? `Act ${step.act}`;
+  const location = state.currentZone ?? 'Waiting for zone detection';
   const warning = step.annotation?.warning;
   const permanent = step.permanentReward;
   const typography = state.settings.overlayTypography;
@@ -172,6 +181,7 @@ function Overlay({ state }: { state: RuntimeState }) {
           <span className="eyebrow">ACT {step.act} · {actProgress}%</span>
           <strong>{location}</strong>
         </div>
+        <OverlayRunClock state={state} />
         <div className={`connection-dot ${state.logConnected ? 'connected' : ''}`} title={state.logConnected ? 'Client.txt connected' : 'Manual tracking'} />
         <button className="window-button no-drag" onClick={() => void window.exileQuesting.hideOverlay()} aria-label="Hide overlay">×</button>
       </header>
@@ -273,7 +283,7 @@ function StartupReconcile({ state, setState }: { state: RuntimeState; setState: 
   );
 }
 
-function Overview({ state, onNavigate }: { state: RuntimeState; onNavigate: (tab: Tab) => void }) {
+function Overview({ state, setState, onNavigate }: { state: RuntimeState; setState: (state: RuntimeState) => void; onNavigate: (tab: Tab) => void }) {
   const index = nearestEnabledIndex(state);
   const step = state.dataset.steps[index];
   const nextIndex = nextEnabledIndex(state, index);
@@ -282,6 +292,8 @@ function Overview({ state, onNavigate }: { state: RuntimeState; onNavigate: (tab
   const completed = Math.round((state.progress / Math.max(1, state.dataset.steps.length - 1)) * 100);
   return (
     <div className="page custom-scrollbar">
+      <RecoveryBanner state={state} setState={setState} />
+      {['available', 'ready'].includes(state.appUpdate.status) && <div className="update-banner"><div><span>UPDATE</span><strong>ExileQuesting {state.appUpdate.latestVersion} {state.appUpdate.status === 'ready' ? 'is ready to install' : 'is available'}</strong></div><button className="ghost-button" onClick={() => onNavigate('settings')}>View update</button></div>}
       <div className="page-heading">
         <div><span className="eyebrow">LIVE CAMPAIGN</span><h1>{state.currentZone ?? 'Ready for Wraeclast.'}</h1><p>Everything you need for the next decision, without alt-tabbing.</p></div>
         <button className="primary-button large" onClick={() => void window.exileQuesting.showOverlay()}>Open overlay ↗</button>
@@ -302,14 +314,12 @@ function Overview({ state, onNavigate }: { state: RuntimeState; onNavigate: (tab
           <div className="panel-actions"><button className="ghost-button" onClick={() => onNavigate('guide')}>View full route</button><ProgressControls state={state} /></div>
         </article>
         <aside className="side-stack">
-          <article className="panel compact-panel">
-            <span className="eyebrow">PERMANENT REWARDS</span>
-            <div className="reward-stats"><div><strong>{state.rewardProgress.passive.completed}/{state.rewardProgress.passive.knownTotal}</strong><span>Passive route steps</span></div><div><strong>{state.rewardProgress.trials.completed}/{state.rewardProgress.trials.knownTotal}</strong><span>Trials</span></div></div>
-          </article>
+          <article className="panel compact-panel"><span className="eyebrow">PERMANENT REWARDS</span><div className="reward-stats"><div><strong>{state.rewardAudit.passive.confirmed}/{state.rewardAudit.passive.knownTotal}</strong><span>Passives confirmed</span></div><div><strong>{state.rewardAudit.trials.confirmed}/{state.rewardAudit.trials.knownTotal}</strong><span>Trials confirmed</span></div></div><small className="panel-copy">Route-passed is tracked separately until you explicitly confirm it.</small></article>
           <article className="panel compact-panel"><span className="eyebrow">LIVE TRACKING</span><div className="connection-row"><i className={state.logConnected ? 'online' : ''} /><div><strong>{state.logConnected ? 'Client.txt connected' : 'Manual mode'}</strong><small>{state.currentAreaId ? `Internal area ${state.currentAreaId}` : state.settings.logPath || 'Choose the game log in Settings'}</small></div></div></article>
           <article className="panel compact-panel"><span className="eyebrow">BUILD</span><h3 className="placeholder-title">No build imported yet</h3><p className="panel-copy">PoB-aware gem, tree and gear milestones arrive in the next major milestone.</p></article>
         </aside>
       </section>
+      <div className="overview-secondary-grid"><RunDashboard state={state} setState={setState} /><RewardAuditPanel state={state} setState={setState} compact /></div>
     </div>
   );
 }
@@ -326,6 +336,7 @@ function CampaignGuide({ state, setState }: { state: RuntimeState; setState: (st
   const visible = enabledIndices(state).filter((index) => state.dataset.steps[index].act === selectedAct);
   const inspected = state.dataset.steps[inspectedIndex] ?? current;
   const inspectedActions = summarizeActions(inspected.actions);
+  const rewardItem = state.rewardAudit.items.find((item) => item.stepId === inspected.id);
   return (
     <div className="page guide-page">
       <div className="page-heading compact-heading"><div><span className="eyebrow">ACTS 1–10</span><h1>Campaign route</h1><p>Inspect the route freely. Progress only moves when you explicitly resume or complete a step.</p></div><button className="ghost-button" onClick={() => void window.exileQuesting.showOverlay()}>Open overlay ↗</button></div>
@@ -335,7 +346,8 @@ function CampaignGuide({ state, setState }: { state: RuntimeState; setState: (st
           {visible.map((index) => {
             const step = state.dataset.steps[index];
             const status = index < currentIndex ? 'complete' : index === currentIndex ? 'current' : 'upcoming';
-            return <button className={`${inspectedIndex === index ? 'active' : ''} state-${status}`} key={step.id} onClick={() => setInspectedIndex(index)}><span className="step-state">{status === 'complete' ? '✓' : status === 'current' ? '●' : '○'}</span><div><strong>{summarizeActions(step.actions).now?.title ?? step.title}</strong><small>{step.targetArea ?? `Act ${step.act}`}</small></div>{step.permanentReward && <i>{step.permanentReward === 'passive' ? '+1' : 'TRIAL'}</i>}</button>;
+            const reward = state.rewardAudit.items.find((item) => item.stepId === step.id);
+            return <button className={`${inspectedIndex === index ? 'active' : ''} state-${status}`} key={step.id} onClick={() => setInspectedIndex(index)}><span className="step-state">{status === 'complete' ? '✓' : status === 'current' ? '●' : '○'}</span><div><strong>{summarizeActions(step.actions).now?.title ?? step.title}</strong><small>{step.targetArea ?? `Act ${step.act}`}</small></div>{step.permanentReward && <i className={reward?.status === 'confirmed' ? 'reward-confirmed' : ''}>{reward?.status === 'confirmed' ? '✓' : step.permanentReward === 'passive' ? '+1' : 'TRIAL'}</i>}</button>;
           })}
         </aside>
         <article className="panel step-detail custom-scrollbar">
@@ -344,6 +356,7 @@ function CampaignGuide({ state, setState }: { state: RuntimeState; setState: (st
           {inspected.actions.some((action) => action.priority === 'context') && <div className="context-actions manager-context">{inspected.actions.filter((action) => action.priority === 'context').map((action) => <ActionLine key={action.id} action={action} />)}</div>}
           {focusHint(inspected.layoutHints ?? []) && <div className="micro-intel expanded"><span>LAYOUT · {focusHint(inspected.layoutHints ?? [])?.confidence.toUpperCase()}</span><p>{focusHint(inspected.layoutHints ?? [])?.text}</p></div>}
           <Guidance step={inspected} mode={state.settings.guidanceMode} />
+          {rewardItem && <div className={`reward-confirm-card audit-${rewardItem.status}`}><div><span>PERMANENT REWARD</span><strong>{rewardItem.status === 'confirmed' ? 'Confirmed' : rewardItem.status === 'route-passed' ? 'Route passed, confirmation needed' : 'Not reached yet'}</strong><p>Automatic route progress never pretends this reward is confirmed. Mark it when you actually complete/claim it.</p></div><button className={rewardItem.status === 'confirmed' ? 'ghost-button' : 'primary-button'} onClick={() => void window.exileQuesting.confirmReward(rewardItem.stepId, rewardItem.status !== 'confirmed').then(setState)}>{rewardItem.status === 'confirmed' ? 'Unconfirm' : 'Confirm reward'}</button></div>}
           <div className="inspect-actions">
             {inspectedIndex !== currentIndex && <button className="primary-button" onClick={() => void window.exileQuesting.setProgress(inspectedIndex).then(setState)}>Resume from this step</button>}
             {inspectedIndex === currentIndex && <ProgressControls state={state} />}
@@ -403,6 +416,9 @@ function Settings({ state, setState }: { state: RuntimeState; setState: (state: 
           <SettingRow title="Optional objectives" description="Include useful detours and non-mandatory loot checks."><Toggle checked={state.settings.showOptional} onChange={(showOptional) => update({ showOptional })} /></SettingRow>
         </section>
 
+        <RunSettings state={state} update={update} />
+        <UpdatePanel state={state} setState={setState} />
+
         <section className="panel settings-section overlay-settings wide-section">
           <div className="section-title"><h2>Overlay V2</h2><span>Glance first, detail on demand</span></div>
           <div className="segmented-control three">{(['compact', 'focus', 'coach'] as OverlayMode[]).map((mode) => <button className={state.settings.overlayMode === mode ? 'active' : ''} key={mode} onClick={() => update({ overlayMode: mode })}>{mode[0].toUpperCase() + mode.slice(1)}</button>)}</div>
@@ -445,11 +461,14 @@ function Diagnostics({ state, setState }: { state: RuntimeState; setState: (stat
   const step = state.dataset.steps[state.progress];
   return (
     <div className="page custom-scrollbar diagnostics-page">
-      <div className="page-heading compact-heading"><div><span className="eyebrow">HEALTH & COMPATIBILITY</span><h1>Diagnostics</h1><p>Enough detail to fix problems without turning the UI into a debug novel.</p></div><div className="heading-actions"><button className="ghost-button" onClick={() => void window.exileQuesting.copyDiagnostics()}>Copy diagnostics</button><button className="ghost-button" onClick={() => void window.exileQuesting.openDiagnosticsFolder()}>Open logs folder</button></div></div>
+      <div className="page-heading compact-heading"><div><span className="eyebrow">HEALTH & COMPATIBILITY</span><h1>Diagnostics</h1><p>Enough detail to fix problems without turning the UI into a debug novel.</p></div><div className="heading-actions"><button className="ghost-button" onClick={() => void window.exileQuesting.copyDiagnostics()}>Copy diagnostics</button><button className="ghost-button" onClick={() => void window.exileQuesting.exportDiagnostics()}>Export report</button><button className="ghost-button" onClick={() => void window.exileQuesting.openDiagnosticsFolder()}>Open logs folder</button></div></div>
+      {state.recovery.previousSessionUnclean && <div className="diagnostic-recovery"><strong>Previous abnormal shutdown detected</strong><span>Previous version {state.recovery.previousAppVersion ?? '?'} · route step {(state.recovery.previousProgress ?? 0) + 1}</span></div>}
       <div className="diagnostic-grid">
         <section className="panel diagnostic-card"><div className="section-title"><h2>Client tracking</h2><span>{state.logConnected ? 'Healthy' : 'Needs attention'}</span></div><dl className="diagnostic-list"><dt>Path</dt><dd>{state.logDiagnostics.path || 'Not configured'}</dd><dt>File exists</dt><dd>{state.logDiagnostics.fileExists ? 'Yes' : 'No'}</dd><dt>Watcher</dt><dd>{state.logDiagnostics.watcherActive ? 'Active' : 'Inactive'}</dd><dt>Polling fallback</dt><dd>{state.logDiagnostics.pollingActive ? 'Active' : 'Inactive'}</dd><dt>Last file change</dt><dd>{state.logDiagnostics.lastFileChangeAt ?? 'None yet'}</dd><dt>Last parsed event</dt><dd>{state.logDiagnostics.lastParsedEventAt ?? 'None yet'}</dd><dt>Internal area</dt><dd>{state.currentAreaId ?? 'Unknown'}</dd><dt>Displayed zone</dt><dd>{state.currentZone ?? 'Unknown'}</dd><dt>Character / area level</dt><dd>{state.characterLevel ?? '?'} / {state.currentAreaLevel ?? '?'}</dd></dl>{state.logDiagnostics.lastError && <div className="inline-alert"><strong>Watcher error</strong>{state.logDiagnostics.lastError}</div>}</section>
-        <section className="panel diagnostic-card"><div className="section-title"><h2>Route state</h2><span>{state.progress + 1}/{state.dataset.steps.length}</span></div><dl className="diagnostic-list"><dt>Semantic step ID</dt><dd>{step?.id}</dd><dt>Objective</dt><dd>{summarizeActions(step.actions).now?.title ?? step.title}</dd><dt>XP state</dt><dd>{state.xpGuidance.pace}</dd><dt>Passive progress</dt><dd>{state.rewardProgress.passive.completed}/{state.rewardProgress.passive.knownTotal}</dd><dt>Trial progress</dt><dd>{state.rewardProgress.trials.completed}/{state.rewardProgress.trials.knownTotal}</dd></dl><div className="history-list">{lastHistory.length ? lastHistory.map((entry) => <div key={entry.id}><span>{new Date(entry.at).toLocaleTimeString()}</span><strong>{entry.from + 1} → {entry.to + 1}</strong><small>{entry.confidence} · {entry.reason}</small></div>) : <p>No progress changes recorded yet.</p>}</div><button className="ghost-button" disabled={!state.progressHistory.length} onClick={() => void window.exileQuesting.undoProgress().then(setState)}>Undo last progress change</button></section>
-        <section className="panel diagnostic-card wide-diagnostic"><div className="section-title"><h2>Campaign data & compatibility</h2><span>{state.sourceStatus.state}</span></div><div className="diagnostic-summary"><div><span>Application</span><strong>v{state.appVersion}</strong></div><div><span>Campaign source</span><strong>{state.dataset.source.repository}</strong><small>{state.dataset.source.commit.slice(0, 12)}</small></div><div><span>Schema</span><strong>v{state.dataset.schemaVersion}</strong></div><div><span>Route pages</span><strong>{state.dataset.steps.length}</strong></div></div><p className="source-message">{state.sourceStatus.message}</p><div className="diagnostic-actions"><button className="primary-button" disabled={state.sourceStatus.state === 'checking'} onClick={() => void window.exileQuesting.checkCampaignUpdates().then(setState)}>{state.sourceStatus.state === 'checking' ? 'Checking…' : 'Check campaign data'}</button></div></section>
+        <section className="panel diagnostic-card"><div className="section-title"><h2>Route & run state</h2><span>{state.progress + 1}/{state.dataset.steps.length}</span></div><dl className="diagnostic-list"><dt>Semantic step ID</dt><dd>{step?.id}</dd><dt>Objective</dt><dd>{summarizeActions(step.actions).now?.title ?? step.title}</dd><dt>XP state</dt><dd>{state.xpGuidance.pace}</dd><dt>Run timer</dt><dd>{state.runStats.session.state}</dd><dt>Act splits</dt><dd>{state.runStats.session.splits.length}</dd><dt>Passive confirmed</dt><dd>{state.rewardAudit.passive.confirmed}/{state.rewardAudit.passive.knownTotal}</dd><dt>Trials confirmed</dt><dd>{state.rewardAudit.trials.confirmed}/{state.rewardAudit.trials.knownTotal}</dd></dl><div className="history-list">{lastHistory.length ? lastHistory.map((entry) => <div key={entry.id}><span>{new Date(entry.at).toLocaleTimeString()}</span><strong>{entry.from + 1} → {entry.to + 1}</strong><small>{entry.confidence} · {entry.reason}</small></div>) : <p>No progress changes recorded yet.</p>}</div><button className="ghost-button" disabled={!state.progressHistory.length} onClick={() => void window.exileQuesting.undoProgress().then(setState)}>Undo last progress change</button></section>
+        <section className="panel diagnostic-card wide-diagnostic"><div className="section-title"><h2>Application & campaign data</h2><span>{state.sourceStatus.state}</span></div><div className="diagnostic-summary"><div><span>Application</span><strong>v{state.appVersion}</strong><small>{state.appUpdate.status}</small></div><div><span>Campaign source</span><strong>{state.dataset.source.repository}</strong><small>{state.dataset.source.commit.slice(0, 12)}</small></div><div><span>Schema</span><strong>v{state.dataset.schemaVersion}</strong></div><div><span>Route pages</span><strong>{state.dataset.steps.length}</strong></div></div><p className="source-message">{state.sourceStatus.message}</p><p className="source-message">App update: {state.appUpdate.message}</p><div className="diagnostic-actions"><button className="primary-button" disabled={state.sourceStatus.state === 'checking'} onClick={() => void window.exileQuesting.checkCampaignUpdates().then(setState)}>{state.sourceStatus.state === 'checking' ? 'Checking…' : 'Check campaign data'}</button><button className="ghost-button" disabled={state.appUpdate.status === 'checking'} onClick={() => void window.exileQuesting.checkAppUpdates().then(setState)}>Check app update</button></div></section>
+        <DetectionTracePanel state={state} />
+        <div className="wide-diagnostic"><RewardAuditPanel state={state} setState={setState} /></div>
       </div>
     </div>
   );
@@ -463,7 +482,7 @@ function Onboarding({ state, setState }: { state: RuntimeState; setState: (state
     <div className="onboarding-page" key="connection"><span className="eyebrow">GAME CONNECTION</span><h1>{state.settings.logPath ? 'Path of Exile log found.' : 'Connect Path of Exile.'}</h1><p>{state.settings.logPath ? state.settings.logPath : 'Steam libraries and common standalone installs are checked automatically. You can browse manually if needed.'}</p><button className="ghost-button" onClick={() => void window.exileQuesting.selectLogFile().then(setState)}>Choose log file</button></div>,
     <div className="onboarding-page" key="guidance"><span className="eyebrow">GUIDANCE</span><h1>How much should we explain?</h1><div className="choice-cards">{(['beginner', 'balanced', 'racer'] as const).map((mode) => <button className={state.settings.guidanceMode === mode ? 'active' : ''} key={mode} onClick={() => update({ guidanceMode: mode })}><strong>{mode[0].toUpperCase() + mode.slice(1)}</strong><span>{mode === 'beginner' ? 'Teach the route and why it works.' : mode === 'balanced' ? 'Show important context without the lecture.' : 'Keep it terse and fast.'}</span></button>)}</div></div>,
     <div className="onboarding-page" key="overlay"><span className="eyebrow">OVERLAY</span><h1>Pick your default HUD.</h1><div className="choice-cards">{(['focus', 'compact', 'coach'] as const).map((mode) => <button className={state.settings.overlayMode === mode ? 'active' : ''} key={mode} onClick={() => update({ overlayMode: mode })}><strong>{mode[0].toUpperCase() + mode.slice(1)}</strong><span>{mode === 'focus' ? 'Recommended. NOW, NEXT and critical info.' : mode === 'compact' ? 'The smallest possible route HUD.' : 'Expanded teaching and route context.'}</span></button>)}</div><button className="primary-button" onClick={() => void window.exileQuesting.showOverlay()}>Test overlay</button></div>,
-    <div className="onboarding-page" key="ready"><span className="eyebrow">READY</span><h1>You're ready for Wraeclast.</h1><p>Move the overlay where you want it, then use <b>{state.settings.hotkeys.toggleOverlay}</b> to show/hide it and <b>{state.settings.hotkeys.cycleOverlayMode}</b> to cycle HUD modes.</p><button className="primary-button large" onClick={() => update({ onboardingComplete: true })}>Start campaign</button></div>,
+    <div className="onboarding-page" key="ready"><span className="eyebrow">READY</span><h1>You're ready for Wraeclast.</h1><p>Move the overlay where you want it, then use <b>{state.settings.hotkeys.toggleOverlay}</b> to show/hide it and <b>{state.settings.hotkeys.cycleOverlayMode}</b> to cycle HUD modes. Run timing can start automatically from the first campaign zones.</p><button className="primary-button large" onClick={() => update({ onboardingComplete: true })}>Start campaign</button></div>,
   ];
   return (
     <div className="modal-backdrop onboarding-backdrop"><section className="onboarding-card">{pages[step]}<footer><span>{step + 1} / {pages.length}</span><div>{step > 0 && <button className="ghost-button" onClick={() => setStep(step - 1)}>Back</button>}{step < pages.length - 1 && <button className="primary-button" onClick={() => setStep(step + 1)}>Continue</button>}</div></footer></section></div>
@@ -473,16 +492,17 @@ function Onboarding({ state, setState }: { state: RuntimeState; setState: (state
 function Manager({ state, setState }: { state: RuntimeState; setState: (state: RuntimeState) => void }) {
   const [tab, setTab] = useState<Tab>('overview');
   const step = state.dataset.steps[nearestEnabledIndex(state)];
+  const updateReady = ['available', 'ready'].includes(state.appUpdate.status);
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">EQ</div><div><strong>ExileQuesting</strong><span>Campaign co-pilot</span></div></div>
-        <nav>{NAV_ITEMS.map((item) => <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><i>{item.icon}</i>{item.label}</button>)}</nav>
+        <nav>{NAV_ITEMS.map((item) => <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><i>{item.icon}</i>{item.label}{item.id === 'settings' && updateReady && <b className="nav-badge">1</b>}</button>)}</nav>
         <div className="sidebar-footer"><StatusPill state={state} /><small>Not affiliated with or endorsed by Grinding Gear Games.</small></div>
       </aside>
       <section className="manager-main">
-        <header className="topbar"><div><i className={`live-dot ${state.logConnected ? 'online' : ''}`} /><span>{state.logConnected ? `Tracking ${state.currentZone ?? 'zone changes'}` : 'Manual campaign tracking'}</span></div><div><span>Act {step.act}</span><span>v{state.appVersion}</span><button className="topbar-button" onClick={() => void window.exileQuesting.showOverlay()}>Overlay ↗</button></div></header>
-        {tab === 'overview' && <Overview state={state} onNavigate={setTab} />}
+        <header className="topbar"><div><i className={`live-dot ${state.logConnected ? 'online' : ''}`} /><span>{state.logConnected ? `Tracking ${state.currentZone ?? 'zone changes'}` : 'Manual campaign tracking'}</span></div><div>{updateReady && <button className="topbar-update" onClick={() => setTab('settings')}>Update {state.appUpdate.latestVersion}</button>}<span>Act {step.act}</span><span>v{state.appVersion}</span><button className="topbar-button" onClick={() => void window.exileQuesting.showOverlay()}>Overlay ↗</button></div></header>
+        {tab === 'overview' && <Overview state={state} setState={setState} onNavigate={setTab} />}
         {tab === 'guide' && <CampaignGuide state={state} setState={setState} />}
         {tab === 'knowledge' && <Knowledge />}
         {tab === 'settings' && <Settings state={state} setState={setState} />}
