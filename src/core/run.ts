@@ -16,6 +16,17 @@ export function elapsedRunMs(session: RunSession, now = Date.now()): number {
   return Math.max(0, end - start - Math.max(0, session.pausedMs));
 }
 
+export function isTownAreaId(areaId?: string): boolean {
+  return Boolean(areaId && /(?:^|_)town$/i.test(areaId));
+}
+
+function settleTownTime(session: RunSession, now: Date): RunSession {
+  if (!session.lastZoneChangedAt || !isTownAreaId(session.lastAreaId) || session.state !== 'running') return session;
+  const changedAt = Date.parse(session.lastZoneChangedAt);
+  if (!Number.isFinite(changedAt)) return session;
+  return { ...session, townTimeMs: session.townTimeMs + Math.max(0, now.getTime() - changedAt) };
+}
+
 export function startRun(session: RunSession, act = 1, now = new Date()): RunSession {
   if (session.state === 'running') return session;
   if (session.state === 'paused' && session.startedAt && session.pausedAt) {
@@ -26,6 +37,7 @@ export function startRun(session: RunSession, act = 1, now = new Date()): RunSes
       state: 'running',
       pausedAt: undefined,
       pausedMs: session.pausedMs + (Number.isFinite(pauseStarted) ? Math.max(0, resumedAt - pauseStarted) : 0),
+      lastZoneChangedAt: isTownAreaId(session.lastAreaId) ? now.toISOString() : session.lastZoneChangedAt,
     };
   }
   return {
@@ -40,22 +52,17 @@ export function startRun(session: RunSession, act = 1, now = new Date()): RunSes
 
 export function pauseRun(session: RunSession, now = new Date()): RunSession {
   if (session.state !== 'running') return session;
-  return { ...session, state: 'paused', pausedAt: now.toISOString() };
+  const settled = settleTownTime(session, now);
+  return {
+    ...settled,
+    state: 'paused',
+    pausedAt: now.toISOString(),
+    lastZoneChangedAt: isTownAreaId(settled.lastAreaId) ? now.toISOString() : settled.lastZoneChangedAt,
+  };
 }
 
 export function resetRun(): RunSession {
   return emptyRunSession();
-}
-
-export function isTownAreaId(areaId?: string): boolean {
-  return Boolean(areaId && /(?:^|_)town$/i.test(areaId));
-}
-
-function settleTownTime(session: RunSession, now: Date): RunSession {
-  if (!session.lastZoneChangedAt || !isTownAreaId(session.lastAreaId) || session.state !== 'running') return session;
-  const changedAt = Date.parse(session.lastZoneChangedAt);
-  if (!Number.isFinite(changedAt)) return session;
-  return { ...session, townTimeMs: session.townTimeMs + Math.max(0, now.getTime() - changedAt) };
 }
 
 export function recordRunArea(session: RunSession, areaId: string | undefined, now = new Date()): RunSession {
