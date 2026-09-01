@@ -137,21 +137,25 @@ function dedupe(actions: RouteAction[]): RouteAction[] {
   });
 }
 
-function rank(action: RouteAction): number {
-  const order: RouteActionType[] = ['kill', 'collect', 'quest-item', 'talk', 'reward', 'passive', 'trial', 'waypoint', 'travel', 'relog', 'portal', 'gem', 'vendor', 'craft', 'build', 'warning', 'context'];
-  return order.indexOf(action.type);
-}
-
 export function buildRouteActions(rawLines: string[], areas: Map<string, AreaRecord>): RouteAction[] {
   const actions = dedupe(rawLines.flatMap((line) => parseLine(line, areas)));
-  const decisive = actions.filter((action) => action.type !== 'context').sort((a, b) => rank(a) - rank(b));
+  // Preserve the route author's sequence among actual actions. Context/layout
+  // clues are moved behind decisive actions so “follow the wall” can never
+  // become NOW when a later line on the same route page says “kill Hailrake”.
+  const decisive = actions.filter((action) => action.type !== 'context');
   const context = actions.filter((action) => action.type === 'context');
   const ordered = [...decisive, ...context];
 
-  ordered.forEach((action, index) => {
-    if (action.type === 'context') action.priority = 'context';
-    else if (index === 0) action.priority = 'now';
-    else action.priority = 'then';
+  let assignedNow = false;
+  ordered.forEach((action) => {
+    if (action.type === 'context') {
+      action.priority = 'context';
+    } else if (!assignedNow) {
+      action.priority = 'now';
+      assignedNow = true;
+    } else {
+      action.priority = 'then';
+    }
   });
   return ordered;
 }
