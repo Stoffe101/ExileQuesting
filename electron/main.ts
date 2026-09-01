@@ -186,20 +186,27 @@ async function loadLayoutHints(): Promise<LayoutHint[]> {
   }
 }
 
-async function loadCompatibility(): Promise<CampaignCompatibilityManifest> {
-  const fallback: CampaignCompatibilityManifest = {
+function fallbackCompatibility(): CampaignCompatibilityManifest {
+  return {
     schemaVersion: 1,
     upstream: { repository: DEFAULT_UPSTREAM_REPOSITORY, guidePath: DEFAULT_GUIDE_PATH, areasPath: DEFAULT_AREAS_PATH },
     adapterVersion: 2,
     campaignSchemaVersion: 2,
     updatedAt: new Date(0).toISOString(),
   };
+}
+
+async function loadLocalCompatibility(): Promise<CampaignCompatibilityManifest> {
   try {
     const local = validateCompatibilityManifest(await readJson<unknown>(bundledCampaignPath('compatibility.json')));
-    compatibility = local ?? fallback;
+    compatibility = local ?? fallbackCompatibility();
   } catch {
-    compatibility = fallback;
+    compatibility = fallbackCompatibility();
   }
+  return compatibility;
+}
+
+async function refreshRemoteCompatibility(): Promise<CampaignCompatibilityManifest> {
   try {
     const response = await fetch(REMOTE_COMPATIBILITY_URL, {
       headers: { 'User-Agent': `ExileQuesting/${app.getVersion()} (github.com/Stoffe101/ExileQuesting)` },
@@ -210,7 +217,7 @@ async function loadCompatibility(): Promise<CampaignCompatibilityManifest> {
       if (remote && remote.adapterVersion <= 2 && remote.campaignSchemaVersion <= 2) compatibility = remote;
     }
   } catch (error) {
-    log.info('Remote compatibility manifest unavailable; using verified local definition.', error);
+    log.info('Remote compatibility manifest unavailable; keeping verified local definition.', error);
   }
   return compatibility;
 }
@@ -492,7 +499,7 @@ function rawUrl(repository: string, commit: string, filePath: string): string {
 
 async function checkCampaignUpdates(): Promise<void> {
   if (sourceStatus.state === 'checking') return;
-  await loadCompatibility();
+  await refreshRemoteCompatibility();
   sourceStatus = { ...sourceStatus, state: 'checking', message: 'Checking Exile-UI for campaign changes…' };
   broadcastState();
   const checkedAt = new Date().toISOString();
@@ -631,7 +638,7 @@ else {
   app.on('second-instance', () => { mainWindow?.show(); mainWindow?.focus(); });
   app.whenReady().then(async () => {
     await Promise.all([loadSettings(), loadProgress()]);
-    await loadCompatibility();
+    await loadLocalCompatibility();
     await loadCampaign();
     if (isSmokeTest) {
       log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps.`);
