@@ -135,6 +135,14 @@ const scenarios: Scenario[] = [
   { name: 'diagnostics-3440x1440', width: 3440, height: 1440, tab: 'Diagnostics', ultrawide: true },
 ];
 
+async function capture(window: BrowserWindow, filename: string): Promise<number> {
+  const image = await window.webContents.capturePage();
+  const png = image.toPNG();
+  if (!png.length) throw new Error(`${filename}: empty screenshot.`);
+  await fs.writeFile(path.join(output, filename), png);
+  return png.length;
+}
+
 async function main(): Promise<void> {
   await app.whenReady();
   await fs.mkdir(output, { recursive: true });
@@ -169,6 +177,7 @@ async function main(): Promise<void> {
       const first = page?.firstElementChild;
       const diagnosticText = document.querySelector('.diagnostic-list dd');
       if (!page || !sidebar || !first) throw new Error('Manager visual structure is incomplete.');
+      page.scrollTop = 0;
       const firstRect = first.getBoundingClientRect();
       return {
         viewportWidth: document.documentElement.clientWidth,
@@ -192,11 +201,22 @@ async function main(): Promise<void> {
     if (scenario.ultrawide && metrics.contentWidth > 1790) throw new Error(`${scenario.name}: ultrawide reading column is too wide (${metrics.contentWidth}px).`);
     if (scenario.tab === 'Diagnostics' && (metrics.diagnosticFontPx ?? 0) < 11) throw new Error(`${scenario.name}: diagnostics text is too small (${metrics.diagnosticFontPx}px).`);
 
-    const image = await window.webContents.capturePage();
-    const png = image.toPNG();
-    if (!png.length) throw new Error(`${scenario.name}: empty screenshot.`);
-    await fs.writeFile(path.join(output, `${scenario.name}.png`), png);
-    captures.push({ ...scenario, ...metrics, bytes: png.length });
+    const topBytes = await capture(window, `${scenario.name}.png`);
+    let bottomBytes: number | undefined;
+    let bottomScrollTop: number | undefined;
+    if (scenario.expectScrollable) {
+      bottomScrollTop = await window.webContents.executeJavaScript(`(() => {
+        const page = document.querySelector('.manager-main > .page');
+        if (!page) throw new Error('Missing page scroll container.');
+        page.scrollTop = page.scrollHeight;
+        return page.scrollTop;
+      })()`);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      if (!(bottomScrollTop > 0)) throw new Error(`${scenario.name}: page reports overflow but cannot actually scroll.`);
+      bottomBytes = await capture(window, `${scenario.name}-bottom.png`);
+      await window.webContents.executeJavaScript(`document.querySelector('.manager-main > .page')?.scrollTo(0, 0)`);
+    }
+    captures.push({ ...scenario, ...metrics, topBytes, bottomBytes, bottomScrollTop });
   }
 
   await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), captures }, null, 2), 'utf8');
