@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "audit:campaign": "node tools/audit-campaign.mjs",
     "check:upstream": "node tools/check-upstream.mjs",
-    "dist": "npm run build && electron-builder --win nsis portable",
+    "dist": "npm run build && electron-builder --win nsis",
     "dist:dir": "npm run build && electron-builder --dir",
     "import:upstream": "node tools/import-exile-ui.mjs"
   },
@@ -61,8 +61,7 @@
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        { "target": "nsis", "arch": ["x64"] }
       ]
     },
     "nsis": {
@@ -75,7 +74,6 @@
       "artifactName": "ExileQuesting-${version}-setup.exe",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
-    },
-    "portable": { "artifactName": "ExileQuesting-${version}-portable.exe" }
+    }
   }
 }
