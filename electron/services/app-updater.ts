@@ -14,6 +14,9 @@ interface AppUpdaterOptions {
   log?: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
 }
 
+const SOURCE_REPOSITORY = 'Stoffe101/ExileQuesting';
+const PUBLIC_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting-Releases';
+
 export class AppUpdater {
   private state: AppUpdateState;
   private release: ParsedAppRelease | null = null;
@@ -21,6 +24,10 @@ export class AppUpdater {
   private activeDownload: Promise<AppUpdateState> | null = null;
 
   constructor(private options: AppUpdaterOptions) {
+    // The source repository intentionally remains private. Installed applications
+    // must never carry a GitHub token, so production update metadata and installers
+    // live in the public release-only repository instead.
+    if (this.options.repository === SOURCE_REPOSITORY) this.options.repository = PUBLIC_RELEASE_REPOSITORY;
     this.state = {
       status: options.packaged ? 'idle' : 'disabled',
       currentVersion: options.currentVersion,
@@ -52,10 +59,10 @@ export class AppUpdater {
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) {
-        const privateHint = response.status === 404
-          ? ' The release repository must be public (or moved to a separate public release repository) before end-user updates can work; ExileQuesting never embeds a GitHub token.'
+        const feedHint = response.status === 404
+          ? ' The public ExileQuesting release feed has not been published yet. The application can still be used normally; no GitHub credential is embedded in the app.'
           : '';
-        throw new Error(`GitHub release check returned HTTP ${response.status}.${privateHint}`);
+        throw new Error(`GitHub release check returned HTTP ${response.status}.${feedHint}`);
       }
       const release = parseLatestRelease(await response.json());
       if (!release) throw new Error('The latest GitHub release does not contain a valid ExileQuesting setup asset.');
