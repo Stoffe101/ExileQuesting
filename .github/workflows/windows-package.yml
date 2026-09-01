@@ -37,8 +37,8 @@ jobs:
         shell: pwsh
         run: |
           $portable = Get-Item release/ExileQuesting-*-portable.exe
-          & $portable.FullName --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "Portable startup smoke test failed with exit code $LASTEXITCODE." }
+          $portableRun = Start-Process -FilePath $portable.FullName -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($portableRun.ExitCode -ne 0) { throw "Portable startup smoke test failed with exit code $($portableRun.ExitCode)." }
 
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingSmoke"
@@ -47,8 +47,8 @@ jobs:
 
           $installedExe = Join-Path $installDir "ExileQuesting.exe"
           if (-not (Test-Path $installedExe)) { throw "Installer completed but ExileQuesting.exe was not installed." }
-          & $installedExe --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "Installed startup smoke test failed with exit code $LASTEXITCODE." }
+          $installedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($installedRun.ExitCode -ne 0) { throw "Installed startup smoke test failed with exit code $($installedRun.ExitCode)." }
 
           $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
           if (Test-Path $uninstaller) {
