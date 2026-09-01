@@ -115,3 +115,11 @@ const report = [
 const target = path.join(root, 'docs/CAMPAIGN_AUDIT.md');
 await writeFile(target, report, 'utf8');
 console.log(report);
+
+const failures = [];
+if (structured !== total) failures.push(`${total - structured} route page(s) lost decisive structured-action coverage.`);
+if (unmatchedAnnotations.length) failures.push(`${unmatchedAnnotations.length} bespoke guidance selector(s) are stale/unmatched.`);
+if (failures.length) {
+  console.error(`\nCampaign audit failed:\n- ${failures.join('\n- ')}`);
+  process.exitCode = 1;
+}
