@@ -59,9 +59,8 @@ function settleTownTime(session: RunSession, now: Date): RunSession {
 }
 
 export function recordRunArea(session: RunSession, areaId: string | undefined, now = new Date()): RunSession {
-  if (session.state !== 'running') return session;
+  if (session.state !== 'running' || !areaId || areaId === session.lastAreaId) return session;
   const settled = settleTownTime(session, now);
-  if (!areaId || areaId === settled.lastAreaId) return settled;
   return { ...settled, lastAreaId: areaId, lastZoneChangedAt: now.toISOString() };
 }
 
