@@ -15,7 +15,7 @@ permissions:
 jobs:
   release-windows:
     runs-on: windows-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
@@ -71,32 +71,64 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - run: npm run dist
-      - name: Smoke test installed release and updater handoff
+      - name: Smoke test real previous-to-release updater handoff
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $candidateVersion = [string]$package.version
+          $candidateTag = "v$candidateVersion"
           $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
           if ($setup.Count -ne 1) { throw "Expected exactly one NSIS setup executable, found $($setup.Count)." }
-          $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseSmoke"
-          $install = Start-Process -FilePath $setup[0].FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Silent installer failed with exit code $($install.ExitCode)." }
+
+          $releases = gh release list --repo "${{ github.repository }}" --limit 20 --json tagName,isDraft,isPrerelease,publishedAt | ConvertFrom-Json
+          $previous = $releases | Where-Object { -not $_.isDraft -and -not $_.isPrerelease -and $_.tagName -ne $candidateTag } | Sort-Object publishedAt -Descending | Select-Object -First 1
+          if (-not $previous) { throw "Could not find a previous stable release to exercise the release updater against $candidateTag." }
+
+          $previousDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleasePrevious"
+          New-Item -ItemType Directory -Path $previousDir -Force | Out-Null
+          gh release download $previous.tagName --repo "${{ github.repository }}" --pattern 'ExileQuesting-*-setup.exe' --dir $previousDir
+          if ($LASTEXITCODE -ne 0) { throw "Could not download previous release $($previous.tagName)." }
+          $previousSetups = @(Get-ChildItem $previousDir -Filter 'ExileQuesting-*-setup.exe')
+          if ($previousSetups.Count -ne 1) { throw "Expected one previous setup executable, found $($previousSetups.Count)." }
+
+          $installDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseUpdateSmoke"
+          $install = Start-Process -FilePath $previousSetups[0].FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Previous release install failed with exit code $($install.ExitCode)." }
           $installedExe = Join-Path $installDir "ExileQuesting.exe"
-          if (-not (Test-Path $installedExe)) { throw "Release installer did not install ExileQuesting.exe." }
-          $run = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
-          if ($run.ExitCode -ne 0) { throw "Installed release smoke test failed with exit code $($run.ExitCode)." }
+          if (-not (Test-Path $installedExe)) { throw "Previous release did not install ExileQuesting.exe." }
+          $previousRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($previousRun.ExitCode -ne 0) { throw "Previous installed release smoke test failed with exit code $($previousRun.ExitCode)." }
 
           npm run smoke:update-handoff
+          if ($LASTEXITCODE -ne 0) { throw 'Updater handoff smoke harness failed to build.' }
           $handoffDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleaseUpdateHandoff"
           node .tmp/smoke-update-handoff.cjs $setup[0].FullName $handoffDir $installedExe
+          if ($LASTEXITCODE -ne 0) { throw 'Updater handoff smoke harness failed to schedule the release update.' }
+
           $resultFile = Join-Path $handoffDir 'last-update-result.json'
-          for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }
-          if (-not (Test-Path $resultFile)) { throw 'Release updater handoff did not produce a result within 60 seconds.' }
+          $traceFile = Join-Path $handoffDir 'last-update-trace.log'
+          for ($attempt = 0; $attempt -lt 180 -and -not (Test-Path $resultFile); $attempt++) { Start-Sleep -Milliseconds 500 }
+          if (-not (Test-Path $resultFile)) {
+            if (Test-Path $traceFile) { Write-Host '--- updater trace ---'; Get-Content $traceFile }
+            throw 'Release updater handoff did not produce a result within 90 seconds.'
+          }
           $handoff = Get-Content $resultFile -Raw | ConvertFrom-Json
+          if (Test-Path $traceFile) { Write-Host '--- updater trace ---'; Get-Content $traceFile }
           if ($handoff.status -ne 'installed' -or $handoff.exitCode -ne 0 -or -not $handoff.relaunched) {
             throw "Release updater handoff failed: $($handoff | ConvertTo-Json -Compress)"
           }
           if (-not (Test-Path $installedExe)) { throw 'Release updater handoff removed the installed executable.' }
+
+          Start-Sleep -Seconds 2
           Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force
-          Start-Sleep -Milliseconds 500
+          Start-Sleep -Milliseconds 750
+          $updatedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
+          if ($updatedRun.ExitCode -ne 0) { throw "Updated release smoke test failed with exit code $($updatedRun.ExitCode)." }
+          $productVersion = (Get-Item $installedExe).VersionInfo.ProductVersion
+          if ($productVersion -notlike "$candidateVersion*") { throw "Updater left product version '$productVersion'; expected $candidateVersion." }
+          Write-Host "Verified release update path: $($previous.tagName) -> $candidateTag ($productVersion)."
 
           $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
           if (Test-Path $uninstaller) {
