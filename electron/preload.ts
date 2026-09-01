@@ -19,7 +19,9 @@ const api = {
   onState: (callback: (state: RuntimeState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);
     ipcRenderer.on('state:changed', listener);
-    return () => ipcRenderer.removeListener('state:changed', listener);
+    return () => {
+      ipcRenderer.removeListener('state:changed', listener);
+    };
   },
 };
 
