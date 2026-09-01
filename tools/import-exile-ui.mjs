@@ -2,8 +2,11 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
-const repository = 'Lailloken/Exile-UI';
 const outputDir = path.resolve('assets/campaign');
+const compatibility = JSON.parse(await readFile(path.join(outputDir, 'compatibility.json'), 'utf8'));
+const repository = compatibility.upstream.repository;
+const guidePath = compatibility.upstream.guidePath;
+const areasPath = compatibility.upstream.areasPath;
 const headers = { 'User-Agent': 'ExileQuesting-importer (github.com/Stoffe101/ExileQuesting)' };
 
 async function request(url) {
@@ -35,9 +38,7 @@ function validate(guide, areas) {
 }
 
 const requestedRef = process.argv[2] || 'main';
-const commit = await (await request(`https://api.github.com/repos/${repository}/commits/${requestedRef}`)).json();
-const guidePath = 'data/english/[leveltracker] default guide.json';
-const areasPath = 'data/english/[leveltracker] areas.json';
+const commit = await request(`https://api.github.com/repos/${repository}/commits/${requestedRef}`).then((response) => response.json());
 const rawUrl = (file) => `https://raw.githubusercontent.com/${repository}/${commit.sha}/${file.split('/').map(encodeURIComponent).join('/')}`;
 const [guide, areas] = await Promise.all([
   request(rawUrl(guidePath)).then((response) => response.json()),
@@ -50,11 +51,12 @@ await Promise.all([
   writeAtomic(path.join(outputDir, 'guide.json'), guide),
   writeAtomic(path.join(outputDir, 'areas.json'), areas),
   writeAtomic(path.join(outputDir, 'manifest.json'), {
-    schemaVersion: 1,
+    schemaVersion: compatibility.campaignSchemaVersion,
     repository,
     commit: commit.sha,
     fetchedAt: new Date().toISOString(),
     files: { guide: guidePath, areas: areasPath },
+    adapterVersion: compatibility.adapterVersion,
     license: 'MIT',
     validation: metrics,
   }),
@@ -62,4 +64,3 @@ await Promise.all([
 
 const annotations = JSON.parse(await readFile(path.join(outputDir, 'annotations.json'), 'utf8'));
 console.log(`Imported ${metrics.steps} steps and ${metrics.areas} areas from ${commit.sha}. ${annotations.length} semantic annotations remain available for matching.`);
-
