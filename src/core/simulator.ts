@@ -69,6 +69,11 @@ function nextEnabledIndex(indices: number[], current: number, fallback: number):
   return indices.find((index) => index > current) ?? fallback;
 }
 
+function appendRecent<T>(values: T[], value: T | undefined, limit = 8): T[] {
+  if (value === undefined || value === null || value === '') return values;
+  return [...values.filter((candidate) => candidate !== value), value].slice(-limit);
+}
+
 export function simulateCanonicalCampaign(dataset: CampaignDataset, options: CampaignSimulationOptions = {}): CampaignSimulationReport {
   const settings = routeSettings(options);
   const enabled = (step: CampaignStep) => isStepEnabled(step, settings);
@@ -87,12 +92,19 @@ export function simulateCanonicalCampaign(dataset: CampaignDataset, options: Cam
   let maxAutomaticJump = 0;
   let currentAreaId = '';
   let currentAreaName = '';
-  let previousAreaId = '';
+  let recentAreaIds: string[] = [];
+  let recentAreaNames: string[] = [];
 
   const recordEvent = (kind: SimulationEventKind, routeIndex: number, event: ZoneEvent, allowAdvance: boolean) => {
     const before = progress;
     const decision = decideProgression(dataset.steps, progress, event, {
-      isStepEnabled: (step) => enabled(step), maxLookAhead: 28, recentLookBehind: 3, currentAreaId, currentAreaName,
+      isStepEnabled: (step) => enabled(step),
+      maxLookAhead: 28,
+      recentLookBehind: 3,
+      currentAreaId,
+      currentAreaName,
+      recentAreaIds,
+      recentAreaNames,
     });
     if (decision && allowAdvance) {
       const jump = decision.to - progress;
@@ -107,9 +119,6 @@ export function simulateCanonicalCampaign(dataset: CampaignDataset, options: Cam
       if (decision.to > nextSafeProgress) {
         issues.push({ severity: 'error', code: `${kind}-unsafe-skip`, message: `${kind} event would skip beyond the next enabled objective from ${before + 1} to ${decision.to + 1}.`, routeIndex, progress, areaId: event.areaId });
       } else if (kind === 'backtrack') {
-        // If revisiting a zone happens to be exactly the route's immediate next
-        // transition, logs alone cannot distinguish "backtrack" from intended
-        // progression. Report that ambiguity without failing the campaign.
         issues.push({ severity: 'warning', code: 'ambiguous-backtrack', message: `Backtrack probe for ${event.areaId ?? event.areaName} also matches the immediate next route transition.`, routeIndex, progress, areaId: event.areaId });
       } else {
         issues.push({ severity: 'error', code: `${kind}-advanced`, message: `${kind} event would unexpectedly advance from ${progress + 1} to ${decision.to + 1}.`, routeIndex, progress, areaId: event.areaId });
@@ -131,15 +140,25 @@ export function simulateCanonicalCampaign(dataset: CampaignDataset, options: Cam
     const event = generatedEvent(step, sequence);
     const enteringDifferentArea = Boolean(event?.areaId && event.areaId !== currentAreaId);
     if (event && enteringDifferentArea) {
-      previousAreaId = currentAreaId;
+      const previousAreaId = currentAreaId || undefined;
+      const previousAreaName = currentAreaName || undefined;
+      recentAreaIds = appendRecent(recentAreaIds, previousAreaId);
+      recentAreaNames = appendRecent(recentAreaNames, previousAreaName);
+
       recordEvent('zone', routeIndex, event, true);
       currentAreaId = event.areaId ?? currentAreaId;
       currentAreaName = step.targetArea ?? currentAreaName;
 
-      if (options.injectDuplicates ?? true) { duplicateEvents += 1; recordEvent('duplicate', routeIndex, event, false); }
+      if (options.injectDuplicates ?? true) {
+        duplicateEvents += 1;
+        recordEvent('duplicate', routeIndex, event, false);
+      }
       if ((options.injectDisplayNames ?? true) && step.targetArea) {
         const display = enteredEvent(step, sequence);
-        if (display) { duplicateEvents += 1; recordEvent('display-name', routeIndex, display, false); }
+        if (display) {
+          duplicateEvents += 1;
+          recordEvent('display-name', routeIndex, display, false);
+        }
       }
       if ((options.injectBacktracks ?? true) && previousAreaId && routeIndex % 11 === 0) {
         const oldArea = dataset.areas.find((area) => area.id === previousAreaId);
@@ -174,6 +193,6 @@ export function simulationReportMarkdown(report: CampaignSimulationReport): stri
     `- Backtrack probes injected: **${report.backtrackProbes}**`, `- Largest automatic jump: **${report.maxAutomaticJump} raw page(s)**`,
     `- Errors: **${errors.length}**`, `- Warnings: **${warnings.length}**`, '', '## Issues', '',
     ...(report.issues.length ? report.issues.map((issue) => `- **${issue.severity.toUpperCase()} · ${issue.code}** page ${issue.routeIndex + 1}: ${issue.message}`) : ['No unsafe progression behavior was detected.']),
-    '', 'The simulator intentionally mixes verified internal area IDs, duplicate display-name events, manual objective completion and periodic backtrack probes. Ambiguous backtracks that exactly match the immediate intended route transition are warnings because Client.txt alone cannot distinguish those two physical player behaviors. It does not replace final in-game testing of GGG log timing or Windows overlay behavior.', '',
+    '', 'The simulator intentionally mixes verified internal area IDs, duplicate display-name events, manual objective completion and periodic backtrack probes. A bounded recent-area history prevents a true backtrack from being mistaken for a later copy of the same route area, while an immediate return that is exactly the current objective remains valid. It does not replace final in-game testing of GGG log timing or Windows overlay behavior.', '',
   ].join('\n');
 }
