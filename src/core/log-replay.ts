@@ -44,6 +44,8 @@ export function replayClientLogChunks(
   let progress = initialProgress;
   let lines = 0;
   let parsedEvents = 0;
+  let currentAreaId = progressionOptions.currentAreaId;
+  let currentAreaName = progressionOptions.currentAreaName;
 
   const consume = (line: string) => {
     lines += 1;
@@ -52,23 +54,17 @@ export function replayClientLogChunks(
     parsedEvents += 1;
     if (event.type === 'character-level') return;
     const before = progress;
-    const decision = decideProgression(steps, progress, event, progressionOptions);
+    const decision = decideProgression(steps, progress, event, { ...progressionOptions, currentAreaId, currentAreaName });
     if (decision) progress = decision.to;
     if (progress < before) errors.push(`Progress regressed from ${before} to ${progress} for ${event.raw}`);
-    decisions.push({
-      event,
-      progressBefore: before,
-      progressAfter: progress,
-      reason: decision?.reason ?? 'No matching route transition.',
-    });
+    decisions.push({ event, progressBefore: before, progressAfter: progress, reason: decision?.reason ?? 'No matching route transition.' });
+    if (event.areaId) currentAreaId = event.areaId;
+    if (event.areaName) currentAreaName = event.areaName;
   };
 
-  for (const chunk of chunks) {
-    for (const line of buffer.push(chunk)) consume(line);
-  }
+  for (const chunk of chunks) for (const line of buffer.push(chunk)) consume(line);
   const pending = buffer.pending();
   if (pending) consume(pending);
-
   return { chunks: chunks.length, lines, parsedEvents, finalProgress: progress, decisions, errors };
 }
 
