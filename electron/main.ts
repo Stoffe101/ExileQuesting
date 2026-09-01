@@ -228,14 +228,16 @@ function overlayState(real = runtimeState()): RuntimeState {
   if (!overlayDemo) return real;
   const demoProgress = Math.max(0, Math.min(Math.trunc(overlayDemo.progress), dataset.steps.length - 1));
   const step = dataset.steps[demoProgress];
-  const areaLevel = overlayDemo.areaLevel ?? step.areaLevel;
+  const previousAreaStep = dataset.steps.slice(0, demoProgress).reverse().find((candidate) => enabled(candidate) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));
+  const detectedArea = previousAreaStep?.targetAreaId ? dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;
+  const areaLevel = overlayDemo.areaLevel ?? detectedArea?.lvl ?? previousAreaStep?.areaLevel ?? step.areaLevel;
   const level = overlayDemo.characterLevel ?? Math.max(1, (areaLevel ?? 1) - 2);
   return {
     ...real,
     settings: { ...real.settings, overlayMode: overlayDemo.mode, showRunTimerInOverlay: false },
     progress: demoProgress,
-    currentZone: step.targetArea ?? 'Overlay demo',
-    currentAreaId: step.targetAreaId,
+    currentZone: previousAreaStep?.targetArea ?? (demoProgress === 0 ? 'Waiting for zone detection' : 'Overlay demo'),
+    currentAreaId: previousAreaStep?.targetAreaId,
     currentAreaLevel: areaLevel,
     characterLevel: level,
     xpGuidance: xpGuidance(level, areaLevel),
