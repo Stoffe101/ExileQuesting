@@ -14,6 +14,30 @@
 - [x] diagnostics and persistent logs
 - [x] NSIS installer and portable build pipeline
 
+## 0.1.1 — campaign experience + Overlay V2
+
+- [x] structured semantic route actions
+- [x] NOW / NEXT / DON'T MISS glance hierarchy
+- [x] independent Compact / Focus / Coach overlay presentation
+- [x] typography presets and advanced overlay text sizing
+- [x] content-driven overlay sizing
+- [x] strict Client.txt event parser
+- [x] filesystem watcher plus polling safety net
+- [x] bounded startup-tail inspection and route reconciliation
+- [x] confidence-rated progress decisions and undo history
+- [x] Steam-library-aware log discovery
+- [x] character/area level parsing and experience-band guidance
+- [x] passive/trial route progress and pre-map audit foundation
+- [x] confidence-rated layout-hint model
+- [x] position presets, snapping/locking, DPI-safe display clamping
+- [x] first-run onboarding and accessibility controls
+- [x] live-run Overview, inspect-only Campaign browsing, expanded Diagnostics
+- [x] data-only compatibility manifest
+- [x] semantic upstream CI report and campaign audit tooling
+- [ ] full in-game Acts 1–10 regression run
+- [ ] multi-monitor / mixed-DPI placement regression pass
+- [ ] expand reviewed layout hints and bespoke guidance where audit identifies weak pages
+
 ## 0.2 — PoB to Play
 
 - [ ] paste export code or pobb.in URL
@@ -25,16 +49,16 @@
 - [ ] passive milestone overlay
 - [ ] build notes and guide-source link
 - [ ] build + character progress profiles
+- [ ] attach build actions to the semantic campaign-action model
 
-## 0.3 — route intelligence
+## 0.3 — route intelligence + run history
 
-- [ ] character/area level parsing and experience-band guidance
 - [ ] run timer, act splits, pauses, PB/previous comparison
-- [ ] missed passive/trial checklist and `/passives` audit
-- [ ] confidence-rated layout hints and versioned images
+- [ ] richer `/passives` reconciliation workflow
+- [ ] versioned layout images/diagrams where they beat text
 - [ ] build-specific vendor regex/search reminders
 - [ ] leveling loot-filter generator
-- [ ] first-run onboarding and DPI/multi-monitor placement tools
+- [ ] personal route analytics without gameplay automation
 
 ## 0.4 — Gear Coach
 
@@ -64,4 +88,3 @@
 - current GGG policy boundary is rechecked;
 - third-party data versions and licenses are recorded;
 - no upstream update activates without validation.
-
