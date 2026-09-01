@@ -67,6 +67,7 @@ describe('offline Acts 1-10 campaign simulator', () => {
       { id: 'c' },
       { id: 'd' },
       { id: 'e', targetAreaId: 'parent', targetArea: 'Parent' },
+      { id: 'f', targetAreaId: 'next', targetArea: 'Next' },
     ] as any[];
     expect(decideProgression(steps, 2, { areaId: 'parent' })).toBeNull();
   });
@@ -76,7 +77,8 @@ describe('offline Acts 1-10 campaign simulator', () => {
       { id: 'a', targetAreaId: 'parent', targetArea: 'Parent' },
       { id: 'b', targetAreaId: 'side', targetArea: 'Side' },
       { id: 'c', targetAreaId: 'parent', targetArea: 'Parent' },
+      { id: 'd', targetAreaId: 'next', targetArea: 'Next' },
     ] as any[];
-    expect(decideProgression(steps, 2, { areaId: 'parent' })).toMatchObject({ to: 2 });
+    expect(decideProgression(steps, 1, { areaId: 'parent' })).toMatchObject({ to: 3 });
   });
 });
