@@ -91,7 +91,6 @@ export function UpdatePanel({ state, setState }: { state: RuntimeState; setState
       </div>
       {update.status === 'downloading' && <div className="update-progress"><i style={{ width: `${update.progress ?? 0}%` }} /><span>{update.progress ?? 0}%{update.totalBytes ? ` · ${Math.round((update.downloadedBytes ?? 0) / 1024 / 1024)} / ${Math.round(update.totalBytes / 1024 / 1024)} MB` : ''}</span></div>}
       {update.releaseNotes && ['available', 'ready'].includes(update.status) && <details className="release-notes"><summary>What's new</summary><p>{update.releaseNotes}</p></details>}
-      {update.error && <div className="inline-alert"><strong>Update service</strong>{update.error}</div>}
       <SettingToggle title="Automatically check for updates" description="Check the stable GitHub release feed quietly in the background." checked={state.settings.autoCheckAppUpdates} onChange={(autoCheckAppUpdates) => void window.exileQuesting.setSettings({ autoCheckAppUpdates }).then(setState)} />
       <SettingToggle title="Automatically download updates" description="Download verified setup files in the background, but never install until you choose to restart." checked={state.settings.autoDownloadAppUpdates} onChange={(autoDownloadAppUpdates) => void window.exileQuesting.setSettings({ autoDownloadAppUpdates }).then(setState)} />
     </section>
