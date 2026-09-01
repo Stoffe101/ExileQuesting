@@ -20,9 +20,10 @@ export function decideProgression(
   const start = Math.max(0, currentProgress - 3);
   const end = Math.min(steps.length, currentProgress + 28);
 
-  for (let index = start; index < end; index += 1) {
-    const step = steps[index];
-    if (event.areaId && step.targetAreaId === event.areaId) {
+  if (event.areaId) {
+    for (let index = start; index < end; index += 1) {
+      const step = steps[index];
+      if (step.targetAreaId !== event.areaId) continue;
       const to = Math.min(index + 1, steps.length - 1);
       if (to === currentProgress) return null;
       return { to, reason: `Internal area ID ${event.areaId} matched the route transition.`, confidence: 'verified' };
@@ -32,14 +33,31 @@ export function decideProgression(
   if (normalizedName) {
     for (let index = start; index < end; index += 1) {
       const step = steps[index];
-      if (normalizeAreaName(step.targetArea) === normalizedName) {
-        const to = Math.min(index + 1, steps.length - 1);
-        if (to === currentProgress) return null;
-        return { to, reason: `Displayed area name ${event.areaName} matched a nearby route transition.`, confidence: 'inferred' };
-      }
+      if (normalizeAreaName(step.targetArea) !== normalizedName) continue;
+      const to = Math.min(index + 1, steps.length - 1);
+      if (to === currentProgress) return null;
+      return { to, reason: `Displayed area name ${event.areaName} matched a nearby route transition.`, confidence: 'inferred' };
     }
   }
   return null;
+}
+
+function closestGlobalMatch(
+  steps: CampaignStep[],
+  savedProgress: number,
+  detected: Pick<ZoneEvent, 'areaId' | 'areaName'>,
+): { index: number; confidence: ProgressConfidence } | undefined {
+  const normalizedName = normalizeAreaName(detected.areaName);
+  const idMatches = detected.areaId
+    ? steps.map((step, index) => ({ step, index })).filter(({ step }) => step.targetAreaId === detected.areaId)
+    : [];
+  const nameMatches = !idMatches.length && normalizedName
+    ? steps.map((step, index) => ({ step, index })).filter(({ step }) => normalizeAreaName(step.targetArea) === normalizedName)
+    : [];
+  const candidates = idMatches.length ? idMatches : nameMatches;
+  if (!candidates.length) return undefined;
+  candidates.sort((a, b) => Math.abs((a.index + 1) - savedProgress) - Math.abs((b.index + 1) - savedProgress));
+  return { index: Math.min(candidates[0].index + 1, steps.length - 1), confidence: idMatches.length ? 'verified' : 'inferred' };
 }
 
 export function makeHistoryEntry(
@@ -74,15 +92,15 @@ export function reconcileStartup(
   detected: Pick<ZoneEvent, 'areaId' | 'areaName'> | undefined,
 ): StartupReconciliation {
   if (!detected?.areaId && !detected?.areaName) return { state: 'none' };
-  const candidate = decideProgression(steps, savedProgress, detected);
-  if (!candidate) return { state: 'none' };
-  const distance = Math.abs(candidate.to - savedProgress);
-  if (distance <= 3 && candidate.confidence === 'verified') return { state: 'none' };
+  const match = closestGlobalMatch(steps, savedProgress, detected);
+  if (!match || match.index === savedProgress) return { state: 'none' };
+  const distance = Math.abs(match.index - savedProgress);
+  if (distance <= 3 && match.confidence === 'verified') return { state: 'none' };
   return {
     state: 'suggested',
     detectedAreaId: detected.areaId,
     detectedAreaName: detected.areaName,
-    detectedProgress: candidate.to,
+    detectedProgress: match.index,
     savedProgress,
     message: `Current zone differs from saved route progress by ${distance} steps.`,
   };
