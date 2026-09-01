@@ -1,0 +1,46 @@
+name: Complete preplaytest gaps once
+
+on:
+  push:
+    branches: [codex/pre-playtest-simulator-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Complete replay export and visual matrix [bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pre-playtest-simulator-hardening
+          fetch-depth: 0
+      - name: Patch Electron main
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const file='electron/main.ts';
+          let text=fs.readFileSync(file,'utf8');
+          function r(from,to,label){if(text.includes(to))return;if(!text.includes(from))throw new Error('Missing '+label);text=text.replace(from,to)}
+
+          const replayEnd="  return lastReplay;\n}\n\nfunction sanitizeDemo";
+          const replayExport="  return lastReplay;\n}\n\nasync function exportReplayBundle(): Promise<boolean> {\n  if (!lastReplay) return false;\n  const options: Electron.SaveDialogOptions = {\n    title: 'Export ExileQuesting replay bundle',\n    defaultPath: `ExileQuesting-replay-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,\n    filters: [{ name: 'ExileQuesting replay', extensions: ['json'] }],\n  };\n  const result = mainWindow ? await dialog.showSaveDialog(mainWindow, options) : await dialog.showSaveDialog(options);\n  if (result.canceled || !result.filePath) return false;\n  const bundle = {\n    schemaVersion: 1,\n    generatedAt: new Date().toISOString(),\n    appVersion: app.getVersion(),\n    campaign: { repository: dataset.source.repository, commit: dataset.source.commit, schemaVersion: dataset.schemaVersion },\n    replay: lastReplay,\n  };\n  await fs.writeFile(result.filePath, JSON.stringify(bundle, null, 2), 'utf8');\n  return true;\n}\n\nfunction sanitizeDemo";
+          r(replayEnd,replayExport,'replay export function');
+
+          r("  ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());","  ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());\n  ipcMain.handle('diagnostics:replay-export', async () => exportReplayBundle());",'replay export IPC');
+
+          r("  const coachIndex = Math.max(0, dataset.steps.findIndex((step) => step.annotation?.details?.length && step.annotation?.speedrun));\n  const scenarios:","  const coachIndex = Math.max(0, dataset.steps.findIndex((step) => step.annotation?.details?.length && step.annotation?.speedrun));\n  const longIndex = Math.max(0, dataset.steps.reduce((best, step, index, steps) => step.title.length > steps[best].title.length ? index : best, 0));\n  const compactTypography: AppSettings['overlayTypography'] = { ...DEFAULT_SETTINGS.overlayTypography, preset: 'compact', objective: 18, actions: 13, guidance: 11, labels: 9, status: 9, density: 'compact' };\n  const scenarios:",'long visual variables');
+
+          r("    { name: 'focus-default-start', progress: 0, mode: 'focus', typography: DEFAULT_SETTINGS.overlayTypography },","    { name: 'focus-default-start', progress: 0, mode: 'focus', typography: DEFAULT_SETTINGS.overlayTypography },\n    { name: 'focus-compact-long-objective', progress: longIndex, mode: 'focus', typography: compactTypography },",'compact visual scenario');
+
+          fs.writeFileSync(file,text);
+          NODE
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git commit -m "Complete replay export and visual matrix [bot]"
+          git push origin HEAD:codex/pre-playtest-simulator-hardening
