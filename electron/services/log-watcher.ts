@@ -1,7 +1,8 @@
-import { promises as fs, watch as watchFileSystem, type FSWatcher } from 'node:fs';
+import { promises as fs, watch as watchFileSystem, type FSWatcher, type Stats } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { latestZoneEvent, parseClientLogLine, parseLogTail } from '../../src/core/log-parser';
+import { LogLineBuffer } from '../../src/core/log-stream';
 import type { LogDiagnostics, ZoneEvent } from '../../src/core/types';
 
 const POLL_MS = 1200;
@@ -15,13 +16,17 @@ export interface LogWatcherHooks {
   log?: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
 }
 
+function identityFor(stat: Stats): string {
+  return `${stat.dev}:${stat.ino}:${stat.birthtimeMs}`;
+}
+
 export class PoELogWatcher {
   private watcher: FSWatcher | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
   private offset = 0;
-  private remainder = '';
+  private decoder = new LogLineBuffer();
   private readChain: Promise<void> = Promise.resolve();
-  private lastSize = 0;
+  private fileIdentity = '';
   private diagnostics: LogDiagnostics;
 
   constructor(private filePath: string, private hooks: LogWatcherHooks) {
@@ -47,8 +52,8 @@ export class PoELogWatcher {
     try {
       const stat = await fs.stat(this.filePath);
       this.offset = stat.size;
-      this.lastSize = stat.size;
-      this.remainder = '';
+      this.fileIdentity = identityFor(stat);
+      this.decoder.reset();
       this.emitDiagnostics({ fileExists: true, lastError: undefined });
       await this.inspectStartupTail(stat.size);
       this.attachFsWatcher();
@@ -56,10 +61,13 @@ export class PoELogWatcher {
       this.emitDiagnostics({ pollingActive: true });
       this.hooks.log?.info(`Watching Path of Exile log: ${this.filePath}`);
     } catch (error) {
+      // Poll even if the configured file is temporarily unavailable. This lets
+      // a game restart/recreation heal itself without requiring a settings edit.
+      this.pollTimer = setInterval(() => this.queueRead(true), POLL_MS);
       this.emitDiagnostics({
         fileExists: false,
         watcherActive: false,
-        pollingActive: false,
+        pollingActive: true,
         lastError: error instanceof Error ? error.message : String(error),
       });
       this.hooks.log?.warn(`Configured log is unavailable: ${this.filePath}`, error);
@@ -77,14 +85,18 @@ export class PoELogWatcher {
 
   private attachFsWatcher(): void {
     this.watcher?.close();
+    this.watcher = null;
     try {
       this.watcher = watchFileSystem(this.filePath, { persistent: false }, () => this.queueRead(false));
       this.watcher.on('error', (error) => {
+        this.watcher?.close();
+        this.watcher = null;
         this.emitDiagnostics({ watcherActive: false, lastError: error.message });
-        this.hooks.log?.warn('Client.txt watcher error.', error);
+        this.hooks.log?.warn('Client.txt watcher error; polling fallback remains active.', error);
       });
-      this.emitDiagnostics({ watcherActive: true });
+      this.emitDiagnostics({ watcherActive: true, lastError: undefined });
     } catch (error) {
+      this.watcher = null;
       this.emitDiagnostics({ watcherActive: false, lastError: error instanceof Error ? error.message : String(error) });
     }
   }
@@ -127,29 +139,43 @@ export class PoELogWatcher {
     }
   }
 
+  private resetForReplacement(stat: Stats, reason: string): void {
+    this.offset = 0;
+    this.fileIdentity = identityFor(stat);
+    this.decoder.reset();
+    this.hooks.log?.info(reason);
+  }
+
   private async consumeGrowth(fromPoll: boolean): Promise<void> {
-    let stat;
+    let stat: Stats;
     try {
       stat = await fs.stat(this.filePath);
     } catch (error) {
+      if (this.diagnostics.fileExists) {
+        this.watcher?.close();
+        this.watcher = null;
+      }
       this.emitDiagnostics({ fileExists: false, watcherActive: false, lastError: error instanceof Error ? error.message : String(error) });
       return;
     }
 
-    if (!this.diagnostics.fileExists) {
-      this.emitDiagnostics({ fileExists: true, lastError: undefined });
-      this.attachFsWatcher();
-    }
+    const identity = identityFor(stat);
+    const reappeared = !this.diagnostics.fileExists;
+    const replaced = Boolean(this.fileIdentity && identity !== this.fileIdentity);
 
-    if (stat.size < this.offset) {
-      this.offset = 0;
-      this.lastSize = 0;
-      this.remainder = '';
-      this.hooks.log?.info('Path of Exile log was truncated or recreated; reading from its new beginning.');
+    if (reappeared) {
+      this.emitDiagnostics({ fileExists: true, lastError: undefined });
+      this.resetForReplacement(stat, 'Path of Exile log became available again; reattaching from its current file.');
+      this.attachFsWatcher();
+    } else if (replaced) {
+      this.resetForReplacement(stat, 'Path of Exile log file identity changed; treating it as a recreated log.');
+      this.attachFsWatcher();
+    } else if (stat.size < this.offset) {
+      this.resetForReplacement(stat, 'Path of Exile log was truncated; reading from its new beginning.');
     }
 
     if (stat.size === this.offset) {
-      this.lastSize = stat.size;
+      if (fromPoll && !this.watcher) this.attachFsWatcher();
       return;
     }
 
@@ -164,9 +190,7 @@ export class PoELogWatcher {
         if (!bytesRead) break;
         this.offset += bytesRead;
         remaining -= bytesRead;
-        const content = this.remainder + buffer.subarray(0, bytesRead).toString('utf8');
-        const lines = content.split(/\r?\n/);
-        this.remainder = lines.pop() ?? '';
+        const lines = this.decoder.push(buffer.subarray(0, bytesRead).toString('utf8'));
         for (const line of lines) {
           const event = parseClientLogLine(line);
           if (!event) continue;
@@ -184,7 +208,6 @@ export class PoELogWatcher {
       }
     } finally {
       await handle.close();
-      this.lastSize = stat.size;
     }
 
     if (fromPoll && !this.watcher) this.attachFsWatcher();
@@ -200,7 +223,7 @@ async function exists(candidate: string): Promise<boolean> {
   }
 }
 
-function steamRootsFromVdf(content: string): string[] {
+export function steamRootsFromVdf(content: string): string[] {
   const roots: string[] = [];
   for (const match of content.matchAll(/"path"\s+"([^"]+)"/g)) roots.push(match[1].replace(/\\\\/g, '\\'));
   return roots;
