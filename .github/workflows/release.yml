@@ -2,8 +2,12 @@ name: Release Windows installer
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
+    paths:
+      - package.json
 
 permissions:
   contents: write
@@ -20,14 +24,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Verify tag matches application version
+      - name: Resolve release version
         shell: pwsh
         run: |
           $package = Get-Content package.json -Raw | ConvertFrom-Json
-          $tagVersion = "${{ github.ref_name }}".TrimStart('v')
-          if ($tagVersion -ne $package.version) {
-            throw "Tag version $tagVersion does not match package.json version $($package.version)."
+          $releaseTag = "v$($package.version)"
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne $releaseTag) {
+            throw "Tag ${{ github.ref_name }} does not match package.json version $($package.version)."
           }
+          "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Release candidate: $releaseTag"
       - run: npm ci
       - run: npm audit --omit=dev
       - run: npm run typecheck
@@ -91,12 +97,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if (gh release view $env:RELEASE_TAG --repo "${{ github.repository }}" *> $null) {
+            Write-Host "Release $env:RELEASE_TAG already exists; verified build complete, publication skipped."
+            exit 0
+          }
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $checksum = Get-Item "release/$($setup.Name).sha256"
           $notes = @"
-          ExileQuesting ${{ github.ref_name }}
+          ExileQuesting $env:RELEASE_TAG
 
           Windows installer published from the verified ExileQuesting release pipeline.
           Source build: ${{ github.sha }}
           "@
-          gh release create "${{ github.ref_name }}" $setup.FullName $checksum.FullName --repo "${{ github.repository }}" --title "ExileQuesting ${{ github.ref_name }}" --notes $notes
+          gh release create $env:RELEASE_TAG $setup.FullName $checksum.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "ExileQuesting $env:RELEASE_TAG" --notes $notes
