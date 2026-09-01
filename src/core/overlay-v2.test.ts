@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRouteActions, looksUnhumanized, summarizeActions } from './actions';
 import { validateCompatibilityManifest } from './compatibility';
 import { parseClientLogLine, parseLogTail, latestZoneEvent } from './log-parser';
+import { LogLineBuffer } from './log-stream';
 import { appendHistory, decideProgression, makeHistoryEntry, reconcileStartup } from './progression';
 import { calculateXpGuidance, experienceSafeZone } from './xp';
 import type { CampaignStep } from './types';
@@ -22,7 +23,7 @@ describe('structured route actions', () => {
 
   it('turns travel and waypoint markup into semantic actions', () => {
     const actions = buildRouteActions(['(img:waypoint) to areaid1_1_3', 'enter areaid1_1_3'], areas);
-    expect(actions.some((action) => action.type === 'waypoint')).toBe(true);
+    expect(actions.some((action) => action.type === 'waypoint' && action.title.includes('Mud Flats'))).toBe(true);
     expect(actions.some((action) => action.type === 'travel' && action.title.includes('Mud Flats'))).toBe(true);
   });
 
@@ -54,6 +55,24 @@ describe('strict Client.txt events', () => {
     ].join('\n'));
     expect(latestZoneEvent(events)?.areaId).toBe('1_1_3');
   });
+
+  it('buffers a log event split across filesystem chunks', () => {
+    const stream = new LogLineBuffer();
+    expect(stream.push('2026/09/01 18:00:00 [DEBUG Client] Generating level 4 ar')).toEqual([]);
+    const lines = stream.push('ea "1_1_3" with seed 2\nnoise without an event\n');
+    expect(lines).toHaveLength(2);
+    expect(parseClientLogLine(lines[0])?.areaId).toBe('1_1_3');
+    expect(parseClientLogLine(lines[1])).toBeNull();
+    expect(stream.pending()).toBe('');
+  });
+
+  it('resets buffered partial data after a recreated log', () => {
+    const stream = new LogLineBuffer();
+    stream.push('half of an old line');
+    expect(stream.pending()).not.toBe('');
+    stream.reset();
+    expect(stream.pending()).toBe('');
+  });
 });
 
 describe('progression state decisions', () => {
@@ -71,6 +90,10 @@ describe('progression state decisions', () => {
 
   it('uses display names only as inferred fallback', () => {
     expect(decideProgression(steps, 0, { areaName: 'Mud Flats' })).toMatchObject({ to: 2, confidence: 'inferred' });
+  });
+
+  it('does not advance twice for a duplicate area event', () => {
+    expect(decideProgression(steps, 2, { areaId: '1_1_3' })).toBeNull();
   });
 
   it('offers reconciliation rather than silently making a large startup jump', () => {
