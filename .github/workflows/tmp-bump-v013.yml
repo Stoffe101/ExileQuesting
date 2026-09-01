@@ -1,0 +1,50 @@
+name: Temporary v0.1.3 version sync
+
+on:
+  push:
+    branches:
+      - codex/responsive-manager-layout
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/responsive-manager-layout
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Synchronize application version and release feed constant
+        shell: bash
+        run: |
+          npm version 0.1.3 --no-git-tag-version
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('electron/main.ts')
+          text = path.read_text(encoding='utf-8')
+          old = "const APP_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting';"
+          new = "const APP_RELEASE_REPOSITORY = 'Stoffe101/ExileQuesting-Releases';"
+          if old in text:
+              text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+          elif new not in text:
+              raise SystemExit('Could not locate APP_RELEASE_REPOSITORY constant')
+          PY
+      - name: Commit synchronized version
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'Version is already synchronized.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json electron/main.ts
+          git commit -m 'Bump ExileQuesting to v0.1.3'
+          git push origin HEAD:codex/responsive-manager-layout
