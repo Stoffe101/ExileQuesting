@@ -10,6 +10,7 @@ interface SessionMarker {
 
 export class SessionGuard {
   private markerPath: string;
+  private currentStartedAt = new Date().toISOString();
 
   constructor(userDataPath: string) {
     this.markerPath = path.join(userDataPath, 'session-active.json');
@@ -24,12 +25,8 @@ export class SessionGuard {
         previous = undefined;
       }
     }
-    const marker: SessionMarker = { startedAt: new Date().toISOString(), appVersion, progress };
-    try {
-      writeFileSync(this.markerPath, JSON.stringify(marker, null, 2), 'utf8');
-    } catch {
-      // A recovery marker is useful but must never block startup.
-    }
+    this.currentStartedAt = new Date().toISOString();
+    this.write({ startedAt: this.currentStartedAt, appVersion, progress });
     return {
       previousSessionUnclean: Boolean(previous),
       previousStartedAt: previous?.startedAt,
@@ -40,11 +37,14 @@ export class SessionGuard {
   }
 
   update(progress: number, appVersion: string): void {
+    this.write({ startedAt: this.currentStartedAt, appVersion, progress });
+  }
+
+  private write(marker: SessionMarker): void {
     try {
-      const marker: SessionMarker = { startedAt: new Date().toISOString(), appVersion, progress };
       writeFileSync(this.markerPath, JSON.stringify(marker, null, 2), 'utf8');
     } catch {
-      // Never make progress persistence depend on the recovery marker.
+      // A recovery marker is useful but must never block startup or progress persistence.
     }
   }
 
