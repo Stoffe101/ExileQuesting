@@ -28,13 +28,22 @@ jobs:
       - run: npm run audit:campaign
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
-      - name: Render overlay visual smoke matrix
+      - name: Render overlay visual matrix
         run: npm run visual:overlay
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ExileQuesting-Overlay-Visuals-${{ github.sha }}
-          path: artifacts/visual/*
+          name: ExileQuesting-overlay-visuals-${{ github.sha }}
+          path: artifacts/visual/**/*
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Soak overlay window lifecycle
+        run: npm run soak:overlay
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ExileQuesting-overlay-soak-${{ github.sha }}
+          path: artifacts/soak/**/*
           if-no-files-found: warn
           retention-days: 30
       - run: npm run dist
