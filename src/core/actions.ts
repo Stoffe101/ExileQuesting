@@ -8,7 +8,7 @@ const ACTION_LABELS: Record<RouteActionType, string> = {
 
 function questTokenLabel(token: string): string {
   const readable = token.replace(/[()]/g, '').replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
-  return readable ? `quest item: ${readable}` : 'quest item';
+  return readable ? `the ${readable} quest item` : 'the quest item';
 }
 
 function cleanToken(value: string): string {
@@ -98,7 +98,7 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('portal', destination ? `Use a portal for ${destination}` : 'Use the planned portal', raw));
   }
 
-  const kill = cleanedRaw.match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level|quest item)\b|\s*\|\||$)/i);
+  const kill = cleanedRaw.match(/\bkill\s+(?:arena:)?([^,;]+?)(?=\s+(?:for|and|then|to|level|the\s+\S+\s+quest\s+item)\b|\s*\|\||$)/i);
   if (kill) {
     const target = kill[1].replace(/\bchest\b.*$/i, '').trim();
     if (target) actions.push(makeAction('kill', `Kill ${target}`, raw));
