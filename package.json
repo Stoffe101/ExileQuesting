@@ -1,6 +1,6 @@
 {
   "name": "exilequesting",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A modern, build-aware Path of Exile campaign companion.",
   "main": "dist-electron/main.cjs",
   "author": "Stoffe101",
