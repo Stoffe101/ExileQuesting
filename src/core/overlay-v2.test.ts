@@ -21,6 +21,13 @@ describe('structured route actions', () => {
     expect(summary.context.some((action) => action.title.toLowerCase().includes('wall'))).toBe(true);
   });
 
+  it('preserves the authored sequence between decisive actions', () => {
+    const actions = buildRouteActions(['enter areaid1_1_3', 'kill rhoa', 'relog areaid1_1_2'], areas);
+    const summary = summarizeActions(actions);
+    expect(summary.now?.type).toBe('travel');
+    expect(summary.then.map((action) => action.type)).toEqual(['kill', 'relog']);
+  });
+
   it('turns travel and waypoint markup into semantic actions', () => {
     const actions = buildRouteActions(['(img:waypoint) to areaid1_1_3', 'enter areaid1_1_3'], areas);
     expect(actions.some((action) => action.type === 'waypoint' && action.title.includes('Mud Flats'))).toBe(true);
