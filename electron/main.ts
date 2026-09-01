@@ -158,7 +158,7 @@ async function loadPersistentState(): Promise<void> {
   runHistory = run.history;
   buildProfiles = await store.loadBuildProfiles();
 }
-async function saveSettings(): Promise<void> { await store.write('settings.json', settings); }
+async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
 async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
 async function saveRunState(): Promise<void> { await store.write('run.json', { session: runSession, history: runHistory, updatedAt: new Date().toISOString() }); }
 async function saveRewardConfirmations(): Promise<void> { await store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }); }
@@ -639,6 +639,10 @@ async function runVisualSmoke(outputArgument: string): Promise<void> {
     overlayDemo = { progress: scenario.progress, mode: scenario.mode };
     broadcastState(); overlayWindow.showInactive();
     await new Promise((resolve) => setTimeout(resolve, 450));
+    const layout = await overlayWindow.webContents.executeJavaScript("(() => { const shell=document.querySelector('.overlay-shell'); if(!shell) return {missing:true}; const root=document.documentElement; const body=document.body; return {missing:false, innerWidth:window.innerWidth, shellClientWidth:shell.clientWidth, shellScrollWidth:shell.scrollWidth, rootScrollWidth:root.scrollWidth, bodyScrollWidth:body.scrollWidth}; })()", true) as { missing: boolean; innerWidth?: number; shellClientWidth?: number; shellScrollWidth?: number; rootScrollWidth?: number; bodyScrollWidth?: number };
+    if (layout.missing) throw new Error(`Visual scenario ${scenario.name} did not render .overlay-shell.`);
+    const innerWidth = Number(layout.innerWidth ?? 0);
+    if (Number(layout.shellScrollWidth ?? 0) > Number(layout.shellClientWidth ?? 0) + 3 || Number(layout.rootScrollWidth ?? 0) > innerWidth + 3 || Number(layout.bodyScrollWidth ?? 0) > innerWidth + 3) throw new Error(`Visual scenario ${scenario.name} has horizontal overflow.`);
     const image = await overlayWindow.capturePage();
     const png = image.toPNG();
     const size = image.getSize();
