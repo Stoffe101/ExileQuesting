@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_INSTALLER_BYTES, parseLatestRelease } from '../../src/core/updates';
 import { AppUpdater } from './app-updater';
 
 const originalFetch = globalThis.fetch;
@@ -37,6 +38,30 @@ function release(version: string, bytes: Uint8Array, overrides: Record<string, u
 function jsonResponse(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 }
+
+describe('release metadata validation', () => {
+  const bytes = new TextEncoder().encode('installer');
+
+  it('rejects drafts and prereleases', () => {
+    expect(parseLatestRelease({ ...release('0.1.2', bytes), draft: true })).toBeNull();
+    expect(parseLatestRelease({ ...release('0.1.2', bytes), prerelease: true })).toBeNull();
+  });
+
+  it('requires the exact installer asset name', () => {
+    expect(parseLatestRelease(release('0.1.2', bytes, { name: 'setup.exe' }))).toBeNull();
+  });
+
+  it('rejects non-GitHub or non-release download URLs', () => {
+    expect(parseLatestRelease(release('0.1.2', bytes, { browser_download_url: 'https://evil.example/ExileQuesting-0.1.2-setup.exe' }))).toBeNull();
+    expect(parseLatestRelease(release('0.1.2', bytes, { browser_download_url: 'https://github.com/Stoffe101/ExileQuesting-Releases/raw/main/ExileQuesting-0.1.2-setup.exe' }))).toBeNull();
+  });
+
+  it('rejects impossible or oversized installer metadata', () => {
+    expect(parseLatestRelease(release('0.1.2', bytes, { size: 0 }))).toBeNull();
+    expect(parseLatestRelease(release('0.1.2', bytes, { size: MAX_INSTALLER_BYTES + 1 }))).toBeNull();
+    expect(parseLatestRelease(release('0.1.2', bytes, { id: -1 }))).toBeNull();
+  });
+});
 
 describe('AppUpdater failure simulation', () => {
   it('reports up-to-date without downloading', async () => {
@@ -97,6 +122,13 @@ describe('AppUpdater failure simulation', () => {
     const service = await updater();
     await service.check();
     expect((await service.download()).status).toBe('error');
+  });
+
+  it('reports timeout-like abort failures without corrupting state', async () => {
+    globalThis.fetch = vi.fn(async () => { throw new DOMException('The operation was aborted.', 'AbortError'); }) as typeof fetch;
+    const state = await (await updater()).check();
+    expect(state.status).toBe('error');
+    expect(state.message).toMatch(/failed/i);
   });
 
   it('handles a stream that fails part-way through and cleans up safely', async () => {
