@@ -1,6 +1,6 @@
 {
   "name": "exilequesting",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A modern, build-aware Path of Exile campaign companion.",
   "main": "dist-electron/main.cjs",
   "author": "Stoffe101",
@@ -49,10 +49,32 @@
     "appId": "dev.stoffe.exilequesting",
     "productName": "ExileQuesting",
     "asar": true,
-    "directories": { "output": "release", "buildResources": "build" },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
-    "extraResources": [{ "from": "assets/campaign", "to": "campaign" }],
-    "win": { "icon": "build/icon.ico", "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/campaign",
+        "to": "campaign"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
