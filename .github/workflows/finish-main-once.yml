@@ -1,0 +1,69 @@
+name: Finish Electron hardening once
+
+on:
+  push:
+    branches: [codex/pre-playtest-simulator-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Finish Electron hardening [bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pre-playtest-simulator-hardening
+          fetch-depth: 0
+      - name: Patch main.ts
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const file='electron/main.ts';
+          let text=fs.readFileSync(file,'utf8');
+          function r(from,to,label){if(text.includes(to))return;if(!text.includes(from))throw new Error('Missing '+label);text=text.replace(from,to)}
+
+          r("import { createPreplaytestLab } from './services/preplaytest-lab';","import { createPreplaytestLab } from './services/preplaytest-lab';\nimport { runOverlayWindowSoak } from './services/overlay-soak';\nimport { importPobBuild } from './services/pob-service';\nimport { defaultBuildProfileName, upsertBuildProfile, type BuildProfile } from '../src/core/build-profiles';",'imports');
+          r("const visualSmokeArgument = process.argv.find((argument) => argument.startsWith('--visual-smoke='));","const visualSmokeArgument = process.argv.find((argument) => argument.startsWith('--visual-smoke='));\nconst overlaySoakArgument = process.argv.find((argument) => argument.startsWith('--overlay-soak='));",'soak arg');
+          r("let characterLevel: number | undefined;","let characterLevel: number | undefined;\nlet recentAreaIds: string[] = [];\nlet recentAreaNames: string[] = [];",'recent globals');
+          r("let lastReplay: ReplayUiResult | null = null;","let lastReplay: ReplayUiResult | null = null;\nlet buildProfiles: BuildProfile[] = [];",'profiles global');
+
+          r("async function loadPersistentState(): Promise<void> {\n  settings = await store.loadSettings(DEFAULT_SETTINGS);\n  const savedProgress = await store.loadProgress();\n  progress = savedProgress.progress;\n  progressHistory = savedProgress.history;\n  const run = await store.loadRun();\n  runSession = run.session;\n  runHistory = run.history;\n}","async function loadPersistentState(): Promise<void> {\n  settings = await store.loadSettings(DEFAULT_SETTINGS);\n  const run = await store.loadRun();\n  runSession = run.session;\n  runHistory = run.history;\n  buildProfiles = await store.loadBuildProfiles();\n}",'load ordering');
+          r("  progress = Math.max(0, Math.min(progress, dataset.steps.length - 1));\n  const knownRewardIds = new Set(dataset.steps.filter((step) => step.permanentReward).map((step) => step.id));","  const savedProgress = await store.loadProgress(dataset.steps.length - 1);\n  progress = savedProgress.progress;\n  progressHistory = savedProgress.history;\n  const knownRewardIds = new Set(dataset.steps.filter((step) => step.permanentReward).map((step) => step.id));",'dataset progress');
+          r("async function setProgress(nextProgress: number, reason = 'Manual progress change', confidence: 'manual' | 'verified' | 'inferred' = 'manual', automatic = false, event?: ZoneEvent): Promise<void> {\n  const next = Math.max(0, Math.min(Math.trunc(nextProgress), dataset.steps.length - 1));","async function setProgress(nextProgress: number, reason = 'Manual progress change', confidence: 'manual' | 'verified' | 'inferred' = 'manual', automatic = false, event?: ZoneEvent): Promise<void> {\n  const parsedProgress = Number(nextProgress);\n  if (!Number.isFinite(parsedProgress)) return;\n  const next = Math.max(0, Math.min(Math.trunc(parsedProgress), dataset.steps.length - 1));",'progress guard');
+
+          r("function updateCurrentArea(event: ZoneEvent): void {","function appendRecentArea(values: string[], value?: string, limit = 8): string[] {\n  if (!value) return values;\n  return [...values.filter((candidate) => candidate !== value), value].slice(-limit);\n}\nfunction updateCurrentArea(event: ZoneEvent): void {",'recent helper');
+          r("  const previousAreaId = currentAreaId || undefined;\n  const previousAreaName = currentZone || undefined;\n  updateCurrentArea(event);\n  await updateRunFromZone(event);","  const previousAreaId = currentAreaId || undefined;\n  const previousAreaName = currentZone || undefined;\n  const incomingName = event.areaName?.trim().toLowerCase();\n  const previousName = previousAreaName?.trim().toLowerCase();\n  const distinctArea = event.type !== 'character-level' && (event.areaId ? event.areaId !== previousAreaId : Boolean(incomingName && incomingName !== previousName));\n  if (distinctArea) {\n    recentAreaIds = appendRecentArea(recentAreaIds, previousAreaId);\n    recentAreaNames = appendRecentArea(recentAreaNames, previousAreaName);\n  }\n  updateCurrentArea(event);\n  await updateRunFromZone(event);",'recent capture');
+          r("decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName });","decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });",'runtime decision');
+          r("const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName });","const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });",'startup decision');
+
+          const ss=text.indexOf("ipcMain.handle('settings:update'");
+          const se=text.indexOf("ipcMain.handle('log:select'",ss);
+          if(ss<0||se<0)throw new Error('Missing settings block');
+          let block=text.slice(ss,se);
+          block=block.replace("ipcMain.handle('settings:update', async (_event, patch: Partial<AppSettings>) => {","ipcMain.handle('settings:update', async (_event, patch: unknown) => {\n    const safePatch = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch as Partial<AppSettings> : {};");
+          block=block.replace(/\bpatch\./g,'safePatch.').replace('...settings, ...patch,','...settings, ...safePatch,');
+          text=text.slice(0,ss)+block+text.slice(se);
+
+          r("  ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());","  ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());\n  ipcMain.handle('pob:list', () => buildProfiles);\n  ipcMain.handle('pob:import', async (_event, input: unknown) => {\n    if (typeof input !== 'string') throw new Error('PoB input must be text.');\n    const imported = await importPobBuild(input, app.getVersion());\n    const profile: BuildProfile = { ...imported, name: defaultBuildProfileName(imported.build) };\n    buildProfiles = upsertBuildProfile(buildProfiles, profile);\n    await store.saveBuildProfiles(buildProfiles);\n    return buildProfiles;\n  });\n  ipcMain.handle('pob:delete', async (_event, id: unknown) => {\n    if (typeof id !== 'string' || id.length > 256) return buildProfiles;\n    buildProfiles = buildProfiles.filter((profile) => profile.id !== id);\n    await store.saveBuildProfiles(buildProfiles);\n    return buildProfiles;\n  });",'pob IPC');
+
+          const marker="\n\nprocess.on('uncaughtException'";
+          if(!text.includes('async function runOverlaySoak(')){
+            const insert="\n\nasync function runOverlaySoak(outputArgument: string): Promise<void> {\n  if (!overlayWindow) throw new Error('Overlay window is unavailable for soak testing.');\n  const output = path.resolve(outputArgument.split('=').slice(1).join('=') || 'artifacts/soak');\n  await waitForRenderer(overlayWindow);\n  overlayDemo = { progress: Math.min(40, dataset.steps.length - 1), mode: 'focus' };\n  broadcastState();\n  const report = await runOverlayWindowSoak(overlayWindow, output, 220);\n  log.info('Overlay soak completed: ' + report.iterations + ' iterations, ' + report.successfulRendererProbes + ' renderer probes.');\n  overlayDemo = null;\n}";
+            if(!text.includes(marker))throw new Error('Missing process marker');
+            text=text.replace(marker,insert+marker);
+          }
+          r("    if (visualSmokeArgument) {\n      overlayWindow = createOverlayWindow();\n      await runVisualSmoke(visualSmokeArgument);\n      app.exit(0);\n      return;\n    }","    if (visualSmokeArgument || overlaySoakArgument) {\n      overlayWindow = createOverlayWindow();\n      if (visualSmokeArgument) await runVisualSmoke(visualSmokeArgument);\n      else if (overlaySoakArgument) await runOverlaySoak(overlaySoakArgument);\n      app.exit(0);\n      return;\n    }",'harness startup');
+          r("    if (isSmokeTest || visualSmokeArgument) { app.exit(1); return; }","    if (isSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }",'harness failure');
+
+          fs.writeFileSync(file,text);
+          NODE
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git commit -m "Finish Electron hardening [bot]"
+          git push origin HEAD:codex/pre-playtest-simulator-hardening
