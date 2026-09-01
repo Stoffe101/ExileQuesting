@@ -24,8 +24,31 @@ export function parseBoundedJson(text: string, maxBytes = MAX_SETTINGS_BYTES): u
   return JSON.parse(text) as unknown;
 }
 
-export function normalizeSettingsDocument(value: unknown, defaults: AppSettings): AppSettings {
+/**
+ * Settings written before the migration registry existed were a flat object.
+ * Treat that format as schema v0. Schema v1 wraps the payload so future
+ * migrations can be explicit without guessing based on which fields happen to
+ * exist. Unknown future fields are ignored by normalization rather than copied
+ * into runtime settings.
+ */
+export function migrateSettingsDocument(value: unknown): { schemaVersion: number; settings: Record<string, unknown> } {
   const source = record(value) ?? {};
+  const declared = Number.isInteger(source.schemaVersion) ? Number(source.schemaVersion) : 0;
+  if (declared <= 0) return { schemaVersion: SETTINGS_SCHEMA_VERSION, settings: source };
+  if (declared === 1) return { schemaVersion: SETTINGS_SCHEMA_VERSION, settings: record(source.settings) ?? {} };
+  // A newer app may have written this file. Do not destroy it or trust unknown
+  // structure; consume only a recognizable settings payload using current
+  // field normalization and leave the file untouched until the user changes a
+  // setting in this version.
+  return { schemaVersion: SETTINGS_SCHEMA_VERSION, settings: record(source.settings) ?? {} };
+}
+
+export function settingsDocument(settings: AppSettings): { schemaVersion: number; settings: AppSettings } {
+  return { schemaVersion: SETTINGS_SCHEMA_VERSION, settings };
+}
+
+export function normalizeSettingsDocument(value: unknown, defaults: AppSettings): AppSettings {
+  const source = migrateSettingsDocument(value).settings;
   const typography = record(source.overlayTypography) ?? {};
   const position = record(source.overlayPosition) ?? {};
   const hotkeys = record(source.hotkeys) ?? {};
