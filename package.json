@@ -21,7 +21,7 @@
     "soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",
     "verify:preplaytest": "npm run typecheck && npm test && npm run audit:campaign && npm run lint:campaign && npm run simulate:campaign",
     "check:upstream": "node tools/check-upstream.mjs",
-    "dist": "npm run build && electron-builder --win nsis",
+    "dist": "npm run build && electron-builder --win nsis --publish never",
     "dist:dir": "npm run build && electron-builder --dir",
     "import:upstream": "node tools/import-exile-ui.mjs"
   },

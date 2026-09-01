@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -44,6 +44,15 @@ describe('StateStore build profiles', () => {
     const loaded = await state.loadBuildProfiles();
     expect(loaded).toHaveLength(1);
     expect(loaded[0]).toMatchObject({ id: 'one', name: 'Test Witch', sourceKind: 'xml' });
+  });
+
+  it('serializes concurrent writes to the same state file without temp collisions', async () => {
+    const { state, directory } = await store();
+    await Promise.all(Array.from({ length: 64 }, (_, index) => state.write('concurrent.json', { index })));
+    const saved = JSON.parse(await readFile(path.join(directory, 'concurrent.json'), 'utf8')) as { index: number };
+    expect(saved.index).toBe(63);
+    const leftovers = (await readdir(directory)).filter((name) => name.includes('concurrent.json.') && name.endsWith('.tmp'));
+    expect(leftovers).toEqual([]);
   });
 
   it('recovers safely from malformed build-profile state', async () => {
