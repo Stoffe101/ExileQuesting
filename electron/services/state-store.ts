@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-profiles';
-import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson } from '../../src/core/persistence';
+import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, settingsDocument } from '../../src/core/persistence';
 import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from '../../src/core/types';
 
 const MAX_USER_JSON_BYTES = 4 * 1024 * 1024;
@@ -29,6 +29,10 @@ export class StateStore {
   async loadSettings(defaults: AppSettings): Promise<AppSettings> {
     try { return normalizeSettingsDocument(await this.readUnknown('settings.json'), defaults); }
     catch { return structuredClone(defaults); }
+  }
+
+  async saveSettings(settings: AppSettings): Promise<void> {
+    await this.write('settings.json', settingsDocument(settings));
   }
 
   async loadProgress(maxStepIndex = Number.MAX_SAFE_INTEGER): Promise<{ progress: number; history: ProgressHistoryEntry[] }> {
