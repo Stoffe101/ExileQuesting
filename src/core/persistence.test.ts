@@ -23,7 +23,7 @@ describe('persistence migrations', () => {
 
   it('clamps hostile/extreme settings instead of trusting persisted JSON', () => {
     const result = normalizeSettingsDocument({ overlayScale: 999, overlayOpacity: -4, overlayTypography: { objective: 999 }, overlayPosition: { x: 9e99, y: -9e99 } }, defaults);
-    expect(result.overlayScale).toBe(2);
+    expect(result.overlayScale).toBe(1.5);
     expect(result.overlayOpacity).toBe(0.35);
     expect(result.overlayTypography.objective).toBe(34);
     expect(result.overlayPosition.x).toBe(100_000);
