@@ -60,6 +60,9 @@ import { applyOverlayPosition, resizeOverlayToContent, snapCustomPosition, width
 import { SessionGuard } from './services/session-guard';
 import { StateStore } from './services/state-store';
 import { createPreplaytestLab } from './services/preplaytest-lab';
+import { runOverlayWindowSoak } from './services/overlay-soak';
+import { importPobBuild } from './services/pob-service';
+import { defaultBuildProfileName, upsertBuildProfile, type BuildProfile } from '../src/core/build-profiles';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
@@ -71,6 +74,7 @@ const APP_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const MAX_REPLAY_BYTES = 64 * 1024 * 1024;
 const isSmokeTest = process.argv.includes('--smoke-test');
 const visualSmokeArgument = process.argv.find((argument) => argument.startsWith('--visual-smoke='));
+const overlaySoakArgument = process.argv.find((argument) => argument.startsWith('--overlay-soak='));
 
 const DEFAULT_SETTINGS: AppSettings = {
   logPath: '', guidanceMode: 'beginner', leagueStart: true, bandit: 'none', showOptional: true, autoAdvance: true, autoShowOnZoneChange: true,
@@ -107,6 +111,8 @@ let currentZone = '';
 let currentAreaId = '';
 let currentAreaLevel: number | undefined;
 let characterLevel: number | undefined;
+let recentAreaIds: string[] = [];
+let recentAreaNames: string[] = [];
 let startupReconciliation: StartupReconciliation = { state: 'none' };
 let logDiagnostics: LogDiagnostics = { path: '', fileExists: false, watcherActive: false, pollingActive: false };
 let logWatcher: PoELogWatcher | null = null;
@@ -123,6 +129,7 @@ let sessionGuard: SessionGuard | null = null;
 let appUpdater: AppUpdater | null = null;
 let overlayDemo: OverlayDemoConfig | null = null;
 let lastReplay: ReplayUiResult | null = null;
+let buildProfiles: BuildProfile[] = [];
 let appUpdate: AppUpdateState = {
   status: app.isPackaged ? 'idle' : 'disabled', currentVersion: app.getVersion(),
   message: app.isPackaged ? 'Update check has not run yet.' : 'Application updates are disabled in development builds.',
@@ -146,12 +153,10 @@ async function atomicWriteJson(filePath: string, value: unknown): Promise<void> 
 
 async function loadPersistentState(): Promise<void> {
   settings = await store.loadSettings(DEFAULT_SETTINGS);
-  const savedProgress = await store.loadProgress();
-  progress = savedProgress.progress;
-  progressHistory = savedProgress.history;
   const run = await store.loadRun();
   runSession = run.session;
   runHistory = run.history;
+  buildProfiles = await store.loadBuildProfiles();
 }
 async function saveSettings(): Promise<void> { await store.write('settings.json', settings); }
 async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
@@ -202,7 +207,9 @@ async function loadCampaign(): Promise<void> {
     sourceStatus = { state: 'bundled', activeCommit: manifest.commit, message: 'Using the verified campaign snapshot bundled with this release.' };
     if (error instanceof Error && !error.message.includes('ENOENT')) log.warn('Cached campaign rejected; using bundled fallback.', error);
   }
-  progress = Math.max(0, Math.min(progress, dataset.steps.length - 1));
+  const savedProgress = await store.loadProgress(dataset.steps.length - 1);
+  progress = savedProgress.progress;
+  progressHistory = savedProgress.history;
   const knownRewardIds = new Set(dataset.steps.filter((step) => step.permanentReward).map((step) => step.id));
   confirmedRewardStepIds = await store.loadRewards(knownRewardIds);
 }
@@ -250,7 +257,9 @@ function appendDetectionTrace(entry: Omit<DetectionTraceEntry, 'id' | 'at'>): vo
 }
 
 async function setProgress(nextProgress: number, reason = 'Manual progress change', confidence: 'manual' | 'verified' | 'inferred' = 'manual', automatic = false, event?: ZoneEvent): Promise<void> {
-  const next = Math.max(0, Math.min(Math.trunc(nextProgress), dataset.steps.length - 1));
+  const parsedProgress = Number(nextProgress);
+  if (!Number.isFinite(parsedProgress)) return;
+  const next = Math.max(0, Math.min(Math.trunc(parsedProgress), dataset.steps.length - 1));
   if (next === progress) return;
   const previous = progress;
   const previousAct = dataset.steps[previous]?.act;
@@ -367,6 +376,10 @@ function createTray(): void {
   tray.on('double-click', () => mainWindow?.show());
 }
 
+function appendRecentArea(values: string[], value?: string, limit = 8): string[] {
+  if (!value) return values;
+  return [...values.filter((candidate) => candidate !== value), value].slice(-limit);
+}
 function updateCurrentArea(event: ZoneEvent): void {
   if (event.areaId) { currentAreaId = event.areaId; currentAreaLevel = event.areaLevel ?? currentAreaLevel; currentZone = dataset.areas.find((area) => area.id === event.areaId)?.name ?? currentZone; }
   if (event.areaName) currentZone = event.areaName;
@@ -383,11 +396,18 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
   const stepIdBefore = dataset.steps[progressBefore]?.id;
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
+  const incomingName = event.areaName?.trim().toLowerCase();
+  const previousName = previousAreaName?.trim().toLowerCase();
+  const distinctArea = event.type !== 'character-level' && (event.areaId ? event.areaId !== previousAreaId : Boolean(incomingName && incomingName !== previousName));
+  if (distinctArea) {
+    recentAreaIds = appendRecentArea(recentAreaIds, previousAreaId);
+    recentAreaNames = appendRecentArea(recentAreaNames, previousAreaName);
+  }
   updateCurrentArea(event);
   await updateRunFromZone(event);
   let decision: ReturnType<typeof decideProgression> = null;
   if (event.type !== 'character-level' && settings.autoAdvance) {
-    decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName });
+    decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
     if (decision && decision.to > progress) await setProgress(decision.to, decision.reason, decision.confidence, true, event);
   }
   if (event.type !== 'character-level' && event.areaId === '2_11_endgame_town' && runSession.state === 'running') await finishCampaignRun();
@@ -403,7 +423,7 @@ async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
   updateCurrentArea(event);
-  const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName });
+  const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
   if (decision && decision.confidence === 'verified' && decision.to > progress && decision.to - progress <= 3) {
     await setProgress(decision.to, `Startup reconciliation: ${decision.reason}`, 'verified', true, event); startupReconciliation = { state: 'none' };
   } else startupReconciliation = reconcileStartup(dataset.steps, progress, event, (step) => enabled(step));
@@ -514,19 +534,20 @@ function sanitizeDemo(value: unknown): OverlayDemoConfig {
 function registerIpc(): void {
   ipcMain.handle('app:bootstrap', () => runtimeState());
   ipcMain.handle('lab:open', () => openPreplaytestLab());
-  ipcMain.handle('settings:update', async (_event, patch: Partial<AppSettings>) => {
+  ipcMain.handle('settings:update', async (_event, patch: unknown) => {
+    const safePatch = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch as Partial<AppSettings> : {};
     const candidate = {
-      ...settings, ...patch,
-      hotkeys: patch.hotkeys ? { ...settings.hotkeys, ...patch.hotkeys } : settings.hotkeys,
-      overlayTypography: patch.overlayTypography ? { ...settings.overlayTypography, ...patch.overlayTypography } : settings.overlayTypography,
-      overlayPosition: patch.overlayPosition ? { ...settings.overlayPosition, ...patch.overlayPosition } : settings.overlayPosition,
+      ...settings, ...safePatch,
+      hotkeys: safePatch.hotkeys ? { ...settings.hotkeys, ...safePatch.hotkeys } : settings.hotkeys,
+      overlayTypography: safePatch.overlayTypography ? { ...settings.overlayTypography, ...safePatch.overlayTypography } : settings.overlayTypography,
+      overlayPosition: safePatch.overlayPosition ? { ...settings.overlayPosition, ...safePatch.overlayPosition } : settings.overlayPosition,
     };
     settings = normalizeSettingsDocument(candidate, DEFAULT_SETTINGS);
     await saveSettings();
     if (overlayWindow) { overlayWindow.setOpacity(settings.reducedTransparency ? 1 : settings.overlayOpacity); overlayWindow.setResizable(!settings.overlayPosition.locked); applyOverlayInteraction(); placeOverlay(); await saveSettings(); }
     registerHotkeys();
-    if (patch.logPath !== undefined) await startLogWatcher();
-    if (patch.autoDownloadAppUpdates && appUpdate.status === 'available') void appUpdater?.download();
+    if (safePatch.logPath !== undefined) await startLogWatcher();
+    if (safePatch.autoDownloadAppUpdates && appUpdate.status === 'available') void appUpdater?.download();
     broadcastState(); return runtimeState();
   });
   ipcMain.handle('log:select', async () => {
@@ -571,6 +592,21 @@ function registerIpc(): void {
   ipcMain.handle('diagnostics:copy', () => { clipboard.writeText(diagnosticsText()); });
   ipcMain.handle('diagnostics:export', async () => { await exportDiagnostics(); });
   ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());
+  ipcMain.handle('pob:list', () => buildProfiles);
+  ipcMain.handle('pob:import', async (_event, input: unknown) => {
+    if (typeof input !== 'string') throw new Error('PoB input must be text.');
+    const imported = await importPobBuild(input, app.getVersion());
+    const profile: BuildProfile = { ...imported, name: defaultBuildProfileName(imported.build) };
+    buildProfiles = upsertBuildProfile(buildProfiles, profile);
+    await store.saveBuildProfiles(buildProfiles);
+    return buildProfiles;
+  });
+  ipcMain.handle('pob:delete', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 256) return buildProfiles;
+    buildProfiles = buildProfiles.filter((profile) => profile.id !== id);
+    await store.saveBuildProfiles(buildProfiles);
+    return buildProfiles;
+  });
 }
 
 async function waitForRenderer(window: BrowserWindow): Promise<void> {
@@ -615,6 +651,17 @@ async function runVisualSmoke(outputArgument: string): Promise<void> {
   overlayDemo = null;
 }
 
+async function runOverlaySoak(outputArgument: string): Promise<void> {
+  if (!overlayWindow) throw new Error('Overlay window is unavailable for soak testing.');
+  const output = path.resolve(outputArgument.split('=').slice(1).join('=') || 'artifacts/soak');
+  await waitForRenderer(overlayWindow);
+  overlayDemo = { progress: Math.min(40, dataset.steps.length - 1), mode: 'focus' };
+  broadcastState();
+  const report = await runOverlayWindowSoak(overlayWindow, output, 220);
+  log.info('Overlay soak completed: ' + report.iterations + ' iterations, ' + report.successfulRendererProbes + ' renderer probes.');
+  overlayDemo = null;
+}
+
 process.on('uncaughtException', (error) => log.error('Uncaught exception', error));
 process.on('unhandledRejection', (error) => log.error('Unhandled rejection', error));
 
@@ -635,9 +682,10 @@ else {
     initializeAppUpdater();
     registerIpc();
 
-    if (visualSmokeArgument) {
+    if (visualSmokeArgument || overlaySoakArgument) {
       overlayWindow = createOverlayWindow();
-      await runVisualSmoke(visualSmokeArgument);
+      if (visualSmokeArgument) await runVisualSmoke(visualSmokeArgument);
+      else if (overlaySoakArgument) await runOverlaySoak(overlaySoakArgument);
       app.exit(0);
       return;
     }
@@ -652,7 +700,7 @@ else {
     if (settings.autoCheckAppUpdates) { appUpdateTimer = setInterval(() => void appUpdater?.check(), APP_UPDATE_CHECK_INTERVAL_MS); setTimeout(() => void appUpdater?.check(), 8_000); }
   }).catch((error) => {
     log.error('Fatal startup failure.', error);
-    if (isSmokeTest || visualSmokeArgument) { app.exit(1); return; }
+    if (isSmokeTest || visualSmokeArgument || overlaySoakArgument) { app.exit(1); return; }
     void dialog.showErrorBox('ExileQuesting could not start', `The application hit a startup error. A diagnostic log was written to:\n${log.transports.file.getFile().path}\n\n${error instanceof Error ? error.message : String(error)}`);
     app.quit();
   });
