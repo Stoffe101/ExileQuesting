@@ -14,12 +14,17 @@ The current campaign foundation provides:
 - overlay typography presets plus advanced objective/action/guidance/label/status sizing;
 - automatic area tracking through the log file the user explicitly selects;
 - strict internal-area events, hybrid filesystem watching + polling fallback, and bounded startup reconciliation;
-- XP pacing, passive/trial progress, and confidence-rated layout hints;
+- XP pacing and confidence-rated layout hints;
+- explicit permanent-reward auditing that distinguishes route-passed from actually confirmed passive/trial rewards;
+- a persistent campaign run timer with Act splits, town time, previous-run and personal-best history;
+- a live detection trace showing how Client.txt events become route decisions;
+- abnormal-shutdown recovery and renderer/process diagnostics;
 - league-start, optional-objective, guidance-depth, and bandit route settings;
 - manual correction plus undoable confidence-rated progress history;
 - staged upstream updates with structural validation, a data-only compatibility manifest, and a last-known-good fallback;
+- installed-application update checking, verified installer download, and restart-to-install flow;
 - live diagnostics, persistent settings/progress, configurable global hotkeys, tray controls, and first-run onboarding;
-- a real Windows NSIS installer and a separate portable `.exe` build.
+- a Windows NSIS installer validated by GitHub Actions.
 
 ## Safety boundary
 
@@ -44,19 +49,28 @@ npm run dev
 Validation:
 
 ```bash
+npm audit --omit=dev
 npm run typecheck
 npm test
 npm run audit:campaign
 npm run build
 ```
 
-Windows packages:
+Windows installer:
 
 ```bash
 npm run dist
 ```
 
-`release/` will contain both an NSIS setup executable and a portable executable. The GitHub Actions Windows workflow performs the authoritative Windows packaging test and smoke-tests both the portable and installed application.
+`release/` contains the NSIS setup executable. Portable distribution is intentionally not maintained. The GitHub Actions Windows workflow installs the package silently into a clean test directory, launches the installed application in smoke-test mode, and uninstalls it again.
+
+## Application releases and updates
+
+A version tag such as `v0.2.0` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns the complete validation suite, builds and smoke-tests the NSIS installer, generates a SHA-256 checksum, and then publishes the GitHub Release.
+
+The installed application can check the stable release feed, download the exact `ExileQuesting-<version>-setup.exe` asset, validate its reported size and GitHub-provided SHA-256 digest when available, then schedule the installer after ExileQuesting exits. No GitHub credential is embedded in the application.
+
+**Current repository visibility note:** this repository is private. GitHub's anonymous release API cannot serve a private release feed to normal installed clients. Before shipping self-update to other users, either make the release repository public or publish installers from a dedicated public release repository. Do not solve this by embedding a personal access token in the app.
 
 ## Campaign data updates
 
@@ -75,19 +89,19 @@ The application never activates a new upstream file merely because it exists or 
 
 ## Campaign content quality
 
-The bundled route currently contains 228 pages. `npm run audit:campaign` verifies that every page exposes at least one decisive structured-action signal and reports upstream token/jargon leakage candidates, bespoke guidance coverage, and warning coverage. See [docs/CAMPAIGN_AUDIT.md](docs/CAMPAIGN_AUDIT.md).
+The bundled route contains 228 pages. `npm run audit:campaign` verifies that every page exposes at least one decisive structured-action signal and reports upstream token/jargon leakage candidates, bespoke guidance coverage, stale selector coverage, and warning coverage. High-value campaign coaching is maintained separately from the upstream route so upstream changes can be audited without replacing our teaching layer.
 
 ## Project direction
 
-The next major milestone is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model.
+The next major milestone after the campaign reliability pass is **PoB to Play**: build-stage understanding, gem/vendor planning, passive milestones, link/socket transitions and build-specific campaign actions attached to the same semantic route model.
 
 Later modules include:
 
-- build-specific loot-filter generation;
+- build-specific LOOK FOR gear and socket/link guidance;
+- leveling loot-filter generation;
 - gear checkpoints and resistance repair;
 - clipboard item parsing and Gear Coach;
-- a step-by-step Crafting Coach with item-state validation;
-- route splits, run history, and personal-best comparisons.
+- a step-by-step Crafting Coach with item-state validation.
 
 See [docs/RESEARCH.md](docs/RESEARCH.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/OVERLAY_V2.md](docs/OVERLAY_V2.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
