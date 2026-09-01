@@ -59,6 +59,7 @@ import { detectLogPath, PoELogWatcher } from './services/log-watcher';
 import { applyOverlayPosition, resizeOverlayToContent, snapCustomPosition, widthForMode } from './services/overlay-window';
 import { SessionGuard } from './services/session-guard';
 import { StateStore } from './services/state-store';
+import { createPreplaytestLab } from './services/preplaytest-lab';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
@@ -93,6 +94,7 @@ type ReplayUiResult = Pick<LogReplayReport, 'chunks' | 'lines' | 'parsedEvents' 
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
+let labWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let store: StateStore;
 let settings: AppSettings = structuredClone(DEFAULT_SETTINGS);
@@ -345,13 +347,20 @@ function registerHotkeys(): void {
     catch (error) { log.warn(`Invalid hotkey ignored: ${accelerator}`, error); }
   }
 }
+function openPreplaytestLab(): void {
+  if (labWindow && !labWindow.isDestroyed()) { labWindow.show(); labWindow.focus(); return; }
+  labWindow = createPreplaytestLab(path.join(__dirname, 'preload.cjs'));
+  wireWindowDiagnostics(labWindow, 'Pre-playtest Lab');
+  labWindow.on('closed', () => { labWindow = null; overlayDemo = null; broadcastState(); });
+}
+
 function createTray(): void {
   const iconPath = app.isPackaged ? path.join(process.resourcesPath, 'campaign', 'tray.png') : bundledCampaignPath('tray.png');
   const image = nativeImage.createFromPath(iconPath);
   tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image);
   tray.setToolTip('ExileQuesting');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open ExileQuesting', click: () => mainWindow?.show() }, { label: 'Toggle campaign overlay', click: toggleOverlay },
+    { label: 'Open ExileQuesting', click: () => mainWindow?.show() }, { label: 'Pre-playtest Lab', click: openPreplaytestLab }, { label: 'Toggle campaign overlay', click: toggleOverlay },
     { label: 'Cycle overlay mode', click: () => void cycleOverlayMode() }, { type: 'separator' },
     { label: 'Quit', click: () => { (app as Electron.App & { isQuitting?: boolean }).isQuitting = true; app.quit(); } },
   ]));
@@ -504,6 +513,7 @@ function sanitizeDemo(value: unknown): OverlayDemoConfig {
 }
 function registerIpc(): void {
   ipcMain.handle('app:bootstrap', () => runtimeState());
+  ipcMain.handle('lab:open', () => openPreplaytestLab());
   ipcMain.handle('settings:update', async (_event, patch: Partial<AppSettings>) => {
     const candidate = {
       ...settings, ...patch,
