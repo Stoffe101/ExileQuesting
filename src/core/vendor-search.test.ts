@@ -41,6 +41,8 @@ describe('buildVendorSearchPlan', () => {
     expect(plan.equipment?.query).toContain('Quartz Wand');
     expect(plan.equipment?.query).toContain('Goathide Boots');
     expect(plan.equipment?.query).not.toContain('Goldrim');
+    expect(plan.equipment?.query.startsWith('"')).toBe(true);
+    expect(plan.equipment?.query.endsWith('"')).toBe(true);
     expect(plan.equipment?.length).toBe(plan.equipment?.query.length);
     expect(plan.equipment!.length).toBeLessThanOrEqual(MAX_VENDOR_SEARCH_CHARS);
   });
@@ -67,6 +69,12 @@ describe('buildVendorSearchPlan', () => {
     expect(plan.gems?.query).toContain('Fire \\(Plus\\)\\+ Support');
   });
 
+  it('wraps multi-word regexes as one quoted PoE search expression', () => {
+    const plan = buildVendorSearchPlan(loot(), [gem('Flame Dash'), gem('Clarity')]);
+    expect(plan.gems?.query).toBe('"Flame Dash|Clarity"');
+    expect(plan.gems?.length).toBe(20);
+  });
+
   it('includes only planned gems whose preferred source is a vendor and deduplicates names', () => {
     const plan = buildVendorSearchPlan(loot(), [
       gem('Flame Dash'),
@@ -77,7 +85,7 @@ describe('buildVendorSearchPlan', () => {
       gem('Unknown Gem', 'Vendor · Nessa · Act 1', 'unknown-gem'),
     ]);
     expect(plan.gems?.included).toEqual(['Flame Dash', 'Added Lightning Damage']);
-    expect(plan.gems?.query).toBe('Flame Dash|Added Lightning Damage');
+    expect(plan.gems?.query).toBe('"Flame Dash|Added Lightning Damage"');
     expect(plan.gems?.query).not.toContain('Arcane Surge');
     expect(plan.gems?.query).not.toContain('Unavailable Gem');
   });
