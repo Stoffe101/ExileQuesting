@@ -99,11 +99,11 @@ The parser, bounded pobb.in fetcher and Build Profile persistence are establishe
 - [x] confidence-rated stage alignment: exact loadout title -> semantic milestone -> guarded ordinal fallback -> explicit ambiguity
 - [x] recognize PoB linked-title `{token}` convention
 - [ ] validate stage alignment against a corpus of current real-world PoBs
-- [ ] active Build Stage selection and persistence
+- [x] active Build Stage selection and persistence
 
 ### Import + interpretation
 
-- [ ] paste export code or pobb.in URL in the manager
+- [x] paste export code or pobb.in URL in the manager
 - [ ] local `.xml` build discovery/import UX
 - [ ] background import/decompression workflow
 - [ ] build notes and guide-source link
@@ -111,22 +111,22 @@ The parser, bounded pobb.in fetcher and Build Profile persistence are establishe
 
 ### Leveling plan
 
-- [ ] versioned gem metadata snapshot with provenance
-- [ ] class-aware quest reward plan
-- [ ] class-aware vendor availability plan
+- [x] versioned gem metadata snapshot with provenance
+- [x] class-aware quest reward plan
+- [x] class-aware vendor availability plan
 - [ ] Siosa/Lilly fallback acquisition rules
-- [ ] gem transition planner
+- [x] gem transition planner
 - [ ] link/socket/colour transition planner
 - [ ] passive milestone diff between aligned tree stages
-- [ ] attach build actions to the semantic campaign-action model
+- [x] attach build actions to the semantic campaign-action model
 - [ ] concise BUILD block in Compact/Focus/Coach overlays
 
 ### Data quality
 
 - [ ] version every generated game-data snapshot independently from the application
 - [ ] record game version, schema version, generated-at timestamp, source revision/URL and checksum
-- [ ] keep runtime operation independent of PoE Wiki availability
-- [ ] regression-test known quest/vendor edge cases and class restrictions
+- [x] keep runtime operation independent of PoE Wiki availability
+- [x] regression-test known quest/vendor edge cases and class restrictions
 
 ## 0.3 — build-aware campaign + loot intelligence
 
