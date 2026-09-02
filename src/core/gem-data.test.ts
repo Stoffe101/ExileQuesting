@@ -14,6 +14,8 @@ const source = {
 const gems = {
   fireball: { id: 'Metadata/Items/Gems/SkillGemFireball', name: 'Fireball', primary_attribute: 'int', required_level: 1, is_support: false },
   arc: { id: 'Metadata/Items/Gems/SkillGemArc', name: 'Arc', primary_attribute: 'int', required_level: 12, is_support: false },
+  arcaneSurge: { id: 'Metadata/Items/Gems/SupportGemArcaneSurge', name: 'Arcane Surge', primary_attribute: 'int', required_level: 1, is_support: true },
+  internal: { id: 'Metadata/Items/Gems/SkillGemInternalTest', name: '[DNT] Internal Test', primary_attribute: 'int', required_level: 1, is_support: false },
 };
 
 const quests = {
@@ -31,9 +33,10 @@ const quests = {
 const characters = { Witch: { start_gem_id: 'Metadata/Items/Gems/SkillGemFireball', chest_gem_id: 'Metadata/Items/Gems/SupportGemArcaneSurge' } };
 
 describe('gem data snapshot', () => {
-  it('flattens maintained gem, quest and character data with provenance', () => {
+  it('flattens maintained player-acquirable gem, quest and character data with provenance', () => {
     const snapshot = buildGemAcquisitionSnapshot(gems, quests, characters, { gameVersion: '3.29', generatedAt: '2026-09-02T01:00:00.000Z', source });
-    expect(snapshot.gems.map((gem) => gem.name)).toEqual(['Arc', 'Fireball']);
+    expect(snapshot.gems.map((gem) => gem.name)).toEqual(['Arc', 'Arcane Surge', 'Fireball']);
+    expect(snapshot.gems.some((gem) => gem.name.includes('[DNT]'))).toBe(false);
     expect(snapshot.offers).toEqual(expect.arrayContaining([
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemArc', kind: 'quest', questId: 'a1q4', npc: 'Nessa', classes: ['Witch'] }),
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemFireball', kind: 'vendor', npc: 'Nessa', classes: [] }),
