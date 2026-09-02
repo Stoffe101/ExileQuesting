@@ -12,6 +12,7 @@ on:
       - electron/services/passive-tree-hud.ts
       - tools/generate-passive-data.ts
       - tools/inspect-passive-tree-temp.mjs
+      - tools/apply-passive-hud-integration-temp.mjs
       - .github/workflows/passive-tree-research-temp.yml
 
 permissions:
@@ -24,22 +25,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/passive-tree-hud
+      - name: Apply guarded runtime integration
+        run: node tools/apply-passive-hud-integration-temp.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Inspect special passive nodes
+      - name: Inspect passive schema and class starts
         run: node tools/inspect-passive-tree-temp.mjs
       - run: npm run data:passives
       - run: npm run validate:passives
       - run: npm run typecheck
       - run: npm test
-      - name: Commit generated passive snapshot
+      - name: Commit validated integration and generated passive snapshot
         run: |
           git config user.name "Skrra"
           git config user.email "94893570+Stoffe101@users.noreply.github.com"
-          git add assets/game-data/passive-tree-3.29.json
+          git add assets/game-data/passive-tree-3.29.json electron/main.ts src/core/persistence.ts src/core/maxroll.ts src/ui/App.tsx
           git diff --cached --quiet && exit 0
-          git commit -m "Regenerate passive tree geometry snapshot"
+          git commit -m "Integrate all-class Passive Tree HUD runtime"
           git push origin HEAD:feature/passive-tree-hud
