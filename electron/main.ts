@@ -7,6 +7,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  screen,
   shell,
   Tray,
 } from 'electron';
@@ -76,6 +77,9 @@ import { buildCampaignIntelligence, campaignIntelligenceActionsForStep, type Cam
 import type { LootFilterStatus } from '../src/core/loot-filter';
 import { bundledGemDataPath, bundledPassiveDataPath, loadGemAcquisitionSnapshot, loadPassiveTreeSnapshot, type GameDataLoadResult, type PassiveDataLoadResult } from './services/game-data';
 import { unconfiguredLootFilterState, writeBuildAwareLootFilter } from './services/loot-filter-service';
+import { PassiveTreeHudService, type PassiveTreeHudContext } from './services/passive-tree-hud';
+import { buildPassiveTreeGuidePlan } from '../src/core/passive-tree-guide';
+import { passiveTreeHudIdle, type PassiveTreeHudState } from '../src/core/passive-tree-hud-state';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
@@ -95,7 +99,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true },
-  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, reducedMotion: false, reducedTransparency: false,
+  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true, reducedMotion: false, reducedTransparency: false,
   onboardingComplete: false, launchMinimized: false, autoCheckAppUpdates: true, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: {
@@ -112,6 +116,7 @@ type ReplayUiResult = Pick<LogReplayReport, 'chunks' | 'lines' | 'parsedEvents' 
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
+let passiveTreeHudWindow: BrowserWindow | null = null;
 let labWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let store: StateStore;
@@ -141,6 +146,8 @@ let confirmedRewardStepIds = new Set<string>();
 let recovery: RecoveryState = { previousSessionUnclean: false, acknowledged: true };
 let sessionGuard: SessionGuard | null = null;
 let appUpdater: AppUpdater | null = null;
+let passiveTreeHudService: PassiveTreeHudService | null = null;
+let passiveTreeHudState: PassiveTreeHudState = passiveTreeHudIdle(true);
 let overlayDemo: OverlayDemoConfig | null = null;
 let lastReplay: ReplayUiResult | null = null;
 let buildProfiles: BuildProfile[] = [];
@@ -264,6 +271,43 @@ async function loadBuildGameData(): Promise<void> {
   passiveData = passives;
 }
 
+function passiveTreeHudContext(): PassiveTreeHudContext {
+  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  const activeStageId = activeProfile ? buildPlannerState.activeStageByProfile[activeProfile.id] : undefined;
+  const passiveCursor = activeProfile ? buildPlannerState.passiveCursorByProfile[activeProfile.id] ?? 0 : 0;
+  return {
+    enabled: settings.passiveTreeHudEnabled,
+    pathPreview: settings.passiveTreeHudPathPreview,
+    snapshot: passiveData.snapshot,
+    guide: buildPassiveTreeGuidePlan(activeProfile, activeStageId, passiveCursor, passiveData.snapshot),
+  };
+}
+
+function applyPassiveTreeHudState(next: PassiveTreeHudState): void {
+  passiveTreeHudState = next;
+  const window = passiveTreeHudWindow;
+  if (window && !window.isDestroyed()) {
+    if (settings.passiveTreeHudEnabled && next.status === 'locked' && next.visible && next.displayBounds) {
+      const bounds = next.displayBounds;
+      const current = window.getBounds();
+      if (current.x !== bounds.x || current.y !== bounds.y || current.width !== bounds.width || current.height !== bounds.height) window.setBounds(bounds, false);
+      if (!window.isVisible()) window.showInactive();
+    } else if (window.isVisible()) window.hide();
+  }
+  broadcastState();
+}
+
+function initializePassiveTreeHud(): void {
+  passiveTreeHudService?.stop();
+  passiveTreeHudState = passiveTreeHudIdle(settings.passiveTreeHudEnabled);
+  passiveTreeHudService = new PassiveTreeHudService({
+    context: passiveTreeHudContext,
+    onState: applyPassiveTreeHudState,
+    log: { info: (...args) => log.info(...args), warn: (...args) => log.warn(...args) },
+  });
+  passiveTreeHudService.start();
+}
+
 function rebuildBuildGuidance(): void {
   buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
   campaignIntelligence = buildCampaignIntelligence(dataset);
@@ -278,6 +322,7 @@ function rebuildBuildGuidance(): void {
   activeBuildCoach = activeProfile && activeGemPlan && gemData.snapshot
     ? buildCoachSnapshot(activeProfile, activeStageId, activeGemPlan, gemData.snapshot, passiveData.snapshot, passiveCursor, characterLevel)
     : undefined;
+  passiveTreeHudService?.poke();
 }
 
 async function refreshBuildLootFilter(): Promise<void> {
@@ -338,7 +383,7 @@ function runtimeState(): RuntimeState {
     settings, dataset: buildAwareDataset(), sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
     xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, confirmedRewardStepIds),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
-    logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
+    logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, passiveTreeHud: passiveTreeHudState, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
   };
 }
 function overlayState(real = runtimeState()): RuntimeState {
@@ -369,6 +414,7 @@ function broadcastState(): void {
   const real = runtimeState();
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('state:changed', real);
   if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('state:changed', overlayState(real));
+  if (passiveTreeHudWindow && !passiveTreeHudWindow.isDestroyed()) passiveTreeHudWindow.webContents.send('state:changed', real);
 }
 function appendDetectionTrace(entry: Omit<DetectionTraceEntry, 'id' | 'at'>): void {
   const at = new Date().toISOString();
@@ -412,7 +458,7 @@ async function finishCampaignRun(): Promise<void> {
   const result = finishRun(runSession); runSession = result.session; if (result.history) runHistory = appendRunHistory(runHistory, result.history); await saveRunState(); broadcastState();
 }
 
-async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay' | 'lab'): Promise<void> {
+async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay' | 'lab' | 'passive-tree-hud'): Promise<void> {
   const base = process.env.VITE_DEV_SERVER_URL;
   if (base) await window.loadURL(`${base}?mode=${mode}`);
   else await window.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), { query: { mode } });
@@ -457,6 +503,21 @@ function createOverlayWindow(): BrowserWindow {
   });
   window.webContents.setWindowOpenHandler(({ url }) => { openExternalIfAllowed(url); return { action: 'deny' }; });
   void loadRenderer(window, 'overlay').then(() => { placeOverlay(); void saveSettings(); }).catch((error) => log.error('Failed to load overlay UI.', error));
+  return window;
+}
+function createPassiveTreeHudWindow(): BrowserWindow {
+  const primary = screen.getPrimaryDisplay().bounds;
+  const window = new BrowserWindow({
+    x: primary.x, y: primary.y, width: primary.width, height: primary.height,
+    show: false, frame: false, transparent: true, backgroundColor: '#00000000', alwaysOnTop: true,
+    skipTaskbar: true, focusable: false, resizable: false, movable: false, hasShadow: false, webPreferences: commonWebPreferences(),
+  });
+  wireWindowDiagnostics(window, 'Passive Tree HUD');
+  window.setAlwaysOnTop(true, 'screen-saver');
+  window.setIgnoreMouseEvents(true, { forward: true });
+  if (process.platform === 'win32' || process.platform === 'darwin') window.setContentProtection(true);
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  void loadRenderer(window, 'passive-tree-hud').catch((error) => log.error('Failed to load Passive Tree HUD renderer.', error));
   return window;
 }
 function toggleOverlay(): void { if (!overlayWindow) return; if (overlayWindow.isVisible()) overlayWindow.hide(); else overlayWindow.showInactive(); }
@@ -719,6 +780,10 @@ function registerIpc(): void {
     registerHotkeys();
     if (safePatch.logPath !== undefined) await startLogWatcher();
     if (safePatch.autoDownloadAppUpdates && appUpdate.status === 'available') void appUpdater?.download();
+    if (safePatch.passiveTreeHudEnabled !== undefined || safePatch.passiveTreeHudPathPreview !== undefined) {
+      if (!settings.passiveTreeHudEnabled) passiveTreeHudWindow?.hide();
+      passiveTreeHudService?.poke();
+    }
     broadcastState(); return runtimeState();
   });
   ipcMain.handle('log:select', async () => {
@@ -1001,6 +1066,8 @@ else {
 
     mainWindow = createMainWindow();
     overlayWindow = createOverlayWindow();
+    passiveTreeHudWindow = createPassiveTreeHudWindow();
+    initializePassiveTreeHud();
     createTray();
     registerHotkeys();
     await startLogWatcher();
@@ -1021,6 +1088,7 @@ app.on('before-quit', () => {
   if (campaignUpdateTimer) clearInterval(campaignUpdateTimer);
   if (appUpdateTimer) clearInterval(appUpdateTimer);
   sessionGuard?.clean();
+  passiveTreeHudService?.stop();
   void logWatcher?.stop();
   globalShortcut.unregisterAll();
 });
