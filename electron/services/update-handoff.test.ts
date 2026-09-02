@@ -4,26 +4,26 @@ import { windowsUpdateLauncherScript } from './update-handoff';
 describe('Windows update handoff', () => {
   it('waits for ExileQuesting to exit before starting the installer', () => {
     const script = windowsUpdateLauncherScript();
-    expect(script).toContain('Wait-Process -Id $ParentPid');
-    expect(script.indexOf('Wait-Process -Id $ParentPid')).toBeLessThan(script.indexOf('Start-Process -FilePath $Installer'));
+    expect(script).toContain(':wait_parent');
+    expect(script).toContain('tasklist /FI "PID eq %PARENT_PID%"');
+    expect(script.indexOf(':wait_parent')).toBeLessThan(script.indexOf('start "" /wait "%INSTALLER%" /S'));
   });
 
-  it('runs the NSIS installer silently into the current install directory and relaunches', () => {
+  it('runs the verified NSIS installer silently and relaunches the existing installation', () => {
     const script = windowsUpdateLauncherScript();
-    expect(script).toContain('$installDir = Split-Path -Parent $AppExe');
-    expect(script).toContain('$installArgs = "/S /D=$installDir"');
-    expect(script).toContain('-ArgumentList $installArgs -Wait -PassThru');
-    expect(script).toContain('Start-Process -FilePath $AppExe');
-    expect(script).toContain('$result.relaunched = $true');
+    expect(script).toContain('start "" /wait "%INSTALLER%" /S');
+    expect(script).toContain('if not "%INSTALL_EXIT%"=="0"');
+    expect(script).toContain('if not exist "%APP_EXE%"');
+    expect(script).toContain('start "" "%APP_EXE%"');
+    expect(script).toContain('"relaunched":true');
   });
 
-  it('records installer failures and a stage trace instead of using cmd.exe', () => {
+  it('records failures and stage trace without the fragile timeout/start one-liner', () => {
     const script = windowsUpdateLauncherScript();
-    expect(script).toContain("$result.status = 'failed'");
-    expect(script).toContain('Set-Content -LiteralPath $ResultFile');
-    expect(script).toContain('Add-Content -LiteralPath $TraceFile');
-    expect(script).toContain("Write-Trace 'Relaunching ExileQuesting.'");
-    expect(script.toLowerCase()).not.toContain('cmd.exe');
+    expect(script).toContain('>>"%TRACE_FILE%" echo');
+    expect(script).toContain('"status":"failed"');
+    expect(script).toContain('call :trace "Relaunching ExileQuesting."');
     expect(script.toLowerCase()).not.toContain('timeout /t');
+    expect(script).not.toContain(' & start ');
   });
 });
