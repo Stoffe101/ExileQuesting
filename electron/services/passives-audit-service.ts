@@ -25,12 +25,16 @@ export async function readBoundedLogTail(filePath: string, maxBytes = PASSIVES_L
   }
 }
 
-export async function scanPassivesFromLog(filePath: string, bandit: PassiveAuditBanditChoice): Promise<PassivesReconciliation> {
+export async function scanPassivesFromLog(
+  filePath: string,
+  bandit: PassiveAuditBanditChoice,
+  throughAct = 10,
+): Promise<PassivesReconciliation> {
   try {
     const content = await readBoundedLogTail(filePath);
-    return reconcilePassivesCommand(content, bandit);
+    return reconcilePassivesCommand(content, bandit, throughAct);
   } catch (error) {
-    const fallback = reconcilePassivesCommand('', bandit);
+    const fallback = reconcilePassivesCommand('', bandit, throughAct);
     return {
       ...fallback,
       message: `Could not read the configured Path of Exile log: ${error instanceof Error ? error.message : String(error)}`,
