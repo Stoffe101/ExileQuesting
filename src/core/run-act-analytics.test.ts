@@ -14,6 +14,25 @@ function history(id: string, act1: number, act2: number, act3: number): RunHisto
       { act: 1, at: '2026-09-02T10:10:00Z', elapsedMs: act1 },
       { act: 2, at: '2026-09-02T10:20:00Z', elapsedMs: act1 + act2 },
       { act: 3, at: '2026-09-02T10:30:00Z', elapsedMs: total },
+      // A later split proves Act 3 was completed. This final Act 4 boundary is
+      // intentionally unscored because a history entry can end mid-Act 4.
+      { act: 4, at: '2026-09-02T10:30:00Z', elapsedMs: total },
+    ],
+  };
+}
+
+function unprovenHistory(id: string, act1: number, act2: number, finalAct3: number): RunHistoryEntry {
+  const total = act1 + act2 + finalAct3;
+  return {
+    id,
+    startedAt: '2026-09-02T10:00:00Z',
+    finishedAt: '2026-09-02T11:00:00Z',
+    totalMs: total,
+    townTimeMs: 0,
+    splits: [
+      { act: 1, at: '2026-09-02T10:10:00Z', elapsedMs: act1 },
+      { act: 2, at: '2026-09-02T10:20:00Z', elapsedMs: act1 + act2 },
+      { act: 3, at: '2026-09-02T10:30:00Z', elapsedMs: total },
     ],
   };
 }
@@ -111,6 +130,18 @@ describe('act-level pace analytics', () => {
     expect(analytics.acts[0]).toMatchObject({ act: 1, complete: true, deltaVsPreviousMs: 60_000 });
     expect(analytics.acts[1]).toMatchObject({ act: 2, complete: false });
     expect(analytics.acts[1].deltaVsPreviousMs).toBeUndefined();
+  });
+
+  it('refuses to use an unproven final Act from historical runs as a baseline', () => {
+    const previous = unprovenHistory('previous-partial', 600_000, 900_000, 500_000);
+    const session = transitionedSession(600_000, 900_000, 1_000_000);
+    const analytics = buildRunActAnalytics(session, previous, previous);
+
+    expect(analytics.acts[0].deltaVsPreviousMs).toBe(0);
+    expect(analytics.acts[1].deltaVsPreviousMs).toBe(0);
+    expect(analytics.acts[2]).toMatchObject({ act: 3, complete: true });
+    expect(analytics.acts[2].previousMs).toBeUndefined();
+    expect(analytics.acts[2].deltaVsPreviousMs).toBeUndefined();
   });
 
   it('handles skipped split acts deterministically without negative durations', () => {
