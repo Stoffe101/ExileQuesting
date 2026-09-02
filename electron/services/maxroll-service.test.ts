@@ -50,7 +50,20 @@ describe('Maxroll service', () => {
         required_level: 1,
         is_support: false,
       },
-    }, {}, {}, { gameVersion: '3.29', generatedAt: '2026-09-02T00:00:00.000Z', source });
+    }, {
+      a1q1: {
+        id: 'a1q1', name: 'Enemy at the Gate', act: '1', reward_offers: {
+          a1q1: {
+            quest_npc: 'Nessa',
+            quest: {},
+            vendor: {
+              'Metadata/Items/Gems/SupportGemVolley': { classes: ['Ranger'], npc: 'Nessa' },
+              'Metadata/Items/Gems/SkillGemCausticArrow': { classes: ['Ranger'], npc: 'Nessa' },
+            },
+          },
+        },
+      },
+    }, {}, { gameVersion: '3.29', generatedAt: '2026-09-02T00:00:00.000Z', source });
 
     const build = canonicalizeMaxrollBuildGems(fixtureBuild(), snapshot);
     const gems = build.skillStages[0].skillGroups?.[0].gems ?? [];
