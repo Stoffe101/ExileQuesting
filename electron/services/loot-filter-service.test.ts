@@ -21,6 +21,7 @@ function plan(): LootFilterPlan {
   return {
     profileId: 'witch',
     profileName: 'Fireball Witch',
+    gameVersion: '3.29',
     stageId: 'stage:act2',
     stageTitle: 'Act 2',
     linkTargets: [{
@@ -28,7 +29,7 @@ function plan(): LootFilterPlan {
       stageTitle: 'Act 2',
       label: 'Main skill',
       links: 3,
-      colours: ['R', 'B', 'B'],
+      qualityBonusColours: ['R', 'B', 'B'],
       gems: ['Added Fire Damage', 'Fireball', 'Faster Casting'],
     }],
     showChromaticRecipe: true,
@@ -48,7 +49,7 @@ describe('loot filter service', () => {
     await expect(validateBaseFilterPath(generated)).rejects.toThrow('base filter');
   });
 
-  it('writes a wrapper next to the selected base without modifying the base filter', async () => {
+  it('writes a 3.29 link-first wrapper next to the selected base without modifying the base filter', async () => {
     const root = await tempRoot();
     const basePath = path.join(root, 'NeverSink.filter');
     const baseContent = 'Show\n    Class "Currency"\n';
@@ -61,6 +62,8 @@ describe('loot filter service', () => {
     expect(await fs.readFile(basePath, 'utf8')).toBe(baseContent);
     const wrapper = await fs.readFile(result.outputPath!, 'utf8');
     expect(wrapper).toContain('SocketGroup >= 3RBB');
+    expect(wrapper).toContain('LinkedSockets >= 3');
+    expect(wrapper).toContain('AreaLevel <= 67');
     expect(wrapper.trimEnd().endsWith('Import "NeverSink.filter"')).toBe(true);
   });
 
