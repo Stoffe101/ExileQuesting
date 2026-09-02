@@ -10,64 +10,69 @@ export interface UpdateHandoffOptions {
   log?: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
 }
 
+/**
+ * The helper deliberately uses a file rather than a nested `cmd /c "..."` one-liner.
+ * That keeps Windows quoting predictable and lets us retain a stage trace if installation fails.
+ * It is always started with windowsHide=true, so no console window is shown to the user.
+ */
 export function windowsUpdateLauncherScript(): string {
-  return `param(
-  [Parameter(Mandatory=$true)][int]$ParentPid,
-  [Parameter(Mandatory=$true)][string]$Installer,
-  [Parameter(Mandatory=$true)][string]$AppExe,
-  [Parameter(Mandatory=$true)][string]$ResultFile,
-  [Parameter(Mandatory=$true)][string]$TraceFile
+  return `@echo off
+setlocal EnableExtensions DisableDelayedExpansion
+set "PARENT_PID=%~1"
+set "INSTALLER=%~2"
+set "APP_EXE=%~3"
+set "RESULT_FILE=%~4"
+set "TRACE_FILE=%~5"
+set "INSTALL_EXIT=-1"
+call :trace "Updater helper started."
+
+:wait_parent
+tasklist /FI "PID eq %PARENT_PID%" /NH 2>NUL | find "%PARENT_PID%" >NUL
+if not errorlevel 1 (
+  >NUL ping 127.0.0.1 -n 2
+  goto wait_parent
 )
-$ErrorActionPreference = 'Stop'
-function Write-Trace([string]$Message) {
-  "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $TraceFile -Encoding UTF8
-}
-$result = [ordered]@{
-  status = 'starting'
-  installer = $Installer
-  appExe = $AppExe
-  exitCode = $null
-  relaunched = $false
-  error = $null
-  completedAt = $null
-}
-try {
-  Write-Trace "Waiting for ExileQuesting process $ParentPid to exit."
-  try { Wait-Process -Id $ParentPid -ErrorAction Stop } catch { Write-Trace 'Parent process is already gone.' }
-  Start-Sleep -Milliseconds 750
-  if (-not (Test-Path -LiteralPath $Installer)) { throw "Downloaded installer no longer exists: $Installer" }
-  $installDir = Split-Path -Parent $AppExe
-  Write-Trace "Launching verified installer into $installDir."
-  # NSIS requires /D to be the final argument and treats the remainder of the command line as the path,
-  # which allows install directories containing spaces without quoting the /D value.
-  $installArgs = "/S /D=$installDir"
-  $install = Start-Process -FilePath $Installer -ArgumentList $installArgs -Wait -PassThru -WindowStyle Hidden
-  $result.exitCode = $install.ExitCode
-  Write-Trace "Installer exited with code $($install.ExitCode)."
-  if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)." }
-  $result.status = 'installed'
-  Start-Sleep -Milliseconds 500
-  if (-not (Test-Path -LiteralPath $AppExe)) { throw "Installed application executable was not found after update: $AppExe" }
-  Write-Trace 'Relaunching ExileQuesting.'
-  Start-Process -FilePath $AppExe -WorkingDirectory (Split-Path -Parent $AppExe) | Out-Null
-  $result.relaunched = $true
-  Write-Trace 'Relaunch request completed.'
-} catch {
-  $result.status = 'failed'
-  $result.error = $_.Exception.Message
-  Write-Trace "FAILED: $($_.Exception.Message)"
-} finally {
-  $result.completedAt = (Get-Date).ToString('o')
-  $result | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ResultFile -Encoding UTF8
-  Write-Trace "Result written with status $($result.status)."
-}
+call :trace "Parent ExileQuesting process is gone."
+
+if not exist "%INSTALLER%" (
+  call :fail "Downloaded installer no longer exists."
+  exit /b 2
+)
+call :trace "Launching verified NSIS installer."
+start "" /wait "%INSTALLER%" /S
+set "INSTALL_EXIT=%ERRORLEVEL%"
+call :trace "Installer returned exit code %INSTALL_EXIT%."
+if not "%INSTALL_EXIT%"=="0" (
+  call :fail "Installer returned a non-zero exit code."
+  exit /b %INSTALL_EXIT%
+)
+
+if not exist "%APP_EXE%" (
+  call :fail "Installed ExileQuesting executable was not found after update."
+  exit /b 3
+)
+call :trace "Relaunching ExileQuesting."
+start "" "%APP_EXE%"
+>"%RESULT_FILE%" echo {"status":"installed","exitCode":0,"relaunched":true,"error":null}
+call :trace "Update completed and relaunch was requested."
+exit /b 0
+
+:fail
+set "FAIL_MESSAGE=%~1"
+call :trace "FAILED: %FAIL_MESSAGE%"
+>"%RESULT_FILE%" echo {"status":"failed","exitCode":%INSTALL_EXIT%,"relaunched":false,"error":"%FAIL_MESSAGE%"}
+exit /b 0
+
+:trace
+>>"%TRACE_FILE%" echo [%date% %time%] %~1
+exit /b 0
 `;
 }
 
 export async function scheduleWindowsUpdate(options: UpdateHandoffOptions): Promise<void> {
   await fs.access(options.installerPath);
   await fs.mkdir(options.updatesDirectory, { recursive: true });
-  const launcherPath = path.join(options.updatesDirectory, 'apply-update.ps1');
+  const launcherPath = path.join(options.updatesDirectory, 'apply-update.cmd');
   const resultPath = path.join(options.updatesDirectory, 'last-update-result.json');
   const tracePath = path.join(options.updatesDirectory, 'last-update-trace.log');
   await Promise.all([
@@ -76,14 +81,14 @@ export async function scheduleWindowsUpdate(options: UpdateHandoffOptions): Prom
   ]);
   await fs.writeFile(launcherPath, windowsUpdateLauncherScript(), 'utf8');
 
-  const child = spawn('powershell.exe', [
-    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
-    '-File', launcherPath,
-    '-ParentPid', String(options.parentPid ?? process.pid),
-    '-Installer', options.installerPath,
-    '-AppExe', options.appExecutable ?? process.execPath,
-    '-ResultFile', resultPath,
-    '-TraceFile', tracePath,
+  const commandProcessor = process.env.ComSpec || 'cmd.exe';
+  const child = spawn(commandProcessor, [
+    '/d', '/s', '/c', 'call', launcherPath,
+    String(options.parentPid ?? process.pid),
+    options.installerPath,
+    options.appExecutable ?? process.execPath,
+    resultPath,
+    tracePath,
   ], {
     detached: true,
     windowsHide: true,
@@ -95,5 +100,10 @@ export async function scheduleWindowsUpdate(options: UpdateHandoffOptions): Prom
     child.once('error', reject);
   });
   child.unref();
-  options.log?.info('Scheduled verified NSIS update handoff.', { installerPath: options.installerPath, launcherPath, resultPath, tracePath });
+  options.log?.info('Scheduled verified hidden NSIS update handoff.', {
+    installerPath: options.installerPath,
+    launcherPath,
+    resultPath,
+    tracePath,
+  });
 }
