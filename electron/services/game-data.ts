@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { validateGemAcquisitionSnapshot, type GemAcquisitionSnapshot } from '../../src/core/gem-data';
@@ -86,6 +87,10 @@ export async function loadGemAcquisitionSnapshot(filePath: string, log?: GameDat
   }
 }
 
+function passiveChecksum(snapshot: PassiveTreeSnapshot): string {
+  return createHash('sha256').update(JSON.stringify(snapshot.nodes)).digest('hex');
+}
+
 export async function loadPassiveTreeSnapshot(filePath: string, log?: GameDataLogger): Promise<PassiveDataLoadResult> {
   let stat;
   try {
@@ -111,6 +116,8 @@ export async function loadPassiveTreeSnapshot(filePath: string, log?: GameDataLo
   try {
     const snapshot = validatePassiveTreeSnapshot(JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown);
     if (!snapshot) throw new Error('schema validation failed');
+    const calculatedChecksum = passiveChecksum(snapshot);
+    if (calculatedChecksum !== snapshot.source.sha256) throw new Error(`checksum mismatch (expected ${snapshot.source.sha256}, calculated ${calculatedChecksum})`);
     log?.info('Loaded bundled passive tree data.', { path: filePath, gameVersion: snapshot.gameVersion, nodes: snapshot.nodes.length, sha256: snapshot.source.sha256 });
     return {
       snapshot,
