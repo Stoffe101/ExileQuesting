@@ -43,6 +43,10 @@ export interface PassiveTreeHudState {
   sourceLabel?: string;
   className?: string;
   classStartNodeId?: number;
+  /** Which independently registered tree is currently visible. */
+  treeScope?: 'base' | 'ascendancy';
+  /** Friendly GGG scope name when treeScope is ascendancy. */
+  ascendancyName?: string;
   message: string;
   confidence?: number;
   inliers?: number;
