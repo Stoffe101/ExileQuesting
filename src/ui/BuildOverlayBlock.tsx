@@ -7,14 +7,15 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
   const buildActions = step.actions.filter((action) => action.type === 'build');
   const first = buildActions[0];
   const passive = coach?.nextPassiveText;
-  const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll);
+  const gearHint = coach?.gearHints[0];
+  const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll || gearHint);
   if (!hasContent) return null;
 
   if (state.settings.overlayMode === 'compact') {
     return (
       <div className={`build-overlay compact ${exactPassive ? 'maxroll-active' : ''}`}>
         <span>{exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
-        <strong>{exactPassive?.nodeName ?? first?.title ?? passive ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
+        <strong>{exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
       </div>
     );
   }
@@ -55,6 +56,12 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
         <div className="build-overlay-action" key={action.id}><i>⬡</i><strong>{action.title}</strong></div>
       ))}
       {!maxroll && passive && <div className="build-overlay-passive"><span>Next passives</span><strong>{passive}</strong></div>}
+      {gearHint && (
+        <div className="build-overlay-passive build-overlay-look-for">
+          <span>LOOK FOR</span>
+          <strong>{gearHint.label}</strong>
+        </div>
+      )}
       {state.settings.overlayMode === 'coach' && coach?.currentGemTasks.slice(0, 4).map((task) => (
         <div className="build-overlay-task" key={`${task.name}:${task.copies}`}>
           <span>{task.copies > 1 ? `${task.copies}× ` : ''}{task.name}</span>
