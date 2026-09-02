@@ -1,18 +1,11 @@
 import type { GemRequirement } from './build-transitions';
 
-export interface GemDataSource {
-  repository: string;
-  commit: string;
-  license: string;
-  gemsPath: string;
-  questsPath: string;
-  charactersPath: string;
-}
+export type GemPrimaryAttribute = 'str' | 'dex' | 'int';
 
 export interface GemDataRecord {
   id: string;
   name: string;
-  primaryAttribute: string;
+  primaryAttribute: GemPrimaryAttribute;
   requiredLevel: number;
   isSupport: boolean;
 }
@@ -20,12 +13,12 @@ export interface GemDataRecord {
 export interface GemAcquisitionOffer {
   gemId: string;
   kind: 'quest' | 'vendor';
-  questId: string;
-  questName: string;
   act: number;
+  questId: string;
+  questName?: string;
   rewardOfferId: string;
-  questNpc: string;
-  npc: string;
+  questNpc?: string;
+  npc?: string;
   classes: string[];
 }
 
@@ -33,7 +26,14 @@ export interface GemAcquisitionSnapshot {
   schemaVersion: 1;
   gameVersion: string;
   generatedAt: string;
-  source: GemDataSource;
+  source: {
+    repository: string;
+    commit: string;
+    license: string;
+    gemsPath: string;
+    questsPath: string;
+    charactersPath: string;
+  };
   gems: GemDataRecord[];
   offers: GemAcquisitionOffer[];
   startingGems: Record<string, string[]>;
@@ -49,72 +49,76 @@ function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
-function string(value: unknown, max = 300): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : undefined;
+function string(value: unknown, max = 500): string | undefined {
+  return typeof value === 'string' && value.trim() && value.length <= max ? value.trim() : undefined;
+}
+
+function stringArray(value: unknown, limit = 20): string[] | null {
+  if (!Array.isArray(value) || value.length > limit || value.some((entry) => typeof entry !== 'string' || !entry.trim() || entry.length > 160)) return null;
+  return value.map((entry) => entry.trim());
 }
 
 function integer(value: unknown, min: number, max: number): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : undefined;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : undefined;
 }
 
 export function normalizeGemName(value: string): string {
-  return value.toLowerCase().replace(/&apos;/g, "'").replace(/[^a-z0-9]+/g, '').trim();
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
 
 export function validateGemAcquisitionSnapshot(value: unknown): GemAcquisitionSnapshot | null {
-  const root = record(value);
-  if (!root || root.schemaVersion !== 1) return null;
-  const source = record(root.source);
-  const gameVersion = string(root.gameVersion, 40);
-  const generatedAt = string(root.generatedAt, 80);
-  if (!source || !gameVersion || !generatedAt) return null;
-  const repository = string(source.repository, 200);
-  const commit = string(source.commit, 100);
-  const license = string(source.license, 80);
-  const gemsPath = string(source.gemsPath, 300);
-  const questsPath = string(source.questsPath, 300);
-  const charactersPath = string(source.charactersPath, 300);
-  if (!repository || !commit || !license || !gemsPath || !questsPath || !charactersPath) return null;
+  const source = record(value);
+  const schemaVersion = integer(source?.schemaVersion, 1, 1);
+  const gameVersion = string(source?.gameVersion, 40);
+  const generatedAt = string(source?.generatedAt, 80);
+  const rawSource = record(source?.source);
+  const repository = string(rawSource?.repository, 200);
+  const commit = string(rawSource?.commit, 120);
+  const license = string(rawSource?.license, 100);
+  const gemsPath = string(rawSource?.gemsPath, 400);
+  const questsPath = string(rawSource?.questsPath, 400);
+  const charactersPath = string(rawSource?.charactersPath, 400);
+  if (schemaVersion !== 1 || !gameVersion || !generatedAt || Number.isNaN(Date.parse(generatedAt)) || !repository || !commit || !license || !gemsPath || !questsPath || !charactersPath) return null;
 
+  if (!Array.isArray(source?.gems) || source.gems.length < 1 || source.gems.length > 2000) return null;
   const gems: GemDataRecord[] = [];
-  if (!Array.isArray(root.gems) || root.gems.length > 5000) return null;
-  for (const candidate of root.gems) {
+  for (const candidate of source.gems) {
     const item = record(candidate);
     const id = string(item?.id, 300);
-    const name = string(item?.name, 160);
-    const primaryAttribute = string(item?.primaryAttribute, 40);
-    const requiredLevel = integer(item?.requiredLevel, 0, 100);
-    if (!item || !id || !name || !primaryAttribute || requiredLevel === undefined || typeof item.isSupport !== 'boolean') return null;
-    gems.push({ id, name, primaryAttribute, requiredLevel, isSupport: item.isSupport });
+    const name = string(item?.name, 200);
+    const requiredLevel = integer(item?.requiredLevel, 1, 100);
+    const primaryAttribute = item?.primaryAttribute;
+    if (!id || !name || requiredLevel === undefined || !['str', 'dex', 'int'].includes(String(primaryAttribute)) || typeof item?.isSupport !== 'boolean') return null;
+    gems.push({ id, name, requiredLevel, primaryAttribute: primaryAttribute as GemPrimaryAttribute, isSupport: item.isSupport });
   }
 
+  if (!Array.isArray(source?.offers) || source.offers.length > 10000) return null;
   const offers: GemAcquisitionOffer[] = [];
-  if (!Array.isArray(root.offers) || root.offers.length > 100_000) return null;
-  for (const candidate of root.offers) {
+  for (const candidate of source.offers) {
     const item = record(candidate);
     const gemId = string(item?.gemId, 300);
-    const kind = item?.kind === 'quest' || item?.kind === 'vendor' ? item.kind : undefined;
-    const questId = string(item?.questId, 100);
-    const questName = string(item?.questName, 200);
+    const kind = item?.kind;
     const act = integer(item?.act, 1, 10);
-    const rewardOfferId = string(item?.rewardOfferId, 100);
-    const questNpc = string(item?.questNpc, 160);
-    const npc = string(item?.npc, 160);
-    const classes = Array.isArray(item?.classes) ? item.classes.filter((entry): entry is string => typeof entry === 'string' && entry.length <= 80).slice(0, 20) : [];
-    if (!item || !gemId || !kind || !questId || !questName || act === undefined || !rewardOfferId || !questNpc || !npc) return null;
-    offers.push({ gemId, kind, questId, questName, act, rewardOfferId, questNpc, npc, classes });
+    const questId = string(item?.questId, 200);
+    const rewardOfferId = string(item?.rewardOfferId, 240);
+    const classes = stringArray(item?.classes, 20);
+    if (!gemId || !['quest', 'vendor'].includes(String(kind)) || act === undefined || !questId || !rewardOfferId || !classes) return null;
+    offers.push({
+      gemId, kind: kind as GemAcquisitionOffer['kind'], act, questId, rewardOfferId, classes,
+      questName: string(item?.questName, 200), questNpc: string(item?.questNpc, 160), npc: string(item?.npc, 160),
+    });
   }
 
+  const rawStarting = record(source?.startingGems);
+  if (!rawStarting) return null;
   const startingGems: Record<string, string[]> = {};
-  const starts = record(root.startingGems);
-  if (!starts) return null;
-  for (const [className, value] of Object.entries(starts)) {
-    if (className.length > 80 || !Array.isArray(value)) continue;
-    startingGems[className] = value.filter((entry): entry is string => typeof entry === 'string' && entry.length <= 300).slice(0, 10);
+  for (const [className, ids] of Object.entries(rawStarting)) {
+    const parsed = stringArray(ids, 20);
+    if (!className.trim() || className.length > 80 || !parsed) return null;
+    startingGems[className] = parsed;
   }
 
-  // Schema-valid is not enough for bundled runtime data. Enforce referential integrity here so
-  // development, CI and packaged builds all reject polluted/corrupt snapshots the same way.
   const gemIds = new Set<string>();
   for (const gem of gems) {
     if (gemIds.has(gem.id)) return null;
@@ -156,7 +160,14 @@ export function indexGemData(snapshot: GemAcquisitionSnapshot): GemDataIndex {
 }
 
 function normalizedSkillTail(value: string): string {
-  return normalizeGemName(value.replace(/^Metadata\/Items\/Gems\//i, '').replace(/^(?:SkillGem|SupportGem)/i, ''));
+  return normalizeGemName(
+    value
+      .replace(/^Metadata\/Items\/Gems\//i, '')
+      // PoB commonly uses SkillGem/SupportGem while Maxroll's planner may abbreviate
+      // the same stable identity as SkillX/SupportX. Strip either form before comparing
+      // tails, but still require exactly one matching bundled gem before accepting it.
+      .replace(/^(?:SkillGem|SupportGem|Skill|Support)/i, ''),
+  );
 }
 
 export function resolveGemRequirement(requirement: GemRequirement, index: GemDataIndex): GemDataRecord | undefined {
