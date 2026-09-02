@@ -21,14 +21,20 @@ jobs:
       - run: npm ci
       - name: Generate pinned PoE gem snapshot
         run: npm run data:gems
-      - name: Verify deterministic snapshot
+      - name: Generate game-data provenance manifest
+        run: npm run data:manifest
+      - name: Verify deterministic gem snapshot
         run: npm run check:gems
-      - name: Commit generated snapshot when changed
+      - name: Validate generated gem snapshot
+        run: npm run validate:gems
+      - name: Validate game-data provenance manifest
+        run: npm run validate:manifest
+      - name: Commit generated snapshot and manifest when changed
         shell: bash
         run: |
-          git add assets/game-data/gem-acquisition-3.29.json
+          git add assets/game-data/gem-acquisition-3.29.json assets/game-data/manifest.json
           if git diff --cached --quiet; then
-            echo "Pinned gem snapshot is already current."
+            echo "Pinned gem snapshot and manifest are already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
