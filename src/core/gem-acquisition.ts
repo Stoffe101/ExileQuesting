@@ -98,11 +98,11 @@ function fallbackSources(stage: PobAlignedStage, gemId: string, offers: GemAcqui
 function sourceRank(source: GemAcquisitionSource): [number, number, number, number, string] {
   // For Act-labelled PoB stages, never prefer a later quest reward over a source that is already
   // available by the requested Act. Within the same timing confidence, keep the player-friendly
-  // preference of starting gem -> free quest reward -> vendor purchase, then prefer normal sources
-  // over detour fallbacks.
+  // preference of starting gem -> free quest reward -> vendor purchase. Normal class sources beat
+  // universal fallbacks; once both fallbacks are proven, Lilly beats the Library detour to Siosa.
   const timing = source.timingVerified ? 0 : 1;
   const kind = source.kind === 'starting' ? 0 : source.kind === 'quest' ? 1 : 2;
-  const fallback = source.fallback ? 1 : 0;
+  const fallback = source.fallback === 'lilly' ? 1 : source.fallback === 'siosa' ? 2 : 0;
   return [timing, kind, fallback, source.act ?? 0, source.questId ?? ''];
 }
 
