@@ -42,6 +42,6 @@ jobs:
           fi
           git config user.name "Skrra"
           git config user.email "94893570+Stoffe101@users.noreply.github.com"
-          git add electron/main.ts electron/services/passive-tree-hud.ts package.json package-lock.json .github/workflows/release.yml
+          git add electron/main.ts electron/services/passive-tree-hud.ts package.json package-lock.json
           git commit -m "Fix Passive Tree HUD activation and performance"
           git push
