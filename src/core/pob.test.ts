@@ -69,6 +69,20 @@ describe('PoB foundation', () => {
     expect(build.notes).toContain('Switch at level 28');
   });
 
+  it('resolves item-set slot references into parsed stage equipment', () => {
+    const withItems = `<PathOfBuilding><Build level="28" className="Ranger" targetVersion="3_29"/><Items activeItemSet="2">
+      <Item id="7"><![CDATA[Rarity: RARE\nFleet Pace\nSharkskin Boots\n--------\nRequirements:\nLevel: 25\nDex: 44\n--------\nSockets: G-G-G\n--------\nItem Level: 34\n--------\n+55 to maximum Life\n25% increased Movement Speed\n+24% to Cold Resistance]]></Item>
+      <ItemSet id="1" title="Level 12" />
+      <ItemSet id="2" title="Level 28"><Slot name="Boots" itemId="7" /></ItemSet>
+    </Items></PathOfBuilding>`;
+    const stage = parsePobXml(withItems).itemStages[1];
+    expect(stage.active).toBe(true);
+    expect(stage.equipment).toHaveLength(1);
+    expect(stage.equipment?.[0]).toMatchObject({ slotName: 'Boots', slot: 'boots', itemId: '7', name: 'Fleet Pace', baseType: 'Sharkskin Boots', maxLinks: 3 });
+    expect(stage.equipment?.[0].stats.maximumLife).toBe(55);
+    expect(stage.equipment?.[0].stats.movementSpeed).toBe(25);
+  });
+
   it('does not confuse same-version passive trees with the active ordinal', () => {
     const sameVersion = `<PathOfBuilding><Build targetVersion="3_29"/><Tree activeSpec="3"><Spec title="12" treeVersion="3_29"/><Spec title="28" treeVersion="3_29"/><Spec title="Maps" treeVersion="3_29"/></Tree></PathOfBuilding>`;
     const stages = parsePobXml(sameVersion).treeStages;
