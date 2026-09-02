@@ -4,7 +4,8 @@ import path from 'node:path';
 import type { AppSettings, RuntimeState } from '../src/core/types';
 import type { PassiveTreeHudState } from '../src/core/passive-tree-hud-state';
 
-const output = path.resolve(process.argv[2] || 'artifacts/passive-tree-hud');
+const outputArg = process.argv.slice(1).reverse().find((arg) => /(^|[\\/])artifacts[\\/]/i.test(arg));
+const output = path.resolve(outputArg || 'artifacts/passive-tree-hud');
 
 const settings: AppSettings = {
   logPath: '', guidanceMode: 'beginner', leagueStart: true, bandit: 'none', showOptional: true,
