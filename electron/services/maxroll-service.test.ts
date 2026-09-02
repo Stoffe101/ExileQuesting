@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PobBuildSummary } from '../../src/core/pob';
 import { buildGemAcquisitionSnapshot } from '../../src/core/gem-data-import';
-import { canonicalizeMaxrollBuildGems } from './maxroll-service';
+import { canonicalizeMaxrollBuildGems, isAllowedMaxrollResponse } from './maxroll-service';
 
 const source = {
   repository: 'fixture/source',
@@ -34,6 +34,17 @@ function fixtureBuild(): PobBuildSummary {
 }
 
 describe('Maxroll service', () => {
+  it('allows only expected public Maxroll PoE response routes', () => {
+    expect(isAllowedMaxrollResponse('https://maxroll.gg/poe/build-guides/example-guide', 'guide')).toBe(true);
+    expect(isAllowedMaxrollResponse('https://www.maxroll.gg/poe/planner/gep906sn', 'planner')).toBe(true);
+    expect(isAllowedMaxrollResponse('https://maxroll.gg:443/poe/planner/gep906sn', 'planner')).toBe(true);
+    expect(isAllowedMaxrollResponse('http://maxroll.gg/poe/planner/gep906sn', 'planner')).toBe(false);
+    expect(isAllowedMaxrollResponse('https://maxroll.gg:8443/poe/planner/gep906sn', 'planner')).toBe(false);
+    expect(isAllowedMaxrollResponse('https://maxroll.gg.evil.example/poe/planner/gep906sn', 'planner')).toBe(false);
+    expect(isAllowedMaxrollResponse('https://maxroll.gg/other/path', 'guide')).toBe(false);
+    expect(isAllowedMaxrollResponse('https://user:pass@maxroll.gg/poe/build-guides/example-guide', 'guide')).toBe(false);
+  });
+
   it('canonicalizes Maxroll alias labels and IDs through bundled game data', () => {
     const snapshot = buildGemAcquisitionSnapshot({
       volley: {
