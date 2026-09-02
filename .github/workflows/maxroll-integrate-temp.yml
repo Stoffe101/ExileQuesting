@@ -30,6 +30,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add electron/main.ts
-          git commit -m "Wire Maxroll guides into build runtime"
+          git add src/core/maxroll.ts src/core/build-coach.ts
+          git commit -m "Preserve Maxroll Twink equipment slots"
           git push
