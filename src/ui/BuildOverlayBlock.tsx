@@ -4,18 +4,19 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
   const coach = state.buildCoach;
   const maxroll = coach?.maxroll;
   const exactPassive = maxroll?.nextPassive;
+  const stageNeedsReview = !maxroll && coach?.stageConfidence === 'ambiguous';
   const buildActions = step.actions.filter((action) => action.type === 'build');
   const first = buildActions[0];
   const passive = coach?.nextPassiveText;
   const gearHint = coach?.gearHints[0];
-  const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll || gearHint);
+  const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll || gearHint || stageNeedsReview);
   if (!hasContent) return null;
 
   if (state.settings.overlayMode === 'compact') {
     return (
       <div className={`build-overlay compact ${exactPassive ? 'maxroll-active' : ''}`}>
-        <span>{exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
-        <strong>{exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
+        <span>{stageNeedsReview ? 'BUILD REVIEW' : exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
+        <strong>{stageNeedsReview ? coach?.stageTitle ?? 'Stage alignment needs review' : exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
       </div>
     );
   }
@@ -26,6 +27,14 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
         <span className="section-kicker">BUILD</span>
         {coach?.stageTitle && <small>{coach.stageTitle}{coach.stageConfidence ? ` · ${coach.stageConfidence}` : ''}</small>}
       </div>
+
+      {stageNeedsReview && (
+        <div className="maxroll-passive-warning">
+          <span>BUILD STAGE REVIEW</span>
+          <strong>PoB sets could not be reconciled safely</strong>
+          <small>ExileQuesting kept the uncertain sets separate. Review this stage in Build Planner before relying on build-specific guidance.</small>
+        </div>
+      )}
 
       {exactPassive && (
         <div className={`maxroll-passive-overlay ${exactPassive.type}`}>

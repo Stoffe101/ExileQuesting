@@ -1,5 +1,5 @@
 import type { BuildProfile } from './build-profiles';
-import { alignPobStages, parsePobStageMilestone, type PobAlignedStage } from './pob-stages';
+import { alignPobStages, milestoneContainsLevel, milestoneStartLevel, type PobAlignedStage } from './pob-stages';
 
 export interface BuildPlannerState {
   schemaVersion: 1;
@@ -123,19 +123,33 @@ export function stepBuildPassiveCursor(state: BuildPlannerState, profiles: Build
 }
 
 /**
- * Maxroll skill planners label their swap points with levels. This keeps the active gem stage synced
- * to Client.txt character-level events while leaving passive clicks under explicit player control.
+ * Maxroll skill planners label their swap points with levels or level ranges. This keeps the active
+ * gem stage synced to Client.txt character-level events while leaving passive clicks under explicit
+ * player control. Exact one-level transitions win at that exact level, while a range takes over on
+ * subsequent levels. Before the first known milestone, the earliest future stage is selected.
  */
 export function activateMaxrollStageForLevel(state: BuildPlannerState, profiles: BuildProfile[], profileId: string, characterLevel: number): BuildPlannerState {
   const profile = profiles.find((candidate) => candidate.id === profileId);
   if (!profile?.maxroll || !Number.isFinite(characterLevel)) return normalizeBuildPlannerState(state, profiles);
   const candidates = alignedStagesForProfile(profile)
-    .map((stage) => ({ stage, milestone: parsePobStageMilestone(stage.title) }))
-    .filter((entry) => entry.milestone.kind === 'level' && typeof entry.milestone.value === 'number');
+    .map((stage) => ({ stage, milestone: stage.milestone, startLevel: milestoneStartLevel(stage.milestone) }))
+    .filter((entry): entry is typeof entry & { startLevel: number } => entry.startLevel !== undefined);
   if (!candidates.length) return normalizeBuildPlannerState(state, profiles);
+
   const level = Math.max(1, Math.min(100, Math.trunc(characterLevel)));
-  const eligible = candidates.filter((entry) => Number(entry.milestone.value) <= level);
-  const selected = (eligible.length ? eligible : candidates)
-    .sort((left, right) => Number(right.milestone.value) - Number(left.milestone.value) || right.stage.ordinalHint - left.stage.ordinalHint)[0]?.stage;
+  const eligible = candidates.filter((entry) => entry.startLevel <= level);
+  const selected = eligible.length
+    ? [...eligible].sort((left, right) => {
+      const leftExact = left.milestone.startLevel === level && left.milestone.endLevel === level ? 1 : 0;
+      const rightExact = right.milestone.startLevel === level && right.milestone.endLevel === level ? 1 : 0;
+      if (leftExact !== rightExact) return rightExact - leftExact;
+      const leftContains = milestoneContainsLevel(left.milestone, level) ? 1 : 0;
+      const rightContains = milestoneContainsLevel(right.milestone, level) ? 1 : 0;
+      if (leftContains !== rightContains) return rightContains - leftContains;
+      if (left.startLevel !== right.startLevel) return right.startLevel - left.startLevel;
+      return right.stage.ordinalHint - left.stage.ordinalHint;
+    })[0]?.stage
+    : [...candidates].sort((left, right) => left.startLevel - right.startLevel || left.stage.ordinalHint - right.stage.ordinalHint)[0]?.stage;
+
   return selected ? activateBuildStage(state, profiles, profileId, selected.id) : normalizeBuildPlannerState(state, profiles);
 }
