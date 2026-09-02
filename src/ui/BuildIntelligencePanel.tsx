@@ -1,14 +1,78 @@
+import { useState } from 'react';
+import type { VendorSearchKind, VendorSearchQuery } from '../core/vendor-search';
+import './vendor-search.css';
+
 type Workspace = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
 
+async function copySearchText(value: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+  } catch {
+    // Sandboxed/file renderers can deny the modern Clipboard API. Fall back to a user-triggered selection copy.
+  }
+
+  const input = document.createElement('textarea');
+  input.value = value;
+  input.setAttribute('readonly', 'true');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  input.style.pointerEvents = 'none';
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if (!copied) throw new Error('Clipboard access was blocked. Select the search text and copy it manually.');
+}
+
+function VendorSearchCard({ query, copied, onCopy }: { query: VendorSearchQuery; copied: boolean; onCopy: (query: VendorSearchQuery) => void }) {
+  return (
+    <div className="vendor-search-card">
+      <div className="vendor-search-card-head">
+        <div>
+          <span>{query.kind === 'equipment' ? 'GEAR' : 'GEMS'} · {query.label}</span>
+          <strong>{query.included.length} target{query.included.length === 1 ? '' : 's'} packed into one search</strong>
+        </div>
+        <small>{query.length}/250</small>
+      </div>
+      <code className="vendor-search-code custom-scrollbar" tabIndex={0}>{query.query}</code>
+      <div className="vendor-search-meta">
+        <p>{query.note}</p>
+        <button className="ghost-button" onClick={() => onCopy(query)}>{copied ? 'Copied ✓' : 'Copy search'}</button>
+      </div>
+      <div className="vendor-search-included">
+        {query.included.slice(0, 5).map((label) => <i key={label}>{label}</i>)}
+        {query.included.length > 5 && <i>+{query.included.length - 5} more</i>}
+        {query.omitted > 0 && <i className="omitted">{query.omitted} omitted by limit</i>}
+      </div>
+    </div>
+  );
+}
+
 export default function BuildIntelligencePanel({ workspace, onWorkspace }: { workspace: Workspace; onWorkspace: (workspace: Workspace) => void }) {
+  const [copiedVendor, setCopiedVendor] = useState<VendorSearchKind | null>(null);
+  const [vendorCopyError, setVendorCopyError] = useState('');
   const coach = workspace.coach;
   const maxroll = coach?.maxroll;
+  const vendorSearch = coach?.vendorSearch;
   const loot = workspace.lootFilter;
   const chooseBase = async () => onWorkspace(await window.exileQuesting.selectLootFilterBase());
   const regenerate = async () => onWorkspace(await window.exileQuesting.regenerateLootFilter());
   const markReloaded = async () => onWorkspace(await window.exileQuesting.markLootFilterReloaded());
   const stepPassive = async (delta: number) => {
     if (coach) onWorkspace(await window.exileQuesting.stepBuildPassive(coach.profileId, delta));
+  };
+  const copyVendorSearch = async (query: VendorSearchQuery) => {
+    setVendorCopyError('');
+    try {
+      await copySearchText(query.query);
+      setCopiedVendor(query.kind);
+      window.setTimeout(() => setCopiedVendor((current) => current === query.kind ? null : current), 1400);
+    } catch (error) {
+      setVendorCopyError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (
@@ -89,6 +153,29 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
           <strong>Contextual recipes + resistance checks</strong>
           {coach?.craftingHints.slice(0, 3).map((hint) => <small key={hint}>{hint}</small>)}
         </div>
+      </div>
+
+      <div className="vendor-search-panel">
+        <div className="vendor-search-heading">
+          <div>
+            <span>VENDOR SEARCH · ACTIVE STAGE</span>
+            <strong>Scan the vendor for what this build needs right now</strong>
+            <small>Copy a generated search, open the relevant vendor, then paste it into Path of Exile yourself. ExileQuesting never sends input to the game.</small>
+          </div>
+          <i>{coach?.stageTitle ?? 'No active build stage'}</i>
+        </div>
+
+        {vendorSearch?.equipment || vendorSearch?.gems ? (
+          <div className="vendor-search-grid">
+            {vendorSearch.equipment && <VendorSearchCard query={vendorSearch.equipment} copied={copiedVendor === 'equipment'} onCopy={(query) => void copyVendorSearch(query)} />}
+            {vendorSearch.gems && <VendorSearchCard query={vendorSearch.gems} copied={copiedVendor === 'gems'} onCopy={(query) => void copyVendorSearch(query)} />}
+          </div>
+        ) : (
+          <div className="vendor-search-empty">No stage-specific vendor search is needed yet. Import a build or advance to a stage with vendor pickups/gear targets.</div>
+        )}
+
+        {vendorSearch?.warnings.map((warning) => <p className="vendor-search-warning" key={warning}>{warning}</p>)}
+        {vendorCopyError && <div className="inline-alert"><strong>Vendor search</strong>{vendorCopyError}</div>}
       </div>
 
       <div className={`loot-filter-status ${loot.status} ${loot.needsReload ? 'reload' : ''}`}>

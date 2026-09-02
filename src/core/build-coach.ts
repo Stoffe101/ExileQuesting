@@ -6,6 +6,7 @@ import { buildLootFilterPlan, type LootFilterPlan } from './loot-filter';
 import { describePassiveMilestone, nextPassiveMilestone, type PassiveMilestone } from './passive-milestones';
 import type { PassiveNodeKind, PassiveTreeSnapshot } from './passive-data';
 import { alignPobStages, type PobStageAlignmentConfidence } from './pob-stages';
+import { buildVendorSearchPlan, type VendorSearchPlan } from './vendor-search';
 
 export interface BuildCoachGemTask {
   name: string;
@@ -57,6 +58,7 @@ export interface BuildCoachSnapshot {
   loot: LootFilterPlan;
   gearHints: GearLookForHint[];
   craftingHints: string[];
+  vendorSearch: VendorSearchPlan;
 }
 
 function sourceLabel(source: NonNullable<GemAcquisitionPlan['needs'][number]['preferred']>): string {
@@ -130,7 +132,7 @@ export function buildCoachSnapshot(
   const loot = buildLootFilterPlan(profile, active?.id, gemData);
   const maxroll = maxrollCoachFor(profile, passiveCursor, passiveData);
   const passive = maxroll ? undefined : nextPassiveMilestone(profile, active?.id, passiveData);
-  const currentGemTasks = acquisition.needs
+  const currentGemTasks: BuildCoachGemTask[] = acquisition.needs
     .filter((need) => need.stageId === active?.id)
     .slice(0, 12)
     .map((need) => ({
@@ -158,5 +160,6 @@ export function buildCoachSnapshot(
     loot,
     gearHints: gearLookForHints(profile, active?.id, gemData, characterLevel),
     craftingHints: craftingHintsFor(loot),
+    vendorSearch: buildVendorSearchPlan(loot, currentGemTasks),
   };
 }

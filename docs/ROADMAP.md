@@ -151,7 +151,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] stage-specific base/unique names feed narrow leveling-filter rules when safely representable
 - [x] leveling loot-filter generator safely wraps an existing local filter
 - [x] campaign crafting intelligence for current bench recipes, Act 2+ town benches and Kitava resistance preparation
-- [ ] build-specific vendor regex/search reminders
+- [x] build-specific vendor regex/search reminders
 - [ ] richer `/passives` reconciliation workflow
 - [ ] versioned layout images/diagrams where they beat text
 - [ ] deeper personal route analytics without gameplay automation
@@ -166,13 +166,13 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md` for the build-aware planner, passive, crafting and loot-filter behavior.
+See `BUILD_INTELLIGENCE.md` and `VENDOR_SEARCH.md` for the build-aware planner, passive, crafting, loot-filter and vendor-search behavior.
 
 ## 0.3 — deeper route + endgame intelligence
 
 - [ ] current-patch real-world PoB corpus validation and heuristics hardening
 - [ ] character-linked build profiles when a reliable identity source is available
-- [ ] build-specific vendor regex/search reminders
+- [x] build-specific vendor regex/search reminders
 - [ ] richer `/passives` reconciliation workflow
 - [ ] more reviewed high-confidence layout and routing hints
 - [ ] deeper personal route analytics without gameplay automation
