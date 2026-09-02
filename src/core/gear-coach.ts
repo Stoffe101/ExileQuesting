@@ -43,6 +43,19 @@ export interface GearLookForHint {
   priority: 'high' | 'medium' | 'low';
 }
 
+const ACT_LEVEL_HINTS: Record<number, number> = {
+  1: 8,
+  2: 18,
+  3: 28,
+  4: 36,
+  5: 43,
+  6: 48,
+  7: 53,
+  8: 58,
+  9: 62,
+  10: 66,
+};
+
 function selectedStage(profile: BuildProfile, activeStageId?: string) {
   const stages = alignPobStages(profile.build);
   return stages.find((stage) => stage.id === activeStageId)
@@ -50,10 +63,18 @@ function selectedStage(profile: BuildProfile, activeStageId?: string) {
     ?? stages[0];
 }
 
-function stageLevel(profile: BuildProfile, stageTitle?: string): number | undefined {
+function safeCharacterLevel(value?: number): number | undefined {
+  if (!Number.isFinite(value)) return undefined;
+  return Math.max(1, Math.min(100, Math.trunc(value!)));
+}
+
+function stageLevel(profile: BuildProfile, stageTitle?: string, characterLevel?: number): number | undefined {
   const milestone = stageTitle ? parsePobStageMilestone(stageTitle) : undefined;
   if (milestone?.kind === 'level' && typeof milestone.value === 'number') return milestone.value;
-  return profile.build.level;
+  const liveLevel = safeCharacterLevel(characterLevel);
+  if (liveLevel) return liveLevel;
+  if (milestone?.kind === 'act' && typeof milestone.value === 'number') return ACT_LEVEL_HINTS[milestone.value];
+  return safeCharacterLevel(profile.build.level);
 }
 
 function targetForSlot(profile: BuildProfile, activeStageId: string | undefined, slot: PoeGearSlot): PobItemSummary | undefined {
@@ -169,9 +190,14 @@ function headlineFor(verdict: GearCoachVerdict, item: ParsedPoeItem): string {
   return 'Low priority for this build stage';
 }
 
-export function gearLookForHints(profile: BuildProfile, activeStageId: string | undefined, gemData: GemAcquisitionSnapshot): GearLookForHint[] {
+export function gearLookForHints(
+  profile: BuildProfile,
+  activeStageId: string | undefined,
+  gemData: GemAcquisitionSnapshot,
+  characterLevel?: number,
+): GearLookForHint[] {
   const stage = selectedStage(profile, activeStageId);
-  const level = stageLevel(profile, stage?.title) ?? 1;
+  const level = stageLevel(profile, stage?.title, characterLevel) ?? 1;
   const loot = buildLootFilterPlan(profile, activeStageId, gemData);
   const hints: GearLookForHint[] = [];
   for (const item of stage?.items?.equipment ?? []) {
@@ -198,7 +224,7 @@ export function analyzeGearItem(
 ): GearCoachAnalysis {
   const item = parsePoeItemText(rawItemText);
   const stage = selectedStage(profile, activeStageId);
-  const level = stageLevel(profile, stage?.title) ?? characterLevel ?? 1;
+  const level = stageLevel(profile, stage?.title, characterLevel) ?? 1;
   const target = targetForSlot(profile, activeStageId, item.slot);
   const loot = buildLootFilterPlan(profile, activeStageId, gemData);
   const desiredLinks = canCarryMainLinks(item.slot) ? loot.linkTargets[0]?.links : undefined;
@@ -271,7 +297,7 @@ export function analyzeGearItem(
   }
   if (!item.corrupted && item.slot === 'boots' && item.stats.movementSpeed === 0) repairHints.push('Boots without movement speed are usually temporary; prefer a movement-speed pair rather than spending much currency here.');
 
-  const lookFor = gearLookForHints(profile, activeStageId, gemData).map((hint) => hint.label).slice(0, 6);
+  const lookFor = gearLookForHints(profile, activeStageId, gemData, characterLevel).map((hint) => hint.label).slice(0, 6);
   return {
     item,
     score,
