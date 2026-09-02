@@ -20,18 +20,6 @@ export function buildGemAcquisitionSnapshot(
   upstreamCharacters: unknown,
   metadata: GemSnapshotMetadata,
 ): GemAcquisitionSnapshot {
-  const gems = Object.values(object(upstreamGems)).flatMap((candidate) => {
-    const gem = object(candidate);
-    if (typeof gem.id !== 'string' || typeof gem.name !== 'string' || typeof gem.primary_attribute !== 'string' || typeof gem.required_level !== 'number' || typeof gem.is_support !== 'boolean') return [];
-    return [{
-      id: gem.id,
-      name: gem.name,
-      primaryAttribute: gem.primary_attribute,
-      requiredLevel: gem.required_level,
-      isSupport: gem.is_support,
-    }];
-  });
-
   const offers: GemAcquisitionSnapshot['offers'] = [];
   for (const candidate of Object.values(object(upstreamQuests))) {
     const quest = object(candidate);
@@ -80,6 +68,27 @@ export function buildGemAcquisitionSnapshot(
     const ids = [character.start_gem_id, character.chest_gem_id].filter((value): value is string => typeof value === 'string' && Boolean(value));
     if (ids.length) startingGems[className] = [...new Set(ids)];
   }
+
+  // The upstream gem file also contains internal/DNT/unused definitions that a player can never
+  // acquire. ExileQuesting only needs records referenced by a real quest/vendor offer or a
+  // character's starting/chest gem. Keeping this allowlist data-driven avoids name heuristics such
+  // as "[DNT]" while dramatically shrinking the bundled runtime dataset.
+  const relevantGemIds = new Set<string>([
+    ...offers.map((offer) => offer.gemId),
+    ...Object.values(startingGems).flat(),
+  ]);
+  const gems = Object.values(object(upstreamGems)).flatMap((candidate) => {
+    const gem = object(candidate);
+    if (typeof gem.id !== 'string' || !relevantGemIds.has(gem.id)) return [];
+    if (typeof gem.name !== 'string' || typeof gem.primary_attribute !== 'string' || typeof gem.required_level !== 'number' || typeof gem.is_support !== 'boolean') return [];
+    return [{
+      id: gem.id,
+      name: gem.name,
+      primaryAttribute: gem.primary_attribute,
+      requiredLevel: gem.required_level,
+      isSupport: gem.is_support,
+    }];
+  });
 
   const snapshot: GemAcquisitionSnapshot = {
     schemaVersion: 1,
