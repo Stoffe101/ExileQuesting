@@ -63,6 +63,20 @@ function profile(): BuildProfile {
   return { id: 'build-1', name: 'Caustic Arrow Ranger', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml', build };
 }
 
+function actProfile(): BuildProfile {
+  const base = profile();
+  return {
+    ...base,
+    id: 'build-act-2',
+    build: {
+      ...base.build,
+      level: 92,
+      skillStages: base.build.skillStages.map((stage) => ({ ...stage, title: 'Act 2' })),
+      itemStages: base.build.itemStages.map((stage) => ({ ...stage, title: 'Act 2' })),
+    },
+  };
+}
+
 const strongBoots = `Item Class: Boots
 Rarity: Rare
 Storm Pace
@@ -98,6 +112,17 @@ describe('Gear Coach', () => {
     const result = analyzeGearItem(strongBoots.replace('Level: 27', 'Level: 40'), profile(), 'aligned:level-28', gemData, 30);
     expect(result.verdict).toBe('future');
     expect(result.reasons[0].label).toMatch(/Requires level 40/);
+  });
+
+  it('uses the detected character level instead of the final PoB level for Act-labelled stages', () => {
+    const result = analyzeGearItem(strongBoots, actProfile(), undefined, gemData, 20);
+    expect(result.stageTitle).toBe('Act 2');
+    expect(result.stageLevel).toBe(20);
+    expect(result.stageLevel).not.toBe(92);
+    expect(result.lookFor.some((hint) => /roughly 50\+ life/i.test(hint))).toBe(true);
+
+    const offline = analyzeGearItem(strongBoots, actProfile(), undefined, gemData);
+    expect(offline.stageLevel).toBe(18);
   });
 
   it('produces concise stage-aware LOOK FOR hints', () => {
