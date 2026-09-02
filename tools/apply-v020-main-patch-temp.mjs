@@ -1,3 +1,4 @@
+// Temporary guarded patcher. Delete before opening the v0.2 pull request.
 import fs from 'node:fs';
 
 const file = 'electron/main.ts';
