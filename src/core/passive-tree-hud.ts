@@ -1,4 +1,4 @@
-import { hasPassiveTreeGeometry, indexPassiveNodes, type PassiveNodeRecord, type PassiveTreeSnapshot } from './passive-data';
+import { hasPassiveTreeGeometry, indexPassiveNodes, passiveClassStart, type PassiveNodeRecord, type PassiveTreeSnapshot } from './passive-data';
 
 export interface TreePoint {
   id: number;
@@ -54,6 +54,14 @@ export interface PassiveHudAnchorOptions {
   upcomingOperations?: number;
   neighbourDepth?: number;
   maxAnchors?: number;
+  /** Explicit fixed nodes to seed registration, used by unordered PoB stages. */
+  targetNodeIds?: number[];
+  /** Friendly build class, e.g. Witch, Duelist or Scion. */
+  className?: string;
+  /** PoB/GGG class index fallback when no friendly class name is available. */
+  classId?: number;
+  /** Already resolved start node when the caller has one. */
+  classStartNodeId?: number;
 }
 
 export interface EdgeIndicator {
@@ -76,7 +84,7 @@ function squaredDistance(left: { x: number; y: number }, right: { x: number; y: 
 }
 
 export function passiveNodePoint(node?: PassiveNodeRecord): TreePoint | undefined {
-  if (!node || node.x === undefined || node.y === undefined) return undefined;
+  if (!node || node.dynamic || node.kind === 'ascendancy' || node.x === undefined || node.y === undefined) return undefined;
   return { id: node.id, x: node.x, y: node.y };
 }
 
@@ -141,7 +149,6 @@ function nearestScreenCandidate(point: ScreenPoint, candidates: ScreenPoint[], m
 function matchTransform(transform: PassiveTreeTransform, anchors: TreePoint[], candidates: ScreenPoint[], tolerancePx: number): PassiveTreeMatch[] {
   const matches: PassiveTreeMatch[] = [];
   const used = new Set<number>();
-  // Score high-confidence visual candidates first when multiple circles are close.
   const orderedCandidates = candidates
     .map((candidate, index) => ({ candidate, index }))
     .sort((left, right) => (right.candidate.score ?? 0) - (left.candidate.score ?? 0));
@@ -176,7 +183,6 @@ function treePairs(anchors: TreePoint[], maxPairs: number): Array<[TreePoint, Tr
       if (distance >= 70) pairs.push([anchors[left], anchors[right], distance]);
     }
   }
-  // Wider pairs constrain scale more strongly and reduce accidental local fits.
   pairs.sort((left, right) => right[2] - left[2]);
   return pairs.slice(0, maxPairs).map(([left, right]) => [left, right]);
 }
@@ -202,8 +208,6 @@ export function registerPassiveTreePointCloud(
   const ySigns: Array<1 | -1> = options.allowYFlip ? [1, -1] : [1];
   let best: PassiveTreeRegistration | undefined;
 
-  // Candidate pairs are bounded by maxScreenCandidates. Skip very close pairs,
-  // which are poor scale estimators and common in unrelated UI ornamentation.
   for (const ySign of ySigns) {
     for (const [treeA, treeB] of pairs) {
       const treeDx = treeB.x - treeA.x;
@@ -264,9 +268,9 @@ function graphNeighbours(nodes: Map<number, PassiveNodeRecord>): Map<number, Set
 }
 
 /**
- * Builds a small, local registration constellation around the guide's current
- * passive operation. All nodes are visible tree geometry, not assumed allocated
- * state, so future path nodes are valid registration anchors too.
+ * Build a local registration constellation around either an ordered guide path
+ * or an unordered PoB stage. The class start is resolved from GGG data, never a
+ * Ranger-specific node ID, so the same algorithm works for all seven classes.
  */
 export function selectPassiveHudAnchors(
   snapshot: PassiveTreeSnapshot,
@@ -274,7 +278,7 @@ export function selectPassiveHudAnchors(
   cursor: number,
   options: PassiveHudAnchorOptions = {},
 ): TreePoint[] {
-  if (!hasPassiveTreeGeometry(snapshot) || !operations.length) return [];
+  if (!hasPassiveTreeGeometry(snapshot)) return [];
   const recentOperations = options.recentOperations ?? 7;
   const upcomingOperations = options.upcomingOperations ?? 7;
   const neighbourDepth = options.neighbourDepth ?? 2;
@@ -285,12 +289,20 @@ export function selectPassiveHudAnchors(
   const seen = new Set<number>();
   const push = (id: number) => { if (!seen.has(id) && passiveNodePoint(nodes.get(id))) { seen.add(id); ids.push(id); } };
 
-  const start = Math.max(0, cursor - recentOperations);
-  const end = Math.min(operations.length, cursor + upcomingOperations + 1);
-  for (let index = start; index < end; index += 1) push(operations[index].nodeId);
+  if (operations.length) {
+    const start = Math.max(0, cursor - recentOperations);
+    const end = Math.min(operations.length, cursor + upcomingOperations + 1);
+    for (let index = start; index < end; index += 1) push(operations[index].nodeId);
+  }
 
-  const targetId = operations[Math.min(cursor, operations.length - 1)]?.nodeId;
-  if (targetId) {
+  const targetNodeIds = [...new Set((options.targetNodeIds?.length
+    ? options.targetNodeIds
+    : operations[Math.min(cursor, Math.max(0, operations.length - 1))]?.nodeId
+      ? [operations[Math.min(cursor, operations.length - 1)].nodeId]
+      : []).filter((id) => Number.isSafeInteger(id) && id > 0))];
+  for (const id of targetNodeIds) push(id);
+
+  for (const targetId of targetNodeIds.slice(0, 12)) {
     let frontier = [targetId];
     const visited = new Set(frontier);
     for (let depth = 0; depth < neighbourDepth; depth += 1) {
@@ -307,22 +319,27 @@ export function selectPassiveHudAnchors(
     }
   }
 
-  // Class starts provide a uniquely stable early-game anchor when they are near
-  // the current path, without forcing the renderer to know the player's class.
-  if (cursor < 12 && targetId) {
-    const target = passiveNodePoint(nodes.get(targetId));
-    const starts = [...nodes.values()].filter((node) => node.kind === 'class-start').map(passiveNodePoint).filter((point): point is TreePoint => Boolean(point));
-    starts.sort((left, right) => squaredDistance(left, target!) - squaredDistance(right, target!));
-    if (starts[0]) push(starts[0].id);
+  const explicitStart = options.classStartNodeId ? nodes.get(options.classStartNodeId) : undefined;
+  const resolvedStart = explicitStart ?? passiveClassStart(snapshot, { className: options.className, classId: options.classId });
+  if (resolvedStart) push(resolvedStart.id);
+  else if (targetNodeIds[0]) {
+    // Last-resort compatibility path for malformed third-party build metadata.
+    // It is deliberately generic and only used when the build did not identify
+    // a class at all.
+    const target = passiveNodePoint(nodes.get(targetNodeIds[0]));
+    if (target) {
+      const starts = [...nodes.values()].filter((node) => node.kind === 'class-start').map(passiveNodePoint).filter((point): point is TreePoint => Boolean(point));
+      starts.sort((left, right) => squaredDistance(left, target) - squaredDistance(right, target));
+      if (starts[0]) push(starts[0].id);
+    }
   }
 
-  const target = targetId ? passiveNodePoint(nodes.get(targetId)) : undefined;
-  const points = ids.map((id) => passiveNodePoint(nodes.get(id))!).filter(Boolean);
-  if (!target || points.length <= maxAnchors) return points.slice(0, maxAnchors);
+  const primaryTarget = targetNodeIds[0] ? passiveNodePoint(nodes.get(targetNodeIds[0])) : undefined;
+  const points = ids.map((id) => passiveNodePoint(nodes.get(id))).filter((point): point is TreePoint => Boolean(point));
+  if (!primaryTarget || points.length <= maxAnchors) return points.slice(0, maxAnchors);
 
-  // Keep the exact target first, then greedily keep spatially separated points.
-  const selected: TreePoint[] = [target];
-  const remaining = points.filter((point) => point.id !== target.id);
+  const selected: TreePoint[] = [primaryTarget];
+  const remaining = points.filter((point) => point.id !== primaryTarget.id);
   while (remaining.length && selected.length < maxAnchors) {
     let bestIndex = 0;
     let bestDistance = -1;
