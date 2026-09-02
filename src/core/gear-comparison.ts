@@ -138,6 +138,10 @@ export function compareGearAnalyses(candidate: GearCoachAnalysis, equipped: Gear
     .filter((reason): reason is GearCoachReason => Boolean(reason));
 
   if (candidate.verdict === 'future') {
+    const futureReasons: GearCoachReason[] = [
+      { tone: 'warning', label: 'The candidate cannot be equipped at the currently detected character level, so this is not a current upgrade.' },
+      ...metricReasons,
+    ];
     return {
       verdict: 'future',
       headline: headline('future', equipped.item.name),
@@ -145,10 +149,7 @@ export function compareGearAnalyses(candidate: GearCoachAnalysis, equipped: Gear
       candidate,
       equipped,
       deltas,
-      reasons: [
-        { tone: 'warning', label: 'The candidate cannot be equipped at the currently detected character level, so this is not a current upgrade.' },
-        ...metricReasons,
-      ].slice(0, 6),
+      reasons: futureReasons.slice(0, 6),
     };
   }
 
