@@ -89,6 +89,8 @@ See `PRE_PLAYTEST.md` for the exact automation/live-test boundary.
 
 The parser, bounded pobb.in fetcher and Build Profile persistence are established. This milestone turns them into a deterministic, player-facing leveling planner.
 
+PR #9 ships the checked stage-persistence, manager import, bundled gem-planning, and semantic campaign-bridge slices below; unchecked items remain deliberate follow-up work rather than hidden assumptions.
+
 ### Stage model
 
 - [x] parse modern passive specs by ordinal instead of inventing IDs from `treeVersion`
