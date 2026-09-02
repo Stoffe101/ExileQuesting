@@ -275,9 +275,13 @@ function passiveTreeHudContext(): PassiveTreeHudContext {
   const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
   const activeStageId = activeProfile ? buildPlannerState.activeStageByProfile[activeProfile.id] : undefined;
   const passiveCursor = activeProfile ? buildPlannerState.passiveCursorByProfile[activeProfile.id] ?? 0 : 0;
+  const passiveRewardProgress = rewardProgressFor(dataset, progress).passive;
   return {
     enabled: settings.passiveTreeHudEnabled,
     pathPreview: settings.passiveTreeHudPathPreview,
+    appWindowFocused: Boolean(mainWindow?.isFocused()),
+    characterLevel,
+    expectedQuestPassivePoints: passiveRewardProgress.completed,
     snapshot: passiveData.snapshot,
     guide: buildPassiveTreeGuidePlan(activeProfile, activeStageId, passiveCursor, passiveData.snapshot),
   };
