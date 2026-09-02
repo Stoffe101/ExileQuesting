@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildRunIntelligence } from '../core/run-intelligence';
 import { elapsedRunMs, formatDuration, isTownAreaId } from '../core/run';
 import type { AppSettings, RuntimeState } from '../core/types';
 import PassivesAuditPanel from './PassivesAuditPanel';
+import './run-intelligence.css';
 
 function useNow(enabled = true): number {
   const [now, setNow] = useState(Date.now());
@@ -22,6 +24,11 @@ function liveTownTime(state: RuntimeState, now: number): number {
   if (session.state !== 'running' || !isTownAreaId(session.lastAreaId) || !session.lastZoneChangedAt) return session.townTimeMs;
   const entered = Date.parse(session.lastZoneChangedAt);
   return session.townTimeMs + (Number.isFinite(entered) ? Math.max(0, now - entered) : 0);
+}
+
+function areaLabel(state: RuntimeState, areaId?: string): string {
+  if (!areaId) return 'No zone yet';
+  return state.dataset.areas.find((area) => area.id === areaId)?.name ?? areaId;
 }
 
 export function OverlayRunClock({ state }: { state: RuntimeState }) {
@@ -49,6 +56,11 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
   const town = liveTownTime(state, now);
   const previous = state.runStats.previous;
   const pb = state.runStats.personalBest;
+  const intelligence = buildRunIntelligence(session, pb, now);
+  const largestActLoss = [...intelligence.actDeltas]
+    .filter((entry) => entry.deltaMs > 30_000)
+    .sort((left, right) => right.deltaMs - left.deltaMs)[0];
+  const hasTelemetry = intelligence.trackedZoneMs > 0;
 
   return (
     <article className="panel run-dashboard-panel">
@@ -63,6 +75,45 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
         <span>Personal best <b>{pb ? formatDuration(pb.totalMs) : '—'}</b></span>
       </div>
       {session.splits.length > 0 && <div className="split-strip">{session.splits.map((split) => <span key={split.act}><i>A{split.act}</i>{formatDuration(split.elapsedMs)}</span>)}</div>}
+
+      <div className="run-intelligence">
+        <div className="run-intelligence-head">
+          <span>RUN INTEL</span>
+          <small>Derived locally from Client.txt zone changes</small>
+        </div>
+        {hasTelemetry ? (
+          <div className="run-intelligence-grid">
+            <div className="run-intelligence-card">
+              <span>Town share</span>
+              <strong>{Math.round(intelligence.townShare * 100)}%</strong>
+              <small>{formatDuration(town)} spent in town this run</small>
+            </div>
+            <div className="run-intelligence-card">
+              <span>Revisits</span>
+              <strong>{intelligence.revisitCount}</strong>
+              <small>{intelligence.revisitCount ? 'Non-town areas entered again' : 'No detected backtracking yet'}</small>
+            </div>
+            <div className="run-intelligence-card">
+              <span>Most time</span>
+              <strong title={intelligence.mostTime ? areaLabel(state, intelligence.mostTime.areaId) : undefined}>{intelligence.mostTime ? areaLabel(state, intelligence.mostTime.areaId) : '—'}</strong>
+              <small>{intelligence.mostTime ? `${formatDuration(intelligence.mostTime.totalMs)} across ${intelligence.mostTime.visits} visit${intelligence.mostTime.visits === 1 ? '' : 's'}` : 'Need another non-town zone'}</small>
+            </div>
+            <div className={`run-intelligence-card ${intelligence.largestPbLoss || largestActLoss ? 'loss' : ''}`}>
+              <span>PB comparison</span>
+              {intelligence.largestPbLoss ? (
+                <><strong>+{formatDuration(intelligence.largestPbLoss.deltaMs)}</strong><small title={areaLabel(state, intelligence.largestPbLoss.areaId)}>Largest shared-zone loss · {areaLabel(state, intelligence.largestPbLoss.areaId)}</small></>
+              ) : largestActLoss ? (
+                <><strong>+{formatDuration(largestActLoss.deltaMs)}</strong><small>Largest completed-act loss · Act {largestActLoss.act}</small></>
+              ) : pb ? (
+                <><strong>No major loss yet</strong><small>{intelligence.actDeltas.length ? 'No completed act is over 30s behind PB' : 'More shared zone/split data needed'}</small></>
+              ) : (
+                <><strong>Build a baseline</strong><small>Finish a run to unlock personal comparisons</small></>
+              )}
+            </div>
+          </div>
+        ) : <div className="run-intelligence-empty">Zone telemetry begins with the next detected area change. Existing timer history remains fully compatible.</div>}
+      </div>
+
       <div className="run-actions">
         {session.state === 'idle' || session.state === 'finished'
           ? <button className="primary-button" onClick={() => void window.exileQuesting.startRun().then(setState)}>Start run</button>
