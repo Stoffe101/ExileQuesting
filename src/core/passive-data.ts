@@ -48,6 +48,9 @@ export interface PassiveTreeSnapshot {
   orbitRadii?: number[];
 }
 
+export const POE_BASE_CLASSES = ['Scion', 'Marauder', 'Ranger', 'Witch', 'Duelist', 'Templar', 'Shadow'] as const;
+export type PoeBaseClass = typeof POE_BASE_CLASSES[number];
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -159,6 +162,11 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
     // Cluster Jewel/mastery definitions are deliberately dynamic. Every static
     // node in the ordinary base passive tree must still have real GGG geometry.
     if (!bounds || !skillsPerOrbit || !orbitRadii || staticMainTreeNodes < 1000 || staticMainTreeGeometryNodes !== staticMainTreeNodes) return null;
+    const classStarts = nodes.filter((node) => node.kind === 'class-start' && !node.dynamic && node.x !== undefined && node.y !== undefined && node.classStartIndex !== undefined);
+    const classNames = new Set(classStarts.map((node) => node.name.trim().toLowerCase()));
+    const classIndices = new Set(classStarts.map((node) => node.classStartIndex));
+    if (classStarts.length !== POE_BASE_CLASSES.length || classIndices.size !== POE_BASE_CLASSES.length
+      || POE_BASE_CLASSES.some((name) => !classNames.has(name.toLowerCase()))) return null;
   }
 
   return {
@@ -180,4 +188,39 @@ export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, Pa
 export function hasPassiveTreeGeometry(snapshot?: PassiveTreeSnapshot): snapshot is PassiveTreeSnapshot & Required<Pick<PassiveTreeSnapshot, 'bounds' | 'skillsPerOrbit' | 'orbitRadii'>> {
   if (!snapshot || snapshot.schemaVersion !== 2 || !snapshot.bounds || !snapshot.skillsPerOrbit || !snapshot.orbitRadii) return false;
   return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && !node.dynamic && node.x !== undefined && node.y !== undefined);
+}
+
+function normalizedClassName(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[^a-z]/g, '');
+  return POE_BASE_CLASSES.find((candidate) => candidate.toLowerCase() === normalized)?.toLowerCase();
+}
+
+/** Return all seven GGG class-start nodes without relying on a hard-coded node ID. */
+export function passiveClassStarts(snapshot: PassiveTreeSnapshot): PassiveNodeRecord[] {
+  return snapshot.nodes
+    .filter((node) => node.kind === 'class-start' && !node.dynamic && node.x !== undefined && node.y !== undefined && node.classStartIndex !== undefined)
+    .sort((left, right) => Number(left.classStartIndex) - Number(right.classStartIndex));
+}
+
+/**
+ * Resolve the starting node for any base class. Class name is preferred because
+ * it survives upstream index reshuffles; classId/classStartIndex is a secondary
+ * exact signal for PoB data that does not carry a friendly name.
+ */
+export function passiveClassStart(
+  snapshot: PassiveTreeSnapshot,
+  selector: { className?: string; classId?: number } = {},
+): PassiveNodeRecord | undefined {
+  const starts = passiveClassStarts(snapshot);
+  const name = normalizedClassName(selector.className);
+  if (name) {
+    const byName = starts.find((node) => node.name.trim().toLowerCase() === name);
+    if (byName) return byName;
+  }
+  if (Number.isSafeInteger(selector.classId)) {
+    const byIndex = starts.find((node) => node.classStartIndex === selector.classId);
+    if (byIndex) return byIndex;
+  }
+  return undefined;
 }
