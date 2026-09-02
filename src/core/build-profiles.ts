@@ -1,11 +1,15 @@
+import { normalizeMaxrollMetadata, type MaxrollGuideMetadata } from './maxroll';
 import type { PobBuildSummary, PobInputKind } from './pob';
+
+export type BuildSourceKind = PobInputKind | 'maxroll';
 
 export interface BuildProfile {
   id: string;
   name: string;
   importedAt: string;
-  sourceKind: PobInputKind;
+  sourceKind: BuildSourceKind;
   source?: string;
+  maxroll?: MaxrollGuideMetadata;
   build: PobBuildSummary;
 }
 
@@ -53,15 +57,21 @@ export function normalizeBuildProfiles(value: unknown): BuildProfile[] {
     const item = record(candidate);
     const buildRecord = record(item?.build);
     if (!item || !buildRecord || typeof item.id !== 'string' || item.id.length > 256 || typeof item.importedAt !== 'string') continue;
-    if (!['xml', 'export-code', 'pobbin'].includes(String(item.sourceKind))) continue;
+    const sourceKind = String(item.sourceKind) as BuildSourceKind;
+    if (!['xml', 'export-code', 'pobbin', 'maxroll'].includes(sourceKind)) continue;
     const build = normalizePersistedBuild(buildRecord);
     if (!build) continue;
+    const maxroll = sourceKind === 'maxroll' ? normalizeMaxrollMetadata(item.maxroll) : undefined;
+    if (sourceKind === 'maxroll' && !maxroll) continue;
     result.push({
       id: item.id,
-      name: typeof item.name === 'string' && item.name.trim() ? item.name.trim().slice(0, 160) : `${build.className ?? 'Unknown class'}`,
+      name: typeof item.name === 'string' && item.name.trim()
+        ? item.name.trim().slice(0, 160)
+        : maxroll?.guideTitle ?? `${build.className ?? 'Unknown class'}`,
       importedAt: item.importedAt,
-      sourceKind: item.sourceKind as PobInputKind,
+      sourceKind,
       source: typeof item.source === 'string' ? item.source.slice(0, 1000) : undefined,
+      maxroll,
       build,
     });
   }

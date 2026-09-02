@@ -14,7 +14,8 @@ const source = {
 const gems = {
   fireball: { id: 'Metadata/Items/Gems/SkillGemFireball', name: 'Fireball', primary_attribute: 'int', required_level: 1, is_support: false },
   arc: { id: 'Metadata/Items/Gems/SkillGemArc', name: 'Arc', primary_attribute: 'int', required_level: 12, is_support: false },
-  arcaneSurge: { id: 'Metadata/Items/Gems/SupportGemArcaneSurge', name: 'Arcane Surge', primary_attribute: 'int', required_level: 1, is_support: true },
+  arcaneSurge: { id: 'Metadata/Items/Gems/SupportGemArcaneSurge', name: 'Arcane Surge Support', primary_attribute: 'int', required_level: 1, is_support: true },
+  volley: { id: 'Metadata/Items/Gems/SupportGemParallelProjectiles', name: 'Volley Support', primary_attribute: 'dex', required_level: 4, is_support: true },
   internal: { id: 'Metadata/Items/Gems/SkillGemInternalTest', name: '[DNT] Internal Test', primary_attribute: 'int', required_level: 1, is_support: false },
 };
 
@@ -29,6 +30,7 @@ const quests = {
         },
         vendor: {
           'Metadata/Items/Gems/SkillGemFireball': { classes: [], npc: 'Nessa' },
+          'Metadata/Items/Gems/SupportGemParallelProjectiles': { classes: ['Ranger'], npc: 'Nessa' },
           'Metadata/Items/Weapons/OneHandWeapons/OneHandSwords/OneHandSword1': { classes: [], npc: 'Nessa' },
         },
       },
@@ -41,22 +43,27 @@ const characters = { Witch: { start_gem_id: 'Metadata/Items/Gems/SkillGemFirebal
 describe('gem data snapshot', () => {
   it('flattens maintained player-acquirable gem, quest and character data with provenance', () => {
     const snapshot = buildGemAcquisitionSnapshot(gems, quests, characters, { gameVersion: '3.29', generatedAt: '2026-09-02T01:00:00.000Z', source });
-    expect(snapshot.gems.map((gem) => gem.name)).toEqual(['Arc', 'Arcane Surge', 'Fireball']);
+    expect(snapshot.gems.map((gem) => gem.name)).toEqual(['Arc', 'Arcane Surge Support', 'Fireball', 'Volley Support']);
     expect(snapshot.gems.some((gem) => gem.name.includes('[DNT]'))).toBe(false);
     expect(snapshot.offers).toEqual(expect.arrayContaining([
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemArc', kind: 'quest', questId: 'a1q4', npc: 'Nessa', classes: ['Witch'] }),
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemFireball', kind: 'vendor', npc: 'Nessa', classes: [] }),
+      expect.objectContaining({ gemId: 'Metadata/Items/Gems/SupportGemParallelProjectiles', kind: 'vendor', npc: 'Nessa', classes: ['Ranger'] }),
     ]));
     expect(snapshot.offers.every((offer) => offer.gemId.startsWith('Metadata/Items/Gems/'))).toBe(true);
-    expect(snapshot.offers).toHaveLength(2);
+    expect(snapshot.offers).toHaveLength(3);
     expect(snapshot.startingGems.Witch).toEqual(['Metadata/Items/Gems/SkillGemFireball', 'Metadata/Items/Gems/SupportGemArcaneSurge']);
     expect(snapshot.source.commit).toBe(source.commit);
   });
 
-  it('resolves PoB skill ids by metadata id tail and falls back to unique display name', () => {
+  it('resolves PoB ids, Maxroll aliases and unique display names conservatively', () => {
     const snapshot = buildGemAcquisitionSnapshot(gems, quests, characters, { gameVersion: '3.29', generatedAt: '2026-09-02T01:00:00.000Z', source });
     const index = indexGemData(snapshot);
     expect(resolveGemRequirement({ key: 'arc', name: 'Anything', skillId: 'Arc', count: 1 }, index)?.name).toBe('Arc');
+    expect(resolveGemRequirement({ key: 'volley', name: 'Support Volley', skillId: 'SupportVolley', count: 1 }, index)).toMatchObject({
+      id: 'Metadata/Items/Gems/SupportGemParallelProjectiles',
+      name: 'Volley Support',
+    });
     expect(resolveGemRequirement({ key: 'fireball', name: 'Fireball', count: 1 }, index)?.id).toBe('Metadata/Items/Gems/SkillGemFireball');
   });
 

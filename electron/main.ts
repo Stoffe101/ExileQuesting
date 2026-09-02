@@ -33,6 +33,7 @@ import {
   startRun,
 } from '../src/core/run';
 import { isAllowedDataUrl, isAllowedExternalUrl, MAX_REMOTE_JSON_BYTES, readBoundedResponseText } from '../src/core/security';
+import { isMaxrollGuideUrl } from '../src/core/maxroll';
 import { calculateXpGuidance } from '../src/core/xp';
 import type {
   AppSettings,
@@ -63,8 +64,9 @@ import { StateStore } from './services/state-store';
 import { createPreplaytestLab } from './services/preplaytest-lab';
 import { runOverlayWindowSoak } from './services/overlay-soak';
 import { importPobBuild } from './services/pob-service';
+import { importMaxrollGuide } from './services/maxroll-service';
 import { defaultBuildProfileName, upsertBuildProfile, type BuildProfile } from '../src/core/build-profiles';
-import { activateBuildProfile, activateBuildStage, buildPlannerSnapshot, normalizeBuildPlannerState, type BuildPlannerState } from '../src/core/build-planner';
+import { activateBuildProfile, activateBuildStage, activateMaxrollStageForLevel, buildPlannerSnapshot, normalizeBuildPlannerState, stepBuildPassiveCursor, type BuildPlannerState } from '../src/core/build-planner';
 import { buildGemAcquisitionPlan, type GemAcquisitionPlan } from '../src/core/gem-acquisition';
 import { bridgeBuildPlanToCampaign, campaignBuildActionsForStep, type CampaignBuildBridge } from '../src/core/build-campaign';
 import { buildCoachSnapshot, type BuildCoachSnapshot } from '../src/core/build-coach';
@@ -140,7 +142,7 @@ let appUpdater: AppUpdater | null = null;
 let overlayDemo: OverlayDemoConfig | null = null;
 let lastReplay: ReplayUiResult | null = null;
 let buildProfiles: BuildProfile[] = [];
-let buildPlannerState: BuildPlannerState = { schemaVersion: 1, activeStageByProfile: {} };
+let buildPlannerState: BuildPlannerState = { schemaVersion: 1, activeStageByProfile: {}, passiveCursorByProfile: {} };
 let gemData: GameDataLoadResult = { path: '', status: 'missing', message: 'Bundled gem acquisition data has not been loaded yet.' };
 let passiveData: PassiveDataLoadResult = { path: '', status: 'missing', message: 'Bundled passive tree data has not been loaded yet.' };
 let activeGemPlan: GemAcquisitionPlan | undefined;
@@ -264,11 +266,15 @@ function rebuildBuildGuidance(): void {
   buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
   campaignIntelligence = buildCampaignIntelligence(dataset);
   const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  if (activeProfile?.maxroll && characterLevel) {
+    buildPlannerState = activateMaxrollStageForLevel(buildPlannerState, buildProfiles, activeProfile.id, characterLevel);
+  }
   activeGemPlan = activeProfile && gemData.snapshot ? buildGemAcquisitionPlan(activeProfile, gemData.snapshot) : undefined;
   buildBridge = activeGemPlan ? bridgeBuildPlanToCampaign(dataset, activeGemPlan) : undefined;
   const activeStageId = activeProfile ? buildPlannerState.activeStageByProfile[activeProfile.id] : undefined;
+  const passiveCursor = activeProfile ? buildPlannerState.passiveCursorByProfile[activeProfile.id] ?? 0 : 0;
   activeBuildCoach = activeProfile && activeGemPlan && gemData.snapshot
-    ? buildCoachSnapshot(activeProfile, activeStageId, activeGemPlan, gemData.snapshot, passiveData.snapshot)
+    ? buildCoachSnapshot(activeProfile, activeStageId, activeGemPlan, gemData.snapshot, passiveData.snapshot, passiveCursor)
     : undefined;
 }
 
@@ -515,6 +521,10 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
     recentAreaNames = appendRecentArea(recentAreaNames, previousAreaName);
   }
   updateCurrentArea(event);
+  if (event.type === 'character-level') {
+    rebuildBuildGuidance();
+    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+  }
   await updateRunFromZone(event);
   let decision: ReturnType<typeof decideProgression> = null;
   if (event.type !== 'character-level' && settings.autoAdvance) {
@@ -763,12 +773,28 @@ function registerIpc(): void {
     broadcastState();
     return buildWorkspaceSnapshot();
   });
+  ipcMain.handle('build:passive-step', async (_event, profileId: unknown, delta: unknown) => {
+    if (typeof profileId !== 'string' || profileId.length > 256) return buildWorkspaceSnapshot();
+    const direction = Math.sign(Number(delta));
+    if (!Number.isFinite(direction) || direction === 0) return buildWorkspaceSnapshot();
+    buildPlannerState = stepBuildPassiveCursor(buildPlannerState, buildProfiles, profileId, direction);
+    rebuildBuildGuidance();
+    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    broadcastState();
+    return buildWorkspaceSnapshot();
+  });
   ipcMain.handle('pob:list', () => buildProfiles);
   ipcMain.handle('pob:workspace', () => buildWorkspaceSnapshot());
   ipcMain.handle('pob:import', async (_event, input: unknown) => {
-    if (typeof input !== 'string') throw new Error('PoB input must be text.');
-    const imported = await importPobBuild(input, app.getVersion());
-    const profile: BuildProfile = { ...imported, name: defaultBuildProfileName(imported.build) };
+    if (typeof input !== 'string') throw new Error('Build input must be text.');
+    let profile: BuildProfile;
+    if (isMaxrollGuideUrl(input.trim())) {
+      const imported = await importMaxrollGuide(input.trim(), app.getVersion(), passiveData.snapshot, gemData.snapshot);
+      profile = { ...imported, name: imported.maxroll.guideTitle };
+    } else {
+      const imported = await importPobBuild(input, app.getVersion());
+      profile = { ...imported, name: defaultBuildProfileName(imported.build) };
+    }
     buildProfiles = upsertBuildProfile(buildProfiles, profile);
     buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
     rebuildBuildGuidance();

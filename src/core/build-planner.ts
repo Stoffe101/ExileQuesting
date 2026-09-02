@@ -1,16 +1,19 @@
 import type { BuildProfile } from './build-profiles';
-import { alignPobStages, type PobAlignedStage } from './pob-stages';
+import { alignPobStages, parsePobStageMilestone, type PobAlignedStage } from './pob-stages';
 
 export interface BuildPlannerState {
   schemaVersion: 1;
   activeProfileId?: string;
   activeStageByProfile: Record<string, string>;
+  /** Number of Maxroll passive operations the player has explicitly acknowledged. */
+  passiveCursorByProfile: Record<string, number>;
 }
 
 export interface BuildPlannerProfileView {
   profile: BuildProfile;
   stages: PobAlignedStage[];
   activeStageId?: string;
+  passiveCursor: number;
 }
 
 export interface BuildPlannerSnapshot {
@@ -22,8 +25,14 @@ function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
+function safeCursor(value: unknown, maximum: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(maximum, Math.trunc(parsed)));
+}
+
 export function defaultBuildPlannerState(): BuildPlannerState {
-  return { schemaVersion: 1, activeStageByProfile: {} };
+  return { schemaVersion: 1, activeStageByProfile: {}, passiveCursorByProfile: {} };
 }
 
 export function alignedStagesForProfile(profile: BuildProfile): PobAlignedStage[] {
@@ -52,16 +61,20 @@ export function normalizeBuildPlannerState(value: unknown, profiles: BuildProfil
     : profiles[0]?.id;
 
   const requestedStages = record(source?.activeStageByProfile) ?? {};
+  const requestedCursors = record(source?.passiveCursorByProfile) ?? {};
   const activeStageByProfile: Record<string, string> = {};
+  const passiveCursorByProfile: Record<string, number> = {};
   for (const profile of profiles) {
     const stages = alignedStagesForProfile(profile);
     const stageIds = new Set(stages.map((stage) => stage.id));
     const requested = typeof requestedStages[profile.id] === 'string' ? requestedStages[profile.id] as string : undefined;
     const selected = requested && stageIds.has(requested) ? requested : defaultActiveStageId(profile);
     if (selected) activeStageByProfile[profile.id] = selected;
+    const maximum = profile.maxroll?.passiveOperations.length ?? 0;
+    passiveCursorByProfile[profile.id] = safeCursor(requestedCursors[profile.id], maximum);
   }
 
-  return { schemaVersion: 1, activeProfileId, activeStageByProfile };
+  return { schemaVersion: 1, activeProfileId, activeStageByProfile, passiveCursorByProfile };
 }
 
 export function buildPlannerSnapshot(profiles: BuildProfile[], state: BuildPlannerState): BuildPlannerSnapshot {
@@ -72,6 +85,7 @@ export function buildPlannerSnapshot(profiles: BuildProfile[], state: BuildPlann
       profile,
       stages: alignedStagesForProfile(profile),
       activeStageId: normalized.activeStageByProfile[profile.id],
+      passiveCursor: normalized.passiveCursorByProfile[profile.id] ?? 0,
     })),
   };
 }
@@ -90,4 +104,38 @@ export function activateBuildStage(state: BuildPlannerState, profiles: BuildProf
     activeProfileId: profileId,
     activeStageByProfile: { ...state.activeStageByProfile, [profileId]: stageId },
   }, profiles);
+}
+
+export function setBuildPassiveCursor(state: BuildPlannerState, profiles: BuildProfile[], profileId: string, cursor: number): BuildPlannerState {
+  const profile = profiles.find((candidate) => candidate.id === profileId);
+  if (!profile?.maxroll) return normalizeBuildPlannerState(state, profiles);
+  const next = safeCursor(cursor, profile.maxroll.passiveOperations.length);
+  return normalizeBuildPlannerState({
+    ...state,
+    activeProfileId: profileId,
+    passiveCursorByProfile: { ...state.passiveCursorByProfile, [profileId]: next },
+  }, profiles);
+}
+
+export function stepBuildPassiveCursor(state: BuildPlannerState, profiles: BuildProfile[], profileId: string, delta: number): BuildPlannerState {
+  const current = normalizeBuildPlannerState(state, profiles).passiveCursorByProfile[profileId] ?? 0;
+  return setBuildPassiveCursor(state, profiles, profileId, current + Math.trunc(delta));
+}
+
+/**
+ * Maxroll skill planners label their swap points with levels. This keeps the active gem stage synced
+ * to Client.txt character-level events while leaving passive clicks under explicit player control.
+ */
+export function activateMaxrollStageForLevel(state: BuildPlannerState, profiles: BuildProfile[], profileId: string, characterLevel: number): BuildPlannerState {
+  const profile = profiles.find((candidate) => candidate.id === profileId);
+  if (!profile?.maxroll || !Number.isFinite(characterLevel)) return normalizeBuildPlannerState(state, profiles);
+  const candidates = alignedStagesForProfile(profile)
+    .map((stage) => ({ stage, milestone: parsePobStageMilestone(stage.title) }))
+    .filter((entry) => entry.milestone.kind === 'level' && typeof entry.milestone.value === 'number');
+  if (!candidates.length) return normalizeBuildPlannerState(state, profiles);
+  const level = Math.max(1, Math.min(100, Math.trunc(characterLevel)));
+  const eligible = candidates.filter((entry) => Number(entry.milestone.value) <= level);
+  const selected = (eligible.length ? eligible : candidates)
+    .sort((left, right) => Number(right.milestone.value) - Number(left.milestone.value) || right.stage.ordinalHint - left.stage.ordinalHint)[0]?.stage;
+  return selected ? activateBuildStage(state, profiles, profileId, selected.id) : normalizeBuildPlannerState(state, profiles);
 }

@@ -34,4 +34,56 @@ describe('build profiles', () => {
     expect(normalized).toHaveLength(1);
     expect(normalized[0].build.configStages).toEqual([]);
   });
+
+  it('restores Maxroll provenance, passive operations and Twink equipment references', () => {
+    const persisted = {
+      id: 'maxroll-ranger',
+      name: 'Leveling Twink Ranger',
+      importedAt: '2026-09-02T12:00:00.000Z',
+      sourceKind: 'maxroll',
+      source: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
+      build: { ...build, className: 'Ranger', ascendancy: undefined },
+      maxroll: {
+        guideUrl: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
+        guideTitle: 'Leveling Twink Ranger',
+        guideSlug: 'leveling-twink-ranger',
+        guideModified: '2025-06-13',
+        mode: 'twink',
+        plannerId: 'gep906sn',
+        plannerTreeVersion: '3.25',
+        compatibility: 'compatible-ids',
+        compatibilityMessage: 'All referenced node IDs resolve in 3.29.',
+        passiveOperations: [
+          { type: 'allocate', nodeId: 10, checkpoint: 1 },
+          { type: 'refund', nodeId: 10, checkpoint: 2 },
+        ],
+        skillMilestones: ['Level 2', 'Hollow Palm Swap (Level 12)'],
+        equipmentMilestones: [{
+          id: '5',
+          name: 'act 1',
+          itemNames: ['Briskwrap'],
+          slots: [{
+            slot: 'BodyArmour',
+            itemId: '28',
+            name: 'Briskwrap',
+            baseId: 'Metadata/Items/Armours/BodyArmours/BodyDex6',
+            uniqueId: 'UniqueBodyDex7',
+          }],
+        }],
+        alternateSkillPaths: [],
+      },
+    };
+
+    const normalized = normalizeBuildProfiles([persisted]);
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0].sourceKind).toBe('maxroll');
+    expect(normalized[0].maxroll?.plannerId).toBe('gep906sn');
+    expect(normalized[0].maxroll?.passiveOperations).toHaveLength(2);
+    expect(normalized[0].maxroll?.equipmentMilestones[0].slots[0]).toMatchObject({
+      slot: 'BodyArmour',
+      itemId: '28',
+      name: 'Briskwrap',
+      uniqueId: 'UniqueBodyDex7',
+    });
+  });
 });
