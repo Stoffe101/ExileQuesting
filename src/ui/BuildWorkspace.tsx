@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import BuildIntelligencePanel from './BuildIntelligencePanel';
+import GearCoachPanel from './GearCoachPanel';
 
 type BuildWorkspaceState = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
+
+function sourceLabel(sourceKind: string, source?: string): string {
+  if (sourceKind === 'maxroll') return 'Maxroll';
+  if (sourceKind === 'pobbin') return 'pobb.in';
+  if (sourceKind === 'xml' && source) return 'Local PoB XML';
+  if (sourceKind === 'xml') return 'Pasted PoB XML';
+  return 'PoB export';
+}
 
 export default function BuildWorkspace() {
   const [workspace, setWorkspace] = useState<BuildWorkspaceState | null>(null);
@@ -34,6 +43,19 @@ export default function BuildWorkspace() {
     }
   };
 
+  const openXml = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      setWorkspace(await window.exileQuesting.selectPobXmlFile());
+    } catch (value) {
+      setError(value instanceof Error ? value.message : String(value));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const deleteProfile = async (id: string) => {
     setBusy(true);
     setError('');
@@ -53,7 +75,7 @@ export default function BuildWorkspace() {
         <div>
           <span className="eyebrow">BUILD GUIDES → CAMPAIGN</span>
           <h1>Build planner</h1>
-          <p>Turn Path of Building or Maxroll leveling guides into live passive, gem, loot and campaign guidance.</p>
+          <p>Turn Path of Building or Maxroll leveling guides into live passive, gem, gear, loot and campaign guidance.</p>
         </div>
         {workspace && (
           <span className={`status-pill ${workspace.gemData.status === 'ready' ? 'ok' : 'warning'}`}>
@@ -76,8 +98,11 @@ export default function BuildWorkspace() {
             placeholder="Paste a PoB export/XML/pobb.in URL, or a Maxroll PoE leveling-guide URL…"
           />
           <div className="build-import-actions">
-            <small>PoB exports are parsed locally. pobb.in and Maxroll links fetch only bounded public build/planner data from their allowlisted hosts.</small>
-            <button className="primary-button" disabled={!input.trim() || busy} onClick={() => void importBuild()}>{busy ? 'Working…' : 'Import guide'}</button>
+            <small>PoB exports/XML are parsed locally. pobb.in and Maxroll fetch only bounded public build/planner data from allowlisted hosts.</small>
+            <div className="setting-actions">
+              <button className="ghost-button" disabled={busy} onClick={() => void openXml()}>Open PoB XML…</button>
+              <button className="primary-button" disabled={!input.trim() || busy} onClick={() => void importBuild()}>{busy ? 'Working…' : 'Import guide'}</button>
+            </div>
           </div>
         </section>
 
@@ -94,6 +119,7 @@ export default function BuildWorkspace() {
                     <small>
                       {maxroll ? `Maxroll ${maxroll.mode === 'twink' ? 'Twink' : 'leveling'} · ${maxroll.passiveOperations.length} passive operations` : `${entry.profile.build.level ? `Level ${entry.profile.build.level}` : 'Level not specified'} · ${entry.stages.length} aligned stage${entry.stages.length === 1 ? '' : 's'}`}
                     </small>
+                    <small className="build-profile-source">{sourceLabel(entry.profile.sourceKind, entry.profile.source)}</small>
                   </button>
                   <button className="build-delete" disabled={busy} onClick={() => void deleteProfile(entry.profile.id)} aria-label={`Delete ${entry.profile.name}`}>×</button>
                 </div>
@@ -119,7 +145,17 @@ export default function BuildWorkspace() {
                   <span>Selected</span>
                   <strong>{activeStage.title}</strong>
                   <small>{active.profile.maxroll ? 'Maxroll skill/gem milestone' : [activeStage.tree && 'tree', activeStage.skills && 'skills', activeStage.items && 'items', activeStage.config && 'config'].filter(Boolean).join(' · ') || 'No stage families'}</small>
+                  {activeStage.items?.equipment?.length ? <small>{activeStage.items.equipment.length} stage-specific gear target{activeStage.items.equipment.length === 1 ? '' : 's'} available to Gear Coach.</small> : null}
                 </div>
+              )}
+              {(active.profile.source || active.profile.build.notes) && (
+                <details className="build-source-details">
+                  <summary>Guide source & notes</summary>
+                  {active.profile.source && (/^https:\/\//i.test(active.profile.source)
+                    ? <a href={active.profile.source} target="_blank" rel="noreferrer">{active.profile.source}</a>
+                    : <code>{active.profile.source}</code>)}
+                  {active.profile.build.notes && <p>{active.profile.build.notes}</p>}
+                </details>
               )}
             </>
           ) : <p className="build-empty">No active build profile.</p>}
@@ -167,6 +203,7 @@ export default function BuildWorkspace() {
       </div>
 
       {workspace && <BuildIntelligencePanel workspace={workspace} onWorkspace={setWorkspace} />}
+      {workspace && <GearCoachPanel workspace={workspace} />}
     </div>
   );
 }
