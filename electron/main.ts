@@ -789,7 +789,7 @@ function registerIpc(): void {
     if (typeof input !== 'string') throw new Error('Build input must be text.');
     let profile: BuildProfile;
     if (isMaxrollGuideUrl(input.trim())) {
-      const imported = await importMaxrollGuide(input.trim(), app.getVersion(), passiveData.snapshot);
+      const imported = await importMaxrollGuide(input.trim(), app.getVersion(), passiveData.snapshot, gemData.snapshot);
       profile = { ...imported, name: imported.maxroll.guideTitle };
     } else {
       const imported = await importPobBuild(input, app.getVersion());
