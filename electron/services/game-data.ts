@@ -114,6 +114,35 @@ function canonicalFileFor(id: GameDataDatasetId): string {
   return id === 'gem-acquisition' ? GEM_SNAPSHOT_FILE : PASSIVE_SNAPSHOT_FILE;
 }
 
+function verifyPassiveSourceProvenance(entry: GameDataManifestEntry, snapshot: PassiveTreeSnapshot): void {
+  const repository = snapshot.source.repository;
+  const commit = snapshot.source.commit;
+  const sourcePath = snapshot.source.path;
+  const carriesGitIdentity = Boolean(repository || commit || sourcePath);
+
+  if (carriesGitIdentity) {
+    if (!repository || !commit || !sourcePath) throw new Error('passive snapshot contains incomplete git provenance');
+    const expectedRepositoryUrl = new URL(`https://github.com/${repository}`).toString();
+    const expectedRawUrl = new URL(`https://raw.githubusercontent.com/${repository}/${commit}/${sourcePath}`).toString();
+    if (new URL(snapshot.source.url).toString() !== expectedRawUrl) throw new Error('passive snapshot source URL does not match its git provenance');
+    if (entry.source.kind !== 'git'
+      || entry.source.url !== expectedRepositoryUrl
+      || entry.source.repository !== repository
+      || entry.source.revision !== commit
+      || !samePaths(entry.source.paths, [sourcePath])) {
+      throw new Error('manifest source provenance does not match the passive snapshot git source');
+    }
+    return;
+  }
+
+  if (entry.source.kind !== 'url'
+    || entry.source.url !== new URL(snapshot.source.url).toString()
+    || (entry.source.revision && entry.source.revision !== snapshot.source.sha256)
+    || entry.source.paths.length !== 0) {
+    throw new Error('manifest source provenance does not match the passive snapshot URL source');
+  }
+}
+
 export async function loadGameDataManifest(filePath: string, log?: GameDataLogger): Promise<GameDataManifestLoadResult> {
   let stat;
   try {
@@ -265,8 +294,7 @@ export async function loadPassiveTreeSnapshot(filePath: string, log?: GameDataLo
     if (calculatedChecksum !== snapshot.source.sha256) throw new Error(`payload checksum mismatch (expected ${snapshot.source.sha256}, calculated ${calculatedChecksum})`);
     if (effectiveManifestEntry) {
       verifyCommonMetadata(effectiveManifestEntry, snapshot);
-      if (effectiveManifestEntry.source.url !== new URL(snapshot.source.url).toString()) throw new Error('manifest source URL does not match the passive snapshot');
-      if (effectiveManifestEntry.source.revision && effectiveManifestEntry.source.revision !== snapshot.source.sha256) throw new Error('manifest source revision does not match the passive payload checksum');
+      verifyPassiveSourceProvenance(effectiveManifestEntry, snapshot);
     }
     log?.info('Loaded bundled passive tree data.', {
       path: filePath,
