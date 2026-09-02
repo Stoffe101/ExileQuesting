@@ -239,6 +239,16 @@ Next passive milestone: 6 points
 
 Details, explanations and uncertainty belong in the manager/Coach view. Focus mode receives only the next useful build decision.
 
+## Maxroll leveling sources
+
+Maxroll leveling guides are also accepted as first-class Build Profile sources when they expose a public structured PoE planner. The importer keeps Maxroll provenance instead of pretending the source is a PoB.
+
+For supported guides ExileQuesting normalizes level-labelled skill/gem stages, ordered passive allocation/refund history, class/ascendancy metadata and Twink equipment references. Character level may advance the active Maxroll skill stage, while passive progress uses a separate persisted manual cursor because quest passive rewards and refunds make level-to-passive inference unsafe.
+
+Every referenced Maxroll passive node ID is checked against the bundled current passive snapshot before exact node coaching is allowed. Older planner versions may be marked compatible only when all IDs still resolve. Missing IDs disable exact passive coaching rather than guessing. Maxroll gem metadata IDs are resolved through the bundled current gem snapshot so the acquisition planner and overlay receive canonical game-facing names such as `Volley Support` instead of metadata-derived labels.
+
+See `MAXROLL_LEVELING.md` for the complete source, Twink, compatibility, persistence and failure-behaviour contract.
+
 ## Safety boundary
 
 PoB to Play remains advisory:

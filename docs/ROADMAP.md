@@ -106,6 +106,8 @@ PR #9 ships the original checked stage-persistence, manager import, bundled gem-
 ### Import + interpretation
 
 - [x] paste export code or pobb.in URL in the manager
+- [x] import public Maxroll PoE leveling-guide URLs as first-class Build Profiles
+- [x] support normal and Twink Maxroll planner schemas with bounded public fetches
 - [ ] local `.xml` build discovery/import UX
 - [ ] background import/decompression workflow
 - [ ] build notes and guide-source link
@@ -122,6 +124,10 @@ PR #9 ships the original checked stage-persistence, manager import, bundled gem-
 - [x] passive milestone diff between aligned tree stages with version-safe named targets
 - [x] attach build actions to the semantic campaign-action model
 - [x] concise BUILD block in Compact/Focus/Coach overlays
+- [x] exact Maxroll next-passive/refund coaching with persisted manual cursor
+- [x] character-level-driven Maxroll skill/gem stage activation
+- [x] canonicalize Maxroll gem IDs/names through bundled PoE game data
+- [x] preserve Twink equipment slot/item/base/unique references for future Gear Coach resolution
 
 ### Data quality
 
