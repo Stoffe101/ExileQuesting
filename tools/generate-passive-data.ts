@@ -47,6 +47,14 @@ function nodeKind(node: Record<string, unknown>): PassiveNodeKind {
   return 'normal';
 }
 
+async function existingGeneratedAt(sha256: string): Promise<string | undefined> {
+  try {
+    const existing = JSON.parse(await fs.readFile(OUTPUT, 'utf8')) as Partial<PassiveTreeSnapshot>;
+    if (existing.source?.sha256 === sha256 && existing.gameVersion === GAME_VERSION && typeof existing.generatedAt === 'string') return existing.generatedAt;
+  } catch { /* first generation or invalid old snapshot */ }
+  return undefined;
+}
+
 async function main() {
   const response = await fetch(SOURCE_URL, {
     headers: { 'User-Agent': 'ExileQuesting passive-data generator (github.com/Stoffe101/ExileQuesting)' },
@@ -72,7 +80,7 @@ async function main() {
   const snapshot: PassiveTreeSnapshot = {
     schemaVersion: 1,
     gameVersion: GAME_VERSION,
-    generatedAt: new Date().toISOString(),
+    generatedAt: await existingGeneratedAt(sha256) ?? new Date().toISOString(),
     source: { url: SOURCE_URL, sha256 },
     nodes,
   };
