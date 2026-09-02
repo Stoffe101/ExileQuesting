@@ -1,4 +1,3 @@
-import type { BuildCoachGemTask } from './build-coach';
 import type { LootBaseTarget, LootFilterPlan } from './loot-filter';
 
 export const MAX_VENDOR_SEARCH_CHARS = 250;
@@ -21,13 +20,19 @@ export interface VendorSearchPlan {
   warnings: string[];
 }
 
+export interface VendorGemTask {
+  name: string;
+  source?: string;
+  status: 'planned' | 'unknown-gem' | 'unavailable';
+}
+
 interface SearchAlternative {
   pattern: string;
   label: string;
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeLabel(value: string): string {
@@ -45,8 +50,9 @@ function dedupeAlternatives(alternatives: SearchAlternative[]): SearchAlternativ
 }
 
 function packQuery(kind: VendorSearchKind, label: string, alternatives: SearchAlternative[], note: string): VendorSearchQuery | undefined {
+  const unique = dedupeAlternatives(alternatives);
   const selected: SearchAlternative[] = [];
-  for (const alternative of dedupeAlternatives(alternatives)) {
+  for (const alternative of unique) {
     const next = [...selected, alternative].map((item) => item.pattern).join('|');
     if (next.length > MAX_VENDOR_SEARCH_CHARS) continue;
     selected.push(alternative);
@@ -59,7 +65,7 @@ function packQuery(kind: VendorSearchKind, label: string, alternatives: SearchAl
     query,
     length: query.length,
     included: selected.map((item) => item.label),
-    omitted: dedupeAlternatives(alternatives).length - selected.length,
+    omitted: unique.length - selected.length,
     note,
   };
 }
@@ -99,7 +105,7 @@ function equipmentAlternatives(plan: LootFilterPlan): SearchAlternative[] {
   return alternatives;
 }
 
-function vendorGemAlternatives(tasks: BuildCoachGemTask[]): SearchAlternative[] {
+function vendorGemAlternatives(tasks: VendorGemTask[]): SearchAlternative[] {
   return tasks
     .filter((task) => task.status === 'planned' && task.source?.startsWith('Vendor'))
     .map((task) => normalizeLabel(task.name))
@@ -107,7 +113,7 @@ function vendorGemAlternatives(tasks: BuildCoachGemTask[]): SearchAlternative[] 
     .map((name) => ({ pattern: escapeRegex(name), label: name }));
 }
 
-export function buildVendorSearchPlan(loot: LootFilterPlan, gemTasks: BuildCoachGemTask[]): VendorSearchPlan {
+export function buildVendorSearchPlan(loot: LootFilterPlan, gemTasks: VendorGemTask[]): VendorSearchPlan {
   const equipment = packQuery(
     'equipment',
     'Gear vendor scan',
