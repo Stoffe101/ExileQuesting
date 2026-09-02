@@ -17,6 +17,12 @@ import { detectPassiveTreeNodeCandidates } from '../../src/core/passive-tree-vis
 export interface PassiveTreeHudContext {
   enabled: boolean;
   pathPreview: boolean;
+  /** Manager/UI focus suppresses the game HUD completely. */
+  appWindowFocused?: boolean;
+  /** Current character level from Client.txt when available. */
+  characterLevel?: number;
+  /** Expected route-earned passive reward count. Only used for conservative early-level gating. */
+  expectedQuestPassivePoints?: number;
   snapshot?: PassiveTreeSnapshot;
   guide?: PassiveTreeGuidePlan;
 }
@@ -35,9 +41,15 @@ export interface PassiveTreeHudServiceOptions {
   lockedIntervalMs?: number;
 }
 
-const DEFAULT_CAPTURE_WIDTH = 960;
-const DEFAULT_SEARCH_INTERVAL = 850;
-const DEFAULT_LOCKED_INTERVAL = 300;
+// Vision is intentionally low-frequency. The HUD does not need video-frame cadence.
+const DEFAULT_CAPTURE_WIDTH = 720;
+const DEFAULT_SEARCH_INTERVAL = 1800;
+const DEFAULT_LOCKED_INTERVAL = 700;
+
+function isPathOfExileWindowName(name: string): boolean {
+  const value = name.trim();
+  return /^Path of Exile(?:\s|$)/i.test(value) && !/^Path of Exile 2(?:\s|$)/i.test(value);
+}
 
 function captureThumbnailSize(display: Display, maxWidth: number): { width: number; height: number } {
   const width = Math.max(480, Math.min(1440, Math.round(maxWidth)));
@@ -141,6 +153,13 @@ export class PassiveTreeHudService {
 
   private idleState(context: PassiveTreeHudContext): PassiveTreeHudState | undefined {
     if (!context.enabled) return { ...passiveTreeHudIdle(false), status: 'disabled' };
+    if (context.appWindowFocused) {
+      return {
+        ...passiveTreeHudIdle(true),
+        status: 'searching',
+        message: 'Passive Tree HUD is paused while the ExileQuesting manager is focused. Return to Path of Exile to resume.',
+      };
+    }
     const guide = context.guide;
     if (!guide || (!guide.target && !guide.stageTargets.length)) {
       return {
@@ -167,6 +186,33 @@ export class PassiveTreeHudService {
         classStartNodeId: guide.classStartNodeId,
         message: 'The active passive target has no fixed passive-tree geometry. Text guidance remains available.',
       };
+    }
+
+    // At the very start of a fresh character we can prove when no level-earned
+    // passive point exists yet. Once quest-passive rewards enter the run, the
+    // exact unspent counter is intentionally treated as unknown rather than
+    // guessed from route progress.
+    if (guide.mode === 'exact' && guide.target && context.characterLevel !== undefined && (context.expectedQuestPassivePoints ?? 0) === 0) {
+      const nodes = indexPassiveNodes(context.snapshot!);
+      if (passiveNodeScopeKey(nodes.get(guide.target.nodeId)) === 'base') {
+        let spent = 0;
+        for (const operation of guide.operations.slice(0, guide.cursor)) {
+          if (passiveNodeScopeKey(nodes.get(operation.nodeId)) !== 'base') continue;
+          spent += operation.type === 'allocate' ? 1 : -1;
+        }
+        const earned = Math.max(0, Math.trunc(context.characterLevel) - 1);
+        if (earned - spent <= 0) {
+          return {
+            ...passiveTreeHudIdle(true),
+            status: 'searching',
+            mode: guide.mode,
+            sourceLabel: guide.sourceLabel,
+            className: guide.className,
+            classStartNodeId: guide.classStartNodeId,
+            message: 'No unspent level-earned passive point is expected yet. The HUD will resume after the next point is earned.',
+          };
+        }
+      }
     }
     return undefined;
   }
@@ -207,6 +253,17 @@ export class PassiveTreeHudService {
   }
 
   private async captureDisplay(display: Display): Promise<{ bitmap: Buffer; capture: { width: number; height: number } }> {
+    // First enumerate windows with 0x0 thumbnails. This is the cheap process/UI
+    // presence gate and prevents continuous desktop capture while PoE is closed.
+    const windows = await desktopCapturer.getSources({
+      types: ['window'],
+      thumbnailSize: { width: 0, height: 0 },
+      fetchWindowIcons: false,
+    });
+    if (!windows.some((candidate) => isPathOfExileWindowName(candidate.name))) {
+      throw new Error('POE_NOT_RUNNING');
+    }
+
     const thumbnailSize = captureThumbnailSize(display, this.options.captureWidth);
     const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize, fetchWindowIcons: false });
     const source = sources.find((candidate) => candidate.display_id && candidate.display_id === String(display.id))
@@ -223,8 +280,8 @@ export class PassiveTreeHudService {
     const guide = context.guide!;
     const { bitmap, capture } = await this.captureDisplay(display);
     const candidates = detectPassiveTreeNodeCandidates(bitmap, capture.width, capture.height, {
-      radii: [3, 4, 5, 6, 8, 10, 12, 15, 18], stride: 4, angularSamples: 12,
-      minimumContrast: 14, minimumCoverage: 0.54, maximumCandidates: 150,
+      radii: [3, 4, 5, 6, 8, 10, 12, 15], stride: 5, angularSamples: 10,
+      minimumContrast: 14, minimumCoverage: 0.54, maximumCandidates: 120,
     });
     const nodes = indexPassiveNodes(snapshot);
     const targetNodeIds = guideTargetIds(guide);
@@ -345,6 +402,16 @@ export class PassiveTreeHudService {
           return;
         }
       } catch (error) {
+        if (String(error).includes('POE_NOT_RUNNING')) {
+          this.emit({
+            status: 'searching', enabled: true, visible: false,
+            mode: context.guide?.mode, sourceLabel: context.guide?.sourceLabel,
+            className: context.guide?.className, classStartNodeId: context.guide?.classStartNodeId,
+            message: 'Path of Exile is not running. Passive Tree HUD capture is suspended.',
+            path: [],
+          });
+          return;
+        }
         bestMessage = `Display ${display.id} could not be inspected safely: ${String(error)}`;
         this.options.log?.warn('Passive Tree HUD display probe failed.', { displayId: display.id, error });
       }
@@ -358,4 +425,4 @@ export class PassiveTreeHudService {
   }
 }
 
-export const passiveTreeHudInternals = { captureThumbnailSize, mapCaptureToLocalDisplay };
+export const passiveTreeHudInternals = { captureThumbnailSize, mapCaptureToLocalDisplay, isPathOfExileWindowName };
