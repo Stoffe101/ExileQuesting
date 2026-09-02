@@ -22,9 +22,9 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
 
         <div className="build-intelligence-card">
           <span>Loot targets</span>
-          <strong>{coach?.loot.linkTargets.length ? `${coach.loot.linkTargets.length} socket target${coach.loot.linkTargets.length === 1 ? '' : 's'}` : 'No resolved link target'}</strong>
+          <strong>{coach?.loot.linkTargets.length ? `${coach.loot.linkTargets.length} link target${coach.loot.linkTargets.length === 1 ? '' : 's'}` : 'No resolved link target'}</strong>
           {coach?.loot.linkTargets.slice(0, 3).map((target) => (
-            <small key={`${target.links}:${target.colours.join('')}`}>{target.links}L {target.colours.join('-')} · {target.label}</small>
+            <small key={`${target.links}:${target.qualityBonusColours.join('')}`}>{target.links}L usable with any colours · bonus {target.qualityBonusColours.join('-')} · {target.label}</small>
           ))}
         </div>
 
@@ -47,7 +47,7 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
           {loot.needsReload && <button className="primary-button" onClick={() => void markReloaded()}>I reloaded it</button>}
         </div>
       </div>
-      <p className="build-filter-note">ExileQuesting only overrides items your build explicitly cares about. Every unmatched drop falls through to your selected base filter.</p>
+      <p className="build-filter-note">PoE 3.29 allows every gem in every equipment socket colour. ExileQuesting therefore prioritises usable link counts first and matching non-white colours only as a quality bonus. Unmatched drops fall through to your selected base filter.</p>
     </section>
   );
 }
