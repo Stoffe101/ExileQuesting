@@ -1,3 +1,4 @@
+// Temporary guarded patcher for the v0.2.2 live-play hotfix.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 function replaceExact(text, from, to, label) {
