@@ -186,6 +186,16 @@ async function main(): Promise<void> {
       active = baseState(fixture.make(viewport.width, viewport.height));
       window.webContents.send('state:changed', active);
       await waitFor(window, `document.querySelector(${JSON.stringify(fixture.selector)})`, `${fixture.name} fixture`);
+      // Offscreen Chromium can report the new DOM before its compositor has
+      // painted that state, especially at fractional DPI. Wait through two
+      // animation frames, explicitly invalidate, and discard one warm capture
+      // before asserting/saving the frame used as release evidence.
+      await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+      window.webContents.invalidate();
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const warmFrame = await window.webContents.capturePage();
+      if (warmFrame.isEmpty()) throw new Error(`${fixture.name} ${viewport.label}: warmup screenshot was empty.`);
+      await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(resolve))`);
       await new Promise((resolve) => setTimeout(resolve, 80));
       const metrics = await window.webContents.executeJavaScript(`(() => {
         const root = document.querySelector('.passive-tree-hud-root');
