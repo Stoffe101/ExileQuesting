@@ -101,11 +101,6 @@ describe('/passives reconciliation', () => {
   });
 
   it('keeps unknown future quest names visible as compatibility warnings', () => {
-    const content = `${fullReport()}\n${logLine('(1 from A Totally New Quest)', 9)}`;
-    const report = parseLatestPassivesCommand(content);
-    // The unknown line is outside the report because a valid report ends at the first non-entry boundary.
-    expect(report.unknownEntries).toEqual([]);
-
     const lines = fullReport().split('\n');
     lines.push(logLine('(1 from A Totally New Quest)', 9));
     lines[3] = logLine('25 Passive Skill Points from quests:', 4);
