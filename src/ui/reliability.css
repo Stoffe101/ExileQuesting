@@ -16,6 +16,7 @@
 .recovery-banner span,
 .update-banner span,
 .run-clock-row span,
+.route-metric-row span,
 .audit-summary span,
 .update-status span,
 .reward-confirm-card span { color: #f1a842; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
@@ -41,6 +42,7 @@
 }
 
 .run-clock-row > div,
+.route-metric-row > div,
 .audit-summary > div {
   padding: 12px;
   border: 1px solid #242b38;
@@ -50,13 +52,44 @@
 
 .run-clock-row > div { display: grid; gap: 4px; }
 .run-clock-row strong { color: #f6f7fa; font-size: 24px; letter-spacing: -.03em; }
-.run-reference-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0; color: #8490a5; font-size: 11px; }
+.run-reference-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 12px 0; color: #8490a5; font-size: 11px; }
 .run-reference-row b { color: #dbe1eb; font-weight: 700; }
+.run-pb-badge { padding: 3px 7px; border: 1px solid rgba(94, 226, 161, .3); border-radius: 999px; background: rgba(94, 226, 161, .08); color: #6be7aa; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
 
 .split-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
 .split-strip span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: #111721; color: #dbe1eb; font-size: 10px; }
 .split-strip i { color: #f1a842; font-style: normal; font-weight: 800; }
-.run-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.run-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+.route-metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.route-metric-row > div { display: grid; gap: 3px; }
+.route-metric-row strong { color: #f4f6fb; font-size: 18px; }
+.route-metric-row small { color: #758198; font-size: 9px; }
+
+.run-insight-list { display: grid; gap: 7px; margin: 10px 0 12px; }
+.run-insight { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; padding: 10px 11px; border: 1px solid #252d3a; border-radius: 9px; background: #0c1017; }
+.run-insight > span { align-self: start; padding-top: 2px; color: #7d899e; font-size: 8px; font-weight: 900; letter-spacing: .1em; }
+.run-insight > div { display: grid; gap: 3px; }
+.run-insight strong { color: #edf1f7; font-size: 11px; }
+.run-insight p { margin: 0; color: #8491a6; font-size: 10px; line-height: 1.45; }
+.insight-attention { border-color: rgba(243, 165, 61, .25); background: rgba(243, 165, 61, .045); }
+.insight-attention > span { color: #f1a842; }
+.insight-good { border-color: rgba(94, 226, 161, .2); background: rgba(94, 226, 161, .035); }
+.insight-good > span { color: #64dfa5; }
+
+.route-breakdown { margin: 10px 0 2px; border: 1px solid #232b38; border-radius: 10px; background: rgba(9, 13, 19, .65); }
+.route-breakdown summary { padding: 10px 12px; cursor: pointer; color: #dfe5ef; font-size: 10px; font-weight: 800; letter-spacing: .025em; }
+.route-zone-list { display: grid; gap: 1px; border-top: 1px solid #202734; }
+.route-zone-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(110px, auto); align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid rgba(35, 43, 56, .7); }
+.route-zone-row:last-child { border-bottom: 0; }
+.route-zone-row > div { display: grid; min-width: 0; gap: 2px; }
+.route-zone-row > div strong { overflow: hidden; color: #e7ebf3; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.route-zone-row small { color: #728097; font-size: 9px; }
+.route-zone-row > strong { color: #f4f6fa; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
+.route-zone-row > span { justify-self: end; color: #7c899f; font-size: 9px; white-space: nowrap; }
+.route-zone-row .delta-slower { color: #f1a842; }
+.route-zone-row .delta-faster { color: #61d9a0; }
+.route-review-note { margin: 0; padding: 9px 12px 10px; border-top: 1px solid #202734; color: #6f7c91; font-size: 9px; line-height: 1.45; }
 
 .overlay-run-clock {
   margin-left: auto;
@@ -130,4 +163,11 @@
 
 @media (max-width: 1120px) {
   .overview-secondary-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .route-metric-row { grid-template-columns: 1fr; }
+  .run-insight { grid-template-columns: 1fr; gap: 4px; }
+  .route-zone-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .route-zone-row > span { grid-column: 1 / -1; justify-self: start; }
 }

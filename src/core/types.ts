@@ -305,6 +305,57 @@ export interface ActSplit {
   elapsedMs: number;
 }
 
+export interface RunZoneVisit {
+  id: string;
+  areaId: string;
+  areaName?: string;
+  act?: number;
+  enteredAt: string;
+  durationMs: number;
+  revisit: boolean;
+  town: boolean;
+}
+
+export interface RunZoneSummary {
+  areaId: string;
+  areaName?: string;
+  act?: number;
+  totalMs: number;
+  firstVisitMs: number;
+  revisitMs: number;
+  visits: number;
+  town: boolean;
+  previousMs?: number;
+  personalBestMs?: number;
+  deltaVsPreviousMs?: number;
+  deltaVsPersonalBestMs?: number;
+}
+
+export interface RunInsight {
+  id: string;
+  kind: 'pace' | 'slow-zone' | 'revisit' | 'town';
+  tone: 'good' | 'attention' | 'neutral';
+  title: string;
+  detail: string;
+  metricMs?: number;
+}
+
+export interface RunAnalytics {
+  zoneTimeMs: number;
+  uniqueZones: number;
+  transitions: number;
+  revisitCount: number;
+  revisitMs: number;
+  townTimeMs: number;
+  townShare: number;
+  zones: RunZoneSummary[];
+  slowestZones: RunZoneSummary[];
+  insights: RunInsight[];
+  totalDeltaVsPreviousMs?: number;
+  totalDeltaVsPersonalBestMs?: number;
+  newPersonalBest: boolean;
+}
+
 export interface RunSession {
   state: RunState;
   startedAt?: string;
@@ -316,6 +367,8 @@ export interface RunSession {
   splits: ActSplit[];
   lastAreaId?: string;
   lastZoneChangedAt?: string;
+  activeVisitStartedAt?: string;
+  visits?: RunZoneVisit[];
 }
 
 export interface RunHistoryEntry {
@@ -325,6 +378,7 @@ export interface RunHistoryEntry {
   totalMs: number;
   townTimeMs: number;
   splits: ActSplit[];
+  visits?: RunZoneVisit[];
 }
 
 export interface RunStats {
@@ -332,6 +386,7 @@ export interface RunStats {
   elapsedMs: number;
   previous?: RunHistoryEntry;
   personalBest?: RunHistoryEntry;
+  analytics: RunAnalytics;
 }
 
 export interface DetectionTraceEntry {

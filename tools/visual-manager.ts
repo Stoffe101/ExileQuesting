@@ -3,10 +3,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { normalizeCampaign } from '../src/core/campaign';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
-import { emptyRunSession, runStatsFor } from '../src/core/run';
+import { runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
 import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
-import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
+import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RunHistoryEntry, RunSession, RuntimeState } from '../src/core/types';
 
 const output = path.resolve(process.argv[2] || 'artifacts/manager-visual');
 
@@ -47,6 +47,61 @@ const settings: AppSettings = {
 
 async function json<T>(file: string): Promise<T> {
   return JSON.parse(await fs.readFile(path.resolve(file), 'utf8')) as T;
+}
+
+function visualRunStats() {
+  const previous: RunHistoryEntry = {
+    id: 'visual-previous',
+    startedAt: '2026-09-02T18:00:00.000Z',
+    finishedAt: '2026-09-02T18:38:00.000Z',
+    totalMs: 2_280_000,
+    townTimeMs: 330_000,
+    splits: [
+      { act: 1, at: '2026-09-02T18:18:00.000Z', elapsedMs: 1_080_000 },
+      { act: 2, at: '2026-09-02T18:38:00.000Z', elapsedMs: 2_280_000 },
+    ],
+    visits: [
+      { id: 'p-coast', areaId: '1_1_2', areaName: 'The Coast', act: 1, enteredAt: '2026-09-02T18:00:00.000Z', durationMs: 105_000, revisit: false, town: false },
+      { id: 'p-mud', areaId: '1_1_3', areaName: 'The Mud Flats', act: 1, enteredAt: '2026-09-02T18:01:45.000Z', durationMs: 150_000, revisit: false, town: false },
+      { id: 'p-submerged', areaId: '1_1_4_1', areaName: 'The Submerged Passage', act: 1, enteredAt: '2026-09-02T18:04:15.000Z', durationMs: 130_000, revisit: false, town: false },
+      { id: 'p-town', areaId: '1_1_town', areaName: "Lioneye's Watch", act: 1, enteredAt: '2026-09-02T18:06:25.000Z', durationMs: 330_000, revisit: false, town: true },
+    ],
+  };
+
+  const session: RunSession = {
+    state: 'finished',
+    startedAt: '2026-09-03T18:00:00.000Z',
+    finishedAt: '2026-09-03T18:35:00.000Z',
+    pausedMs: 0,
+    townTimeMs: 420_000,
+    currentAct: 2,
+    splits: [
+      { act: 1, at: '2026-09-03T18:16:40.000Z', elapsedMs: 1_000_000 },
+      { act: 2, at: '2026-09-03T18:35:00.000Z', elapsedMs: 2_100_000 },
+    ],
+    lastAreaId: '2_7_5_1',
+    lastZoneChangedAt: '2026-09-03T18:33:00.000Z',
+    visits: [
+      { id: 'c-coast', areaId: '1_1_2', areaName: 'The Coast', act: 1, enteredAt: '2026-09-03T18:00:00.000Z', durationMs: 125_000, revisit: false, town: false },
+      { id: 'c-mud', areaId: '1_1_3', areaName: 'The Mud Flats', act: 1, enteredAt: '2026-09-03T18:02:05.000Z', durationMs: 220_000, revisit: false, town: false },
+      { id: 'c-submerged', areaId: '1_1_4_1', areaName: 'The Submerged Passage', act: 1, enteredAt: '2026-09-03T18:05:45.000Z', durationMs: 115_000, revisit: false, town: false },
+      { id: 'c-town-a', areaId: '1_1_town', areaName: "Lioneye's Watch", act: 1, enteredAt: '2026-09-03T18:07:40.000Z', durationMs: 260_000, revisit: false, town: true },
+      { id: 'c-coast-revisit', areaId: '1_1_2', areaName: 'The Coast', act: 1, enteredAt: '2026-09-03T18:12:00.000Z', durationMs: 95_000, revisit: true, town: false },
+      { id: 'c-crossroads', areaId: '2_7_2', areaName: 'The Crossroads', act: 2, enteredAt: '2026-09-03T18:13:35.000Z', durationMs: 180_000, revisit: false, town: false },
+      { id: 'c-town-b', areaId: '2_2_town', areaName: 'The Forest Encampment', act: 2, enteredAt: '2026-09-03T18:16:35.000Z', durationMs: 160_000, revisit: false, town: true },
+      { id: 'c-western', areaId: '2_7_5_1', areaName: 'The Western Forest', act: 2, enteredAt: '2026-09-03T18:19:15.000Z', durationMs: 240_000, revisit: false, town: false },
+    ],
+  };
+  const current: RunHistoryEntry = {
+    id: `${session.startedAt}:${session.finishedAt}`,
+    startedAt: session.startedAt!,
+    finishedAt: session.finishedAt!,
+    totalMs: 2_100_000,
+    townTimeMs: session.townTimeMs,
+    splits: session.splits,
+    visits: session.visits,
+  };
+  return runStatsFor(session, [previous, current], Date.parse(session.finishedAt!));
 }
 
 async function makeState(): Promise<RuntimeState> {
@@ -101,7 +156,7 @@ async function makeState(): Promise<RuntimeState> {
       progressAfter: progress, stepIdBefore: dataset.steps[progress]?.id, stepIdAfter: dataset.steps[progress]?.id,
       reason: 'Current zone established without changing campaign progress.', raw: "You have entered Cartographer's Hideout.",
     }],
-    runStats: runStatsFor(emptyRunSession(), []),
+    runStats: visualRunStats(),
     appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
     recovery: { previousSessionUnclean: false, acknowledged: true },
     lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in this visual fixture.' },

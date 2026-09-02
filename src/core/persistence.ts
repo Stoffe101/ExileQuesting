@@ -1,10 +1,11 @@
 import { emptyRunSession } from './run';
-import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from './types';
+import type { ActSplit, AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession, RunZoneVisit } from './types';
 
 export const SETTINGS_SCHEMA_VERSION = 1;
 export const MAX_SETTINGS_BYTES = 256 * 1024;
 export const MAX_PROGRESS_HISTORY = 80;
 export const MAX_RUN_HISTORY = 20;
+export const MAX_RUN_ZONE_VISITS = 800;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -17,6 +18,13 @@ function finite(value: unknown, fallback: number, min: number, max: number): num
 function boundedString(value: unknown, fallback: string, max = 4096): string { return typeof value === 'string' && value.length <= max ? value : fallback; }
 function enumValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? value as T : fallback;
+}
+function optionalString(value: unknown, max: number): string | undefined {
+  return typeof value === 'string' && value.length > 0 && value.length <= max ? value : undefined;
+}
+function optionalTimestamp(value: unknown): string | undefined {
+  const text = optionalString(value, 80);
+  return text && Number.isFinite(Date.parse(text)) ? text : undefined;
 }
 
 export function parseBoundedJson(text: string, maxBytes = MAX_SETTINGS_BYTES): unknown {
@@ -113,27 +121,97 @@ export function normalizeProgressDocument(value: unknown, maxStepIndex: number):
   const history = Array.isArray(source.history) ? source.history.filter(validHistoryEntry).slice(-MAX_PROGRESS_HISTORY) : [];
   return { progress, history };
 }
-function validRunHistory(value: unknown): value is RunHistoryEntry {
-  const item = record(value);
-  return Boolean(item && typeof item.id === 'string' && typeof item.startedAt === 'string' && typeof item.finishedAt === 'string' && Number.isFinite(item.totalMs) && Number(item.totalMs) >= 0 && Array.isArray(item.splits));
+
+function normalizeSplits(value: unknown): ActSplit[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 10).flatMap((candidate) => {
+    const split = record(candidate);
+    const act = Number(split?.act);
+    const at = optionalTimestamp(split?.at);
+    if (!split || !Number.isInteger(act) || act < 1 || act > 10 || !at) return [];
+    return [{ act, at, elapsedMs: finite(split.elapsedMs, 0, 0, Number.MAX_SAFE_INTEGER) }];
+  });
 }
+
+function normalizeRunVisit(value: unknown): RunZoneVisit | undefined {
+  const visit = record(value);
+  if (!visit) return undefined;
+  const id = optionalString(visit.id, 512);
+  const areaId = optionalString(visit.areaId, 256);
+  const enteredAt = optionalTimestamp(visit.enteredAt);
+  if (!id || !areaId || !enteredAt) return undefined;
+  const rawAct = Number(visit.act);
+  const act = Number.isInteger(rawAct) && rawAct >= 1 && rawAct <= 10 ? rawAct : undefined;
+  return {
+    id,
+    areaId,
+    areaName: optionalString(visit.areaName, 256),
+    act,
+    enteredAt,
+    durationMs: finite(visit.durationMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    revisit: visit.revisit === true,
+    town: visit.town === true,
+  };
+}
+
+function normalizeRunVisits(value: unknown): RunZoneVisit[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(-MAX_RUN_ZONE_VISITS)
+    .map(normalizeRunVisit)
+    .filter((visit): visit is RunZoneVisit => Boolean(visit));
+}
+
+function normalizeRunHistory(value: unknown): RunHistoryEntry | undefined {
+  const item = record(value);
+  if (!item) return undefined;
+  const id = optionalString(item.id, 512);
+  const startedAt = optionalTimestamp(item.startedAt);
+  const finishedAt = optionalTimestamp(item.finishedAt);
+  const totalMs = Number(item.totalMs);
+  if (!id || !startedAt || !finishedAt || !Number.isFinite(totalMs) || totalMs < 0) return undefined;
+  return {
+    id,
+    startedAt,
+    finishedAt,
+    totalMs: finite(totalMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    townTimeMs: finite(item.townTimeMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    splits: normalizeSplits(item.splits),
+    visits: normalizeRunVisits(item.visits),
+  };
+}
+
 export function normalizeRunDocument(value: unknown): { session: RunSession; history: RunHistoryEntry[] } {
   const source = record(value) ?? {};
   const candidate = record(source.session);
   let session = emptyRunSession();
   if (candidate && ['idle', 'running', 'paused', 'finished'].includes(String(candidate.state))) {
+    const visits = normalizeRunVisits(candidate.visits);
+    const lastAreaId = optionalString(candidate.lastAreaId, 256);
+    const activeVisitStartedAt = optionalTimestamp(candidate.activeVisitStartedAt);
+    const activeVisitMatches = Boolean(lastAreaId && activeVisitStartedAt && visits.at(-1)?.areaId === lastAreaId && candidate.state === 'running');
+    const rawAct = Number(candidate.currentAct);
     session = {
-      ...session,
-      ...(candidate as unknown as RunSession),
       state: candidate.state as RunSession['state'],
+      startedAt: optionalTimestamp(candidate.startedAt),
+      pausedAt: optionalTimestamp(candidate.pausedAt),
       pausedMs: finite(candidate.pausedMs, 0, 0, Number.MAX_SAFE_INTEGER),
+      finishedAt: optionalTimestamp(candidate.finishedAt),
       townTimeMs: finite(candidate.townTimeMs, 0, 0, Number.MAX_SAFE_INTEGER),
-      splits: Array.isArray(candidate.splits) ? candidate.splits.filter((split) => record(split) && Number.isInteger((split as { act?: unknown }).act)).slice(0, 10) as RunSession['splits'] : [],
+      currentAct: Number.isInteger(rawAct) && rawAct >= 1 && rawAct <= 10 ? rawAct : undefined,
+      splits: normalizeSplits(candidate.splits),
+      lastAreaId,
+      lastZoneChangedAt: optionalTimestamp(candidate.lastZoneChangedAt),
+      activeVisitStartedAt: activeVisitMatches ? activeVisitStartedAt : undefined,
+      visits,
     };
   }
-  const history = Array.isArray(source.history) ? source.history.filter(validRunHistory).slice(-MAX_RUN_HISTORY) : [];
+  const history = Array.isArray(source.history)
+    ? source.history.map(normalizeRunHistory).filter((entry): entry is RunHistoryEntry => Boolean(entry)).slice(-MAX_RUN_HISTORY)
+    : [];
   return { session, history };
 }
+
 export function normalizeRewardDocument(value: unknown, allowedStepIds?: Set<string>): Set<string> {
   const source = record(value) ?? {};
   const ids = Array.isArray(source.confirmedStepIds) ? source.confirmedStepIds.filter((id): id is string => typeof id === 'string' && id.length <= 256) : [];
