@@ -11,12 +11,12 @@ async function main(): Promise<void> {
     installerPath: path.resolve(installerPath),
     updatesDirectory: path.resolve(updatesDirectory),
     appExecutable: path.resolve(appExecutable),
-    // The integration smoke deliberately uses a nonexistent parent so the helper
-    // immediately exercises install + relaunch instead of waiting for this Node process.
-    parentPid: 2_000_000_000,
+    // Do not fake this. The detached helper must observe this real harness process
+    // disappear before it installs, matching the installed application's handoff.
+    parentPid: process.pid,
   });
 
-  console.log(`Updater handoff spawned for ${installerPath}`);
+  console.log(`Updater handoff spawned for ${installerPath}; parent PID ${process.pid} will now exit.`);
 }
 
 void main().catch((error) => {
