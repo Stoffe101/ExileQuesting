@@ -1,3 +1,5 @@
+import { parsePoeItemText, slotFromPobSlot, type ParsedPoeItem } from './item-text';
+
 export type PobInputKind = 'xml' | 'export-code' | 'pobbin';
 export type PobStageKind = 'tree' | 'skills' | 'items' | 'config';
 
@@ -26,6 +28,13 @@ export interface PobSkillGroupSummary {
   gems: PobGemSummary[];
 }
 
+export interface PobItemSummary extends ParsedPoeItem {
+  /** Original Path of Building equipment slot label, for example `Body Armour` or `Weapon 1`. */
+  slotName: string;
+  /** Native PoB item catalogue ID when the item set references a shared item. */
+  itemId?: string;
+}
+
 export interface PobStageSummary {
   /** Stable ExileQuesting-local identity. Never assumes PoB set IDs align across families. */
   id: string;
@@ -43,6 +52,8 @@ export interface PobStageSummary {
   masterySelections?: PobMasterySelection[];
   /** Present on skill stages so transitions can be derived without reparsing the original XML. */
   skillGroups?: PobSkillGroupSummary[];
+  /** Present on item stages so Gear Coach and loot intelligence can understand stage-specific gear targets. */
+  equipment?: PobItemSummary[];
 }
 
 export interface PobBuildSummary {
@@ -133,10 +144,10 @@ function parseSkillGroups(body: string): PobSkillGroupSummary[] {
 }
 
 interface StageContainerDefinition {
-  container: 'Tree' | 'Items' | 'Config';
-  child: 'Spec' | 'ItemSet' | 'ConfigSet';
-  kind: Exclude<PobStageKind, 'skills'>;
-  activeAttribute: 'activeSpec' | 'activeItemSet' | 'activeConfigSet';
+  container: 'Tree' | 'Config';
+  child: 'Spec' | 'ConfigSet';
+  kind: 'tree' | 'config';
+  activeAttribute: 'activeSpec' | 'activeConfigSet';
   fallbackLabel: string;
   /** Modern PoB passive specs are selected by 1-based ordinal, not a child `id`. */
   activeByOrdinal?: boolean;
@@ -175,6 +186,92 @@ function stageTags(xml: string, definition: StageContainerDefinition): PobStageS
     });
   }
   return result;
+}
+
+function parsedPobItem(rawText: string, slotName: string, itemId?: string): PobItemSummary | undefined {
+  const raw = cleanText(rawText);
+  if (!raw) return undefined;
+  try {
+    const parsed = parsePoeItemText(raw);
+    return { ...parsed, slot: slotFromPobSlot(slotName) === 'unknown' ? parsed.slot : slotFromPobSlot(slotName), slotName, itemId };
+  } catch {
+    return undefined;
+  }
+}
+
+function itemStageTags(xml: string): PobStageSummary[] {
+  const containerMatch = xml.match(/<Items\b([^>]*)>([\s\S]*?)<\/Items>/i);
+  if (!containerMatch) return [];
+  const parent = attributes(containerMatch[1]);
+  const activeId = parent.activeItemSet;
+  const body = containerMatch[2];
+  const catalog = new Map<string, string>();
+  const catalogRegex = /<Item\b([^>]*)>([\s\S]*?)<\/Item>/gi;
+  let catalogMatch: RegExpExecArray | null;
+  while ((catalogMatch = catalogRegex.exec(body))) {
+    const attrs = attributes(catalogMatch[1]);
+    if (attrs.id?.trim()) catalog.set(attrs.id.trim(), catalogMatch[2]);
+  }
+
+  const stages: PobStageSummary[] = [];
+  const setRegex = /<ItemSet\b([^>]*)>([\s\S]*?)<\/ItemSet>/gi;
+  let setMatch: RegExpExecArray | null;
+  let ordinal = 0;
+  while ((setMatch = setRegex.exec(body))) {
+    ordinal += 1;
+    const attrs = attributes(setMatch[1]);
+    const sourceId = attrs.id?.trim() || undefined;
+    const equipment: PobItemSummary[] = [];
+    const seen = new Set<string>();
+    const push = (item: PobItemSummary | undefined) => {
+      if (!item) return;
+      const key = `${item.slotName.toLowerCase()}:${item.itemId ?? ''}:${item.name}:${item.baseType}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      equipment.push(item);
+    };
+
+    const selfClosingSlotRegex = /<Slot\b([^>]*?)\/>/gi;
+    let slotMatch: RegExpExecArray | null;
+    while ((slotMatch = selfClosingSlotRegex.exec(setMatch[2]))) {
+      const slotAttrs = attributes(slotMatch[1]);
+      const slotName = slotAttrs.name || slotAttrs.slotName;
+      const itemId = slotAttrs.itemId?.trim();
+      if (!slotName || !itemId || itemId === '0') continue;
+      const rawItem = catalog.get(itemId);
+      if (rawItem) push(parsedPobItem(rawItem, slotName, itemId));
+    }
+
+    const pairedSlotRegex = /<Slot\b([^>]*)>([\s\S]*?)<\/Slot>/gi;
+    while ((slotMatch = pairedSlotRegex.exec(setMatch[2]))) {
+      const slotAttrs = attributes(slotMatch[1]);
+      const slotName = slotAttrs.name || slotAttrs.slotName;
+      if (!slotName) continue;
+      const itemId = slotAttrs.itemId?.trim();
+      if (itemId && itemId !== '0' && catalog.has(itemId)) push(parsedPobItem(catalog.get(itemId)!, slotName, itemId));
+      const nested = slotMatch[2].match(/<Item\b([^>]*)>([\s\S]*?)<\/Item>/i);
+      if (nested) push(parsedPobItem(nested[2], slotName, attributes(nested[1]).id || itemId));
+    }
+
+    const inlineItemRegex = /<Item\b([^>]*)>([\s\S]*?)<\/Item>/gi;
+    let inlineMatch: RegExpExecArray | null;
+    while ((inlineMatch = inlineItemRegex.exec(setMatch[2]))) {
+      const itemAttrs = attributes(inlineMatch[1]);
+      const slotName = itemAttrs.slotName || itemAttrs.slot;
+      if (slotName) push(parsedPobItem(inlineMatch[2], slotName, itemAttrs.id));
+    }
+
+    stages.push({
+      id: `items:${ordinal}`,
+      sourceId,
+      title: attrs.title?.trim() || `Items ${ordinal}`,
+      kind: 'items',
+      active: activeId ? activeId === sourceId : ordinal === 1,
+      ordinal,
+      equipment: equipment.slice(0, 40),
+    });
+  }
+  return stages;
 }
 
 function skillStageTags(xml: string): { stages: PobStageSummary[]; activeGroups: PobSkillGroupSummary[] } {
@@ -282,7 +379,7 @@ export function parsePobXml(xml: string): PobBuildSummary {
   const treeStages = stageTags(trimmed, { container: 'Tree', child: 'Spec', kind: 'tree', activeAttribute: 'activeSpec', fallbackLabel: 'Tree', activeByOrdinal: true });
   const skills = skillStageTags(trimmed);
   const skillStages = skills.stages;
-  const itemStages = stageTags(trimmed, { container: 'Items', child: 'ItemSet', kind: 'items', activeAttribute: 'activeItemSet', fallbackLabel: 'Items' });
+  const itemStages = itemStageTags(trimmed);
   const configStages = stageTags(trimmed, { container: 'Config', child: 'ConfigSet', kind: 'config', activeAttribute: 'activeConfigSet', fallbackLabel: 'Config' });
   if (!treeStages.length) warnings.push('No passive-tree stages were found.');
   if (!skillStages.length) warnings.push('No named skill stages were found; this may be an older/simpler PoB export.');
