@@ -16,12 +16,15 @@ describe('Windows update handoff', () => {
     expect(script).not.toMatch(/tasklist[^\r\n]*\|\s*find/i);
   });
 
-  it('runs the verified NSIS installer silently and relaunches the existing installation', () => {
+  it('runs the verified NSIS installer silently and verifies the relaunch command', () => {
     const script = windowsUpdateLauncherScript();
     expect(script).toContain('start "" /wait "%INSTALLER%" /S');
     expect(script).toContain('if not "%INSTALL_EXIT%"=="0"');
     expect(script).toContain('if not exist "%APP_EXE%"');
     expect(script).toContain('start "" "%APP_EXE%"');
+    expect(script).toContain('RELAUNCH_EXIT');
+    expect(script).toContain('if not "%RELAUNCH_EXIT%"=="0"');
+    expect(script).toContain('Windows rejected the ExileQuesting relaunch command.');
     expect(script).toContain('"relaunched":true');
   });
 
@@ -30,6 +33,7 @@ describe('Windows update handoff', () => {
     expect(script).toContain('>>"%TRACE_FILE%" echo');
     expect(script).toContain('"status":"failed"');
     expect(script).toContain('call :trace "Relaunching ExileQuesting."');
+    expect(script).toContain('call :trace "Relaunch command returned exit code %RELAUNCH_EXIT%."');
     expect(script.toLowerCase()).not.toContain('timeout /t');
     expect(script).not.toContain(' & start ');
   });
