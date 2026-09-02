@@ -24,6 +24,7 @@ jobs:
       - run: npm test
       - run: npm run validate:gems
       - run: npm run validate:passives
+      - run: npm run validate:manifest
       - run: npm run audit:campaign
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
