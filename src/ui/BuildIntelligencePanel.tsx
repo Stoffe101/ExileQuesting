@@ -15,6 +15,7 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
           <span>Next passive milestone</span>
           <strong>{coach?.nextPassiveText ?? 'No later passive stage detected'}</strong>
           {coach?.nextPassive && <small>{coach.nextPassive.totalAllocations} allocations toward {coach.nextPassive.toTitle}</small>}
+          {coach?.nextPassive && !coach.nextPassive.namesVerified && <small>Node names hidden because this PoB tree version does not match the bundled passive snapshot.</small>}
           {coach?.nextPassive?.namedTargets.length ? (
             <div className="mini-chip-row">{coach.nextPassive.namedTargets.slice(0, 4).map((target) => <i key={target.id}>{target.name}</i>)}</div>
           ) : null}
