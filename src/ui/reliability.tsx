@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildRunActAnalytics } from '../core/run-act-analytics';
 import { buildRunAnalytics } from '../core/run-analytics';
 import { elapsedRunMs, formatDuration, liveTownTimeMs } from '../core/run';
 import type { AppSettings, RunZoneSummary, RuntimeState } from '../core/types';
 import PassivesAuditPanel from './PassivesAuditPanel';
+import './run-act-analytics.css';
 
 function useNow(enabled = true): number {
   const [now, setNow] = useState(Date.now());
@@ -52,6 +54,10 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
     () => active ? buildRunAnalytics(session, previous, pb, now) : state.runStats.analytics,
     [active, now, pb, previous, session, state.runStats.analytics],
   );
+  const actAnalytics = useMemo(
+    () => buildRunActAnalytics(session, previous, undefined, now),
+    [now, previous, session],
+  );
   const areaNames = useMemo(() => new Map(state.dataset.areas.map((area) => [area.id, area.name])), [state.dataset.areas]);
   const zoneName = (zone: RunZoneSummary) => zone.areaName ?? areaNames.get(zone.areaId) ?? zone.areaId;
 
@@ -68,7 +74,38 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
         <span>Personal best <b>{pb ? formatDuration(pb.totalMs) : '—'}</b></span>
         {analytics.newPersonalBest && <span className="run-pb-badge">NEW PB</span>}
       </div>
-      {session.splits.length > 0 && <div className="split-strip">{session.splits.map((split) => <span key={split.act}><i>A{split.act}</i>{formatDuration(split.elapsedMs)}</span>)}</div>}
+
+      {actAnalytics.acts.length > 0 && (
+        <section className="act-pace-panel" aria-label="Act pace">
+          <div className="act-pace-heading">
+            <div><span>ACT PACE</span><strong>Where the run gained or lost time</strong></div>
+            <small>Act duration · delta vs previous</small>
+          </div>
+          <div className="act-pace-strip">
+            {actAnalytics.acts.map((act) => {
+              const delta = act.deltaVsPreviousMs;
+              const paceClass = !act.complete ? 'act-live' : delta === undefined ? 'act-unknown' : delta > 0 ? 'act-slower' : delta < 0 ? 'act-faster' : 'act-even';
+              return (
+                <div className={`act-pace-chip ${paceClass}`} key={act.act}>
+                  <span>A{act.act}{!act.complete && <i>LIVE</i>}</span>
+                  <strong>{formatDuration(act.elapsedMs)}</strong>
+                  <small>{!act.complete ? 'not compared yet' : delta === undefined ? 'no previous data' : `${signedDuration(delta)} vs previous`}</small>
+                  {act.complete && act.cumulativeDeltaVsPreviousMs !== undefined && <em>{signedDuration(act.cumulativeDeltaVsPreviousMs)} through A{act.act}</em>}
+                </div>
+              );
+            })}
+          </div>
+          {actAnalytics.insights.length > 0 && (
+            <div className="act-pace-insights">
+              {actAnalytics.insights.map((insight) => (
+                <div className={`act-pace-insight act-insight-${insight.tone}`} key={`${insight.kind}:${insight.act ?? 'run'}`}>
+                  <span>{insight.kind.toUpperCase()}</span><div><strong>{insight.title}</strong><p>{insight.detail}</p></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="route-metric-row">
         <div><span>AREAS SEEN</span><strong>{analytics.uniqueZones || '—'}</strong><small>{analytics.transitions} transitions</small></div>
