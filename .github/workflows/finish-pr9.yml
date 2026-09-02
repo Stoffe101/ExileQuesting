@@ -1,0 +1,47 @@
+name: Finish PR 9
+
+on:
+  push:
+    branches: [codex/pob-to-play-v0.2]
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/pob-to-play-v0.2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply PR 9 runtime and UI wiring
+        run: node tools/finish-pr9.mjs
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run data:gems
+      - run: npm run check:gems
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run validate:gems
+      - run: npm run audit:campaign
+      - run: npm run lint:campaign
+      - run: npm run simulate:campaign
+      - run: npm run build
+      - name: Commit gated result
+        shell: bash
+        run: |
+          git add electron src assets/game-data
+          if git diff --cached --quiet; then
+            echo "PR #9 finishing changes are already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Finish PoB to Play runtime integration"
+          git push origin HEAD:codex/pob-to-play-v0.2
