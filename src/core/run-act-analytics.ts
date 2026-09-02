@@ -101,7 +101,14 @@ function sessionTimings(session: RunSession, now: number): ActTiming[] {
 
 function historyTimings(entry?: RunHistoryEntry): Map<number, ActTiming> {
   if (!entry) return new Map();
-  return new Map(baseTimings(entry.splits).map((timing) => [timing.act, timing]));
+  const timings = baseTimings(entry.splits);
+  // RunHistoryEntry intentionally stores raw split facts rather than duplicated
+  // analytics. finishRun() writes the active Act as the final split even when the
+  // player ends mid-Act, so only splits followed by a later Act boundary are
+  // historically proven complete. The final split remains visible as baseline
+  // context but is never used for a scored comparison.
+  if (timings.length > 0) timings[timings.length - 1].complete = false;
+  return new Map(timings.map((timing) => [timing.act, timing]));
 }
 
 function buildInsights(acts: RunActPace[], active: boolean): RunActPaceInsight[] {
@@ -164,14 +171,16 @@ export function buildRunActAnalytics(
     const previousTiming = previousActs.get(timing.act);
     const pbTiming = pbActs.get(timing.act);
     const comparable = timing.complete;
+    const previousComparable = previousTiming?.complete === true;
+    const pbComparable = pbTiming?.complete === true;
     return {
       ...timing,
-      previousMs: previousTiming?.elapsedMs,
-      personalBestMs: pbTiming?.elapsedMs,
-      deltaVsPreviousMs: comparable && previousTiming ? timing.elapsedMs - previousTiming.elapsedMs : undefined,
-      deltaVsPersonalBestMs: comparable && pbTiming ? timing.elapsedMs - pbTiming.elapsedMs : undefined,
-      cumulativeDeltaVsPreviousMs: comparable && previousTiming ? timing.cumulativeMs - previousTiming.cumulativeMs : undefined,
-      cumulativeDeltaVsPersonalBestMs: comparable && pbTiming ? timing.cumulativeMs - pbTiming.cumulativeMs : undefined,
+      previousMs: previousComparable ? previousTiming.elapsedMs : undefined,
+      personalBestMs: pbComparable ? pbTiming.elapsedMs : undefined,
+      deltaVsPreviousMs: comparable && previousComparable ? timing.elapsedMs - previousTiming.elapsedMs : undefined,
+      deltaVsPersonalBestMs: comparable && pbComparable ? timing.elapsedMs - pbTiming.elapsedMs : undefined,
+      cumulativeDeltaVsPreviousMs: comparable && previousComparable ? timing.cumulativeMs - previousTiming.cumulativeMs : undefined,
+      cumulativeDeltaVsPersonalBestMs: comparable && pbComparable ? timing.cumulativeMs - pbTiming.cumulativeMs : undefined,
     };
   });
 
