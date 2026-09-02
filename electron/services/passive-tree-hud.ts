@@ -1,13 +1,15 @@
 import { desktopCapturer, screen, type Display } from 'electron';
 import {
   edgeIndicatorForTarget,
+  passiveHudScopesForTargets,
   passiveHudTarget,
   projectPassiveTreePoint,
   registerPassiveTreePointCloud,
   selectPassiveHudAnchors,
+  type PassiveTreeRegistration,
   type ScreenPoint,
 } from '../../src/core/passive-tree-hud';
-import { hasPassiveTreeGeometry, indexPassiveNodes, type PassiveTreeSnapshot } from '../../src/core/passive-data';
+import { hasPassiveTreeGeometry, indexPassiveNodes, passiveNodeScopeKey, type PassiveTreeScopeKey, type PassiveTreeSnapshot } from '../../src/core/passive-data';
 import type { PassiveTreeGuidePlan } from '../../src/core/passive-tree-guide';
 import { passiveTreeHudIdle, type PassiveTreeHudPathPoint, type PassiveTreeHudState } from '../../src/core/passive-tree-hud-state';
 import { detectPassiveTreeNodeCandidates } from '../../src/core/passive-tree-vision';
@@ -64,6 +66,8 @@ function stateFingerprint(state: PassiveTreeHudState): string {
     state.visible,
     state.mode ?? '',
     state.className ?? '',
+    state.treeScope ?? '',
+    state.ascendancyName ?? '',
     state.displayId ?? '',
     target?.nodeId ?? '',
     target ? Math.round(target.x) : '',
@@ -161,7 +165,7 @@ export class PassiveTreeHudService {
         sourceLabel: guide.sourceLabel,
         className: guide.className,
         classStartNodeId: guide.classStartNodeId,
-        message: 'The active passive target has no fixed base-tree geometry. Text guidance remains available.',
+        message: 'The active passive target has no fixed passive-tree geometry. Text guidance remains available.',
       };
     }
     return undefined;
@@ -222,29 +226,46 @@ export class PassiveTreeHudService {
       radii: [3, 4, 5, 6, 8, 10, 12, 15, 18], stride: 4, angularSamples: 12,
       minimumContrast: 14, minimumCoverage: 0.54, maximumCandidates: 150,
     });
+    const nodes = indexPassiveNodes(snapshot);
     const targetNodeIds = guideTargetIds(guide);
-    const anchors = selectPassiveHudAnchors(snapshot, guide.operations, guide.cursor, {
-      recentOperations: 8,
-      upcomingOperations: 8,
-      neighbourDepth: 2,
-      maxAnchors: 22,
-      targetNodeIds,
-      className: guide.className,
-      classStartNodeId: guide.classStartNodeId,
-    });
-    if (anchors.length < 4 || candidates.length < 4) return undefined;
+    const scopes = passiveHudScopesForTargets(snapshot, targetNodeIds);
+    if (!scopes.length || candidates.length < 4) return undefined;
 
-    const registration = registerPassiveTreePointCloud(anchors, candidates, {
-      minScale: 0.006, maxScale: 0.35, tolerancePx: 10,
-      minInliers: Math.min(6, Math.max(4, Math.ceil(anchors.length * 0.3))),
-      maxTreePairs: 56, maxScreenCandidates: 120, allowYFlip: false,
-    });
-    if (!registration || registration.confidence < 0.68 || registration.rms > 7.5) return undefined;
+    let best: { scopeKey: PassiveTreeScopeKey; registration: PassiveTreeRegistration; anchors: number } | undefined;
+    for (const scopeKey of scopes) {
+      const scopedTargets = targetNodeIds.filter((nodeId) => passiveNodeScopeKey(nodes.get(nodeId)) === scopeKey);
+      const anchors = selectPassiveHudAnchors(snapshot, guide.operations, guide.cursor, {
+        recentOperations: 8,
+        upcomingOperations: 8,
+        neighbourDepth: 2,
+        maxAnchors: 22,
+        targetNodeIds: scopedTargets,
+        className: guide.className,
+        classStartNodeId: guide.classStartNodeId,
+        scopeKey,
+      });
+      if (anchors.length < 4) continue;
+      const registration = registerPassiveTreePointCloud(anchors, candidates, {
+        minScale: 0.006, maxScale: scopeKey === 'base' ? 0.35 : 0.6, tolerancePx: scopeKey === 'base' ? 10 : 11,
+        minInliers: Math.min(6, Math.max(4, Math.ceil(anchors.length * 0.3))),
+        maxTreePairs: 56, maxScreenCandidates: 120, allowYFlip: false,
+      });
+      if (!registration || registration.confidence < 0.68 || registration.rms > 7.5) continue;
+      if (!best
+        || registration.confidence > best.registration.confidence + 0.02
+        || (Math.abs(registration.confidence - best.registration.confidence) <= 0.02 && registration.inliers > best.registration.inliers)
+        || (registration.inliers === best.registration.inliers && registration.rms < best.registration.rms)) {
+        best = { scopeKey, registration, anchors: anchors.length };
+      }
+    }
+    if (!best) return undefined;
 
+    const { scopeKey, registration } = best;
+    const scopeNode = targetNodeIds.map((nodeId) => nodes.get(nodeId)).find((node) => passiveNodeScopeKey(node) === scopeKey);
+    const ascendancyName = scopeKey === 'base' ? undefined : scopeNode?.ascendancyName;
     const candidateRadius = median(registration.matches.map((match) => match.screen.radius).filter((radius): radius is number => Number.isFinite(radius)));
     const radiusScale = display.bounds.width / capture.width;
     const markerRadius = Math.max(15, Math.min(64, (candidateRadius ?? 8) * radiusScale * 1.35));
-    const nodes = indexPassiveNodes(snapshot);
     const path: PassiveTreeHudPathPoint[] = [];
 
     if (guide.mode === 'exact' && context.pathPreview) {
@@ -255,7 +276,7 @@ export class PassiveTreeHudService {
         const operation = guide.operations[index];
         if (!operation || used.has(operation.nodeId)) continue;
         const node = nodes.get(operation.nodeId);
-        if (!node || node.x === undefined || node.y === undefined) continue;
+        if (!node || passiveNodeScopeKey(node) !== scopeKey || node.x === undefined || node.y === undefined) continue;
         used.add(operation.nodeId);
         const capturePoint = projectPassiveTreePoint(registration.transform, { x: node.x, y: node.y });
         const local = mapCaptureToLocalDisplay(capturePoint, capture, display);
@@ -267,7 +288,7 @@ export class PassiveTreeHudService {
     if (guide.mode === 'stage') {
       for (const stageTarget of guide.stageTargets) {
         const node = nodes.get(stageTarget.nodeId);
-        if (!node || node.x === undefined || node.y === undefined) continue;
+        if (!node || passiveNodeScopeKey(node) !== scopeKey || node.x === undefined || node.y === undefined) continue;
         const capturePoint = projectPassiveTreePoint(registration.transform, { x: node.x, y: node.y });
         const local = mapCaptureToLocalDisplay(capturePoint, capture, display);
         const offscreen = local.x < -80 || local.y < -80 || local.x > display.bounds.width + 80 || local.y > display.bounds.height + 80;
@@ -276,7 +297,7 @@ export class PassiveTreeHudService {
     }
 
     let targetState: PassiveTreeHudState['target'];
-    if (guide.target) {
+    if (guide.target && passiveNodeScopeKey(nodes.get(guide.target.nodeId)) === scopeKey) {
       const treeTarget = passiveHudTarget(snapshot, guide.target.nodeId);
       if (treeTarget) {
         const captureTarget = projectPassiveTreePoint(registration.transform, treeTarget);
@@ -299,12 +320,14 @@ export class PassiveTreeHudService {
       }
     }
 
+    const scopeLabel = ascendancyName ? `${ascendancyName} Ascendancy` : `${guide.className ?? 'Base'} passive tree`;
     return {
       status: 'locked', enabled: true, visible: Boolean(targetState || path.some((point) => !point.offscreen)),
       mode: guide.mode, sourceLabel: guide.sourceLabel, className: guide.className, classStartNodeId: guide.classStartNodeId,
+      treeScope: ascendancyName ? 'ascendancy' : 'base', ascendancyName,
       message: guide.mode === 'exact'
-        ? `Passive tree aligned with ${registration.inliers} anchors for ${guide.className ?? 'the active build'}.`
-        : `${guide.message} Tree aligned with ${registration.inliers} anchors.`,
+        ? `${scopeLabel} aligned with ${registration.inliers} anchors.`
+        : `${guide.message} ${scopeLabel} aligned with ${registration.inliers} anchors.`,
       confidence: registration.confidence, inliers: registration.inliers, rms: registration.rms,
       displayId: display.id, displayBounds: { ...display.bounds }, captureSize: capture,
       lastLockedAt: new Date().toISOString(), target: targetState, path,

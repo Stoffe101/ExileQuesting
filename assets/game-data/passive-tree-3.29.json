@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
   "gameVersion": "3.29",
-  "generatedAt": "2026-09-02T16:46:52.374Z",
+  "generatedAt": "2026-09-02T17:31:04.383Z",
   "source": {
     "url": "https://www.pathofexile.com/passive-skill-tree",
-    "sha256": "b83ee333e810640dc8ee105d15951c98fe13fd5ff21c33875aeaf6e4bedb19c0"
+    "sha256": "16def5b6b331c8330afd480af9606768f6efc13f7d7c9cd1067d43c27640c18d"
   },
   "nodes": [
     {
@@ -95,6 +95,7 @@
       "out": [
         33875
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusstrength.png"
     },
     {
@@ -172,6 +173,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 11,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElemancerIcon.png"
     },
     {
@@ -239,6 +241,8 @@
         40010,
         5929
       ],
+      "ascendancyName": "Guardian",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -355,6 +359,8 @@
         41464,
         16350
       ],
+      "ascendancyName": "Aul",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -398,6 +404,7 @@
       "out": [
         41996
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusstrengthdexterity.png"
     },
     {
@@ -443,6 +450,7 @@
       "out": [
         53884
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageCasteSpeed.png"
     },
     {
@@ -454,6 +462,7 @@
       "group": 41,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanCurses2.png"
     },
     {
@@ -500,6 +509,7 @@
       "group": 351,
       "orbit": 3,
       "orbitIndex": 11,
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADBloodAndSand.png"
     },
     {
@@ -517,6 +527,7 @@
         6778,
         58827
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -578,6 +589,7 @@
       "out": [
         28535
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMovementSpeed.png"
     },
     {
@@ -643,6 +655,7 @@
       "out": [
         29994
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/MindOverBody.png"
     },
     {
@@ -680,6 +693,7 @@
       "out": [
         53095
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenStrength.png"
     },
     {
@@ -737,6 +751,7 @@
       "out": [
         14870
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/SpiritualEmpowerment.png"
     },
     {
@@ -990,6 +1005,7 @@
       "out": [
         61133
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable4.png"
     },
     {
@@ -1126,6 +1142,7 @@
       "out": [
         8419
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADBlockChance.png"
     },
     {
@@ -1155,6 +1172,7 @@
       "out": [
         20480
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/Master Toxicist.png"
     },
     {
@@ -1197,6 +1215,7 @@
       "out": [
         2872
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -1211,6 +1230,7 @@
       "out": [
         982
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/HinekoraDeathsFury.png"
     },
     {
@@ -1226,6 +1246,7 @@
         23972,
         62349
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Unflinching.png"
     },
     {
@@ -1311,6 +1332,7 @@
       "group": 792,
       "orbit": 4,
       "orbitIndex": 28,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/DeadlyInfusion.png"
     },
     {
@@ -1325,6 +1347,7 @@
       "out": [
         16940
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -1353,6 +1376,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable12.png"
     },
     {
@@ -1381,6 +1405,7 @@
       "out": [
         40104
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/TincturesNode.png"
     },
     {
@@ -1588,6 +1613,7 @@
       "out": [
         48999
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/DefensiveNodeTrickster.png"
     },
     {
@@ -1693,6 +1719,7 @@
         59067,
         40276
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/ReliquarianAscendancyCenter.png"
     },
     {
@@ -1742,6 +1769,7 @@
       "out": [
         51782
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -1768,6 +1796,7 @@
       "group": 351,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADVersitileCombatant.png"
     },
     {
@@ -1796,6 +1825,7 @@
       "out": [
         57472
       ],
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AbyssNode1.png"
     },
     {
@@ -1825,6 +1855,7 @@
       "group": 129,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/MeldingoftheFleshNode.png"
     },
     {
@@ -1882,6 +1913,7 @@
       "out": [
         62136
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/Mirage.png"
     },
     {
@@ -1980,6 +2012,7 @@
       "group": 40,
       "orbit": 4,
       "orbitIndex": 28,
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/CriticalStrikeChance.png"
     },
     {
@@ -2005,6 +2038,7 @@
       "group": 517,
       "orbit": 4,
       "orbitIndex": 38,
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/BaneOfLegends.png"
     },
     {
@@ -2170,6 +2204,7 @@
       "group": 29,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/GuardianHallowingFlameNotable.png"
     },
     {
@@ -2239,6 +2274,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 25,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/EssenceGlutton.png"
     },
     {
@@ -2297,6 +2333,7 @@
       "out": [
         52575
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADOneHand.png"
     },
     {
@@ -2387,6 +2424,7 @@
       "group": 26,
       "orbit": 3,
       "orbitIndex": 9,
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNotable1.png"
     },
     {
@@ -2517,6 +2555,7 @@
       "group": 56,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Berserker.png"
     },
     {
@@ -2567,6 +2606,7 @@
         55686,
         33954
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/UnstableInfusion.png"
     },
     {
@@ -2581,6 +2621,7 @@
       "out": [
         43670
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistNode.png"
     },
     {
@@ -2783,6 +2824,7 @@
       "out": [
         16745
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/Radient Crusade.png"
     },
     {
@@ -2951,6 +2993,7 @@
       "out": [
         12146
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenBarkskin1.png"
     },
     {
@@ -2977,6 +3020,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 8,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/IridescentFlesh.png"
     },
     {
@@ -3141,6 +3185,7 @@
       "out": [
         61627
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -3155,6 +3200,7 @@
       "out": [
         1953
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ShadowsDarknessBlind.png"
     },
     {
@@ -3257,6 +3303,7 @@
       "group": 78,
       "orbit": 4,
       "orbitIndex": 12,
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenPrimitivism.png"
     },
     {
@@ -3389,6 +3436,7 @@
       "out": [
         36017
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/IncreasedMinionDamageIncreasedSkillDuration.png"
     },
     {
@@ -3414,6 +3462,7 @@
       "group": 797,
       "orbit": 3,
       "orbitIndex": 9,
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/Mark.png"
     },
     {
@@ -3428,6 +3477,7 @@
       "out": [
         12860
       ],
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNode.png"
     },
     {
@@ -3465,6 +3515,7 @@
       "group": 367,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/EldrichBarrier.png"
     },
     {
@@ -3618,6 +3669,7 @@
       "out": [
         48480
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenTotemPlacementSpeed.png"
     },
     {
@@ -3677,6 +3729,7 @@
       "group": 34,
       "orbit": 3,
       "orbitIndex": 3,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Unstoppable.png"
     },
     {
@@ -3719,6 +3772,7 @@
       "out": [
         9271
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgLeech.png"
     },
     {
@@ -3761,6 +3815,7 @@
       "out": [
         31364
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -3775,6 +3830,7 @@
       "out": [
         3458
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/GuardianHallowingFlameNode.png"
     },
     {
@@ -3818,6 +3874,7 @@
       "out": [
         31667
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenTotemPlacementSpeed.png"
     },
     {
@@ -3829,6 +3886,7 @@
       "group": 793,
       "orbit": 3,
       "orbitIndex": 0,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/VeteranBowyer.png"
     },
     {
@@ -3871,6 +3929,7 @@
       "out": [
         4917
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageElementalResistances.png"
     },
     {
@@ -3885,6 +3944,7 @@
       "out": [
         46676
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -4092,6 +4152,7 @@
       "group": 36,
       "orbit": 3,
       "orbitIndex": 3,
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachNotable4.png"
     },
     {
@@ -4400,6 +4461,7 @@
       "out": [
         62504
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldCriticalStrikeChance.png"
     },
     {
@@ -4456,6 +4518,7 @@
       "group": 96,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Trickster.png"
     },
     {
@@ -4630,6 +4693,7 @@
       "out": [
         56967
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnETaunt.png"
     },
     {
@@ -4923,6 +4987,7 @@
       "out": [
         57290
       ],
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNode1.png"
     },
     {
@@ -4955,6 +5020,7 @@
       "group": 8,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNotable5.png"
     },
     {
@@ -5053,6 +5119,8 @@
         39381,
         19078
       ],
+      "ascendancyName": "Brinerot",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -5093,6 +5161,7 @@
         45035,
         39821
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Dex.png"
     },
     {
@@ -5341,6 +5410,7 @@
       "group": 33,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNoteble2.png"
     },
     {
@@ -5359,6 +5429,7 @@
       "group": 99,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/SandsofTimeNode.png"
     },
     {
@@ -5375,6 +5446,8 @@
         5452,
         60686
       ],
+      "ascendancyName": "Necromantic",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -5403,6 +5476,7 @@
       "out": [
         58438
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothRune3.png"
     },
     {
@@ -5445,6 +5519,7 @@
       "out": [
         53414
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenBarkskin1.png"
     },
     {
@@ -5463,6 +5538,7 @@
       "group": 77,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Elementalist.png"
     },
     {
@@ -5531,6 +5607,7 @@
       "out": [
         24538
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADPainForged.png"
     },
     {
@@ -5650,6 +5727,7 @@
       "out": [
         38999
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgAttackSpeed.png"
     },
     {
@@ -5704,6 +5782,7 @@
       "out": [
         47767
       ],
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNode1.png"
     },
     {
@@ -5745,6 +5824,7 @@
       "group": 85,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Raider.png"
     },
     {
@@ -5895,6 +5975,7 @@
       "group": 132,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ScreamsoftheDesiccatedNode.png"
     },
     {
@@ -5910,6 +5991,7 @@
         39142,
         24924
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanBloodMagic1.png"
     },
     {
@@ -5939,6 +6021,7 @@
       "out": [
         46676
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -6017,6 +6100,8 @@
         44848,
         17570
       ],
+      "ascendancyName": "Catarina",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -6106,6 +6191,7 @@
       "out": [
         35989
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -6145,6 +6231,7 @@
       "group": 28,
       "orbit": 3,
       "orbitIndex": 5,
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DefyPain.png"
     },
     {
@@ -6177,6 +6264,7 @@
       "group": 91,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Pathfinder.png"
     },
     {
@@ -6322,6 +6410,8 @@
         29259,
         32605
       ],
+      "ascendancyName": "Warden",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -6347,6 +6437,7 @@
       "group": 11,
       "orbit": 3,
       "orbitIndex": 5,
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlineNotable.png"
     },
     {
@@ -6584,6 +6675,8 @@
         46649,
         48836
       ],
+      "ascendancyName": "KingInTheMists",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -6614,6 +6707,8 @@
         46704,
         39486
       ],
+      "ascendancyName": "Delirious",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -6628,6 +6723,7 @@
       "out": [
         1731
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenFireDamage.png"
     },
     {
@@ -6724,6 +6820,7 @@
       "group": 81,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Necromancer.png"
     },
     {
@@ -6739,6 +6836,8 @@
         58833,
         35936
       ],
+      "ascendancyName": "Reliquarian",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -6785,6 +6884,7 @@
       "out": [
         34215
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/BrutalFervor.png"
     },
     {
@@ -6848,6 +6948,7 @@
       "out": [
         61355
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenFireDamage.png"
     },
     {
@@ -6998,6 +7099,7 @@
       "group": 47,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanSpecialCurse2.png"
     },
     {
@@ -7012,6 +7114,7 @@
       "out": [
         34229
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistNode.png"
     },
     {
@@ -7088,6 +7191,8 @@
         10539,
         24462
       ],
+      "ascendancyName": "Primalist",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -7102,6 +7207,7 @@
       "out": [
         39790
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageAvoidElementalStatusEffects.png"
     },
     {
@@ -7153,6 +7259,7 @@
         43376,
         21785
       ],
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlineNotable.png"
     },
     {
@@ -7278,6 +7385,8 @@
         31878,
         34952
       ],
+      "ascendancyName": "Farrul",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -7317,6 +7426,7 @@
       "out": [
         25187
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothNotable.png"
     },
     {
@@ -7413,6 +7523,7 @@
       "out": [
         922
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -7569,6 +7680,7 @@
       "out": [
         61478
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/Inpirational.png"
     },
     {
@@ -7651,6 +7763,7 @@
       "out": [
         23509
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/PlagueBringer.png"
     },
     {
@@ -7754,6 +7867,7 @@
       "group": 796,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenBarkskin2.png"
     },
     {
@@ -8040,6 +8154,7 @@
         27054,
         25795
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/ReliquarianAscendancyCenter.png"
     },
     {
@@ -8155,6 +8270,7 @@
       "out": [
         11597
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/SpellSuppressionEvasion.png"
     },
     {
@@ -8310,6 +8426,7 @@
       "out": [
         43902
       ],
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/RitualBloodlineNode.png"
     },
     {
@@ -8413,6 +8530,7 @@
       "out": [
         40810
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageFreezeShockIgnite.png"
     },
     {
@@ -8463,6 +8581,7 @@
       "out": [
         18519
       ],
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MoreWildWispsSmall.png"
     },
     {
@@ -8474,6 +8593,7 @@
       "group": 84,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Occultist.png"
     },
     {
@@ -8541,6 +8661,7 @@
       "out": [
         53123
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageFreezeShockIgnite.png"
     },
     {
@@ -8662,6 +8783,7 @@
       "out": [
         4242
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -8688,6 +8810,7 @@
       "group": 39,
       "orbit": 3,
       "orbitIndex": 1,
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNotable1.png"
     },
     {
@@ -8919,6 +9042,7 @@
       "out": [
         55867
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/OffensiveNodeTrickster.png"
     },
     {
@@ -8986,6 +9110,7 @@
       "group": 18,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/CrustaceousGrowth2.png"
     },
     {
@@ -8997,6 +9122,7 @@
       "group": 427,
       "orbit": 3,
       "orbitIndex": 11,
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/ImpalePassiveNotable.png"
     },
     {
@@ -9192,6 +9318,7 @@
       "group": 40,
       "orbit": 4,
       "orbitIndex": 33,
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/InstrumentsofZeal.png"
     },
     {
@@ -9292,6 +9419,7 @@
       "group": 24,
       "orbit": 2,
       "orbitIndex": 12,
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/ExpeditionNode1.png"
     },
     {
@@ -9433,6 +9561,7 @@
       "group": 795,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ExplosivesExpert.png"
     },
     {
@@ -9480,6 +9609,7 @@
       "group": 793,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectFlaskDuration.png"
     },
     {
@@ -9518,6 +9648,7 @@
       "group": 16,
       "orbit": 3,
       "orbitIndex": 6,
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/SpiritualAid.png"
     },
     {
@@ -9672,6 +9803,7 @@
       "group": 14,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampGazeoftheLichNode4.png"
     },
     {
@@ -9683,6 +9815,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 18,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/DefensiveMinionNotable.png"
     },
     {
@@ -9726,6 +9859,7 @@
       "out": [
         758
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADOneHand.png"
     },
     {
@@ -9809,6 +9943,7 @@
       "out": [
         34434
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -9871,6 +10006,7 @@
       "out": [
         50692
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenFireDamage.png"
     },
     {
@@ -10114,6 +10250,7 @@
       "out": [
         3184
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgSpeed.png"
     },
     {
@@ -10214,6 +10351,7 @@
         42144,
         30919
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -10333,6 +10471,7 @@
       "out": [
         2460
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -10361,6 +10500,7 @@
       "out": [
         55509
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -10397,6 +10537,7 @@
       "group": 351,
       "orbit": 3,
       "orbitIndex": 7,
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADBloodInEyes.png"
     },
     {
@@ -10481,6 +10622,8 @@
       "out": [
         35877
       ],
+      "ascendancyName": "Luminary",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -10511,6 +10654,7 @@
         37670,
         27121
       ],
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/FarrulNotable1.png"
     },
     {
@@ -10608,6 +10752,7 @@
       "out": [
         63954
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable3.png"
     },
     {
@@ -10649,6 +10794,8 @@
         12738,
         47873
       ],
+      "ascendancyName": "Elementalist",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -10677,6 +10824,7 @@
       "out": [
         17988
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourLifeRegeneration.png"
     },
     {
@@ -10743,6 +10891,7 @@
       "out": [
         38918
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMines.png"
     },
     {
@@ -10834,6 +10983,7 @@
       "group": 2,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampAbyssalFiends.png"
     },
     {
@@ -10845,6 +10995,7 @@
       "group": 517,
       "orbit": 4,
       "orbitIndex": 13,
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/Charges.png"
     },
     {
@@ -10859,6 +11010,7 @@
       "out": [
         10696
       ],
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlineNode.png"
     },
     {
@@ -10940,6 +11092,7 @@
       "out": [
         15544
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -10991,6 +11144,7 @@
       "out": [
         19641
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/Minion Damage Armour and Energy Shield.png"
     },
     {
@@ -11080,6 +11234,7 @@
       "out": [
         61761
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenColdAilments.png"
     },
     {
@@ -11141,6 +11296,7 @@
         26446,
         47366
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/BlindedAssult.png"
     },
     {
@@ -11187,6 +11343,7 @@
       "group": 82,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/VaalCaressNode.png"
     },
     {
@@ -11201,6 +11358,7 @@
       "out": [
         31344
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldManaReservation.png"
     },
     {
@@ -11254,6 +11412,7 @@
       "group": 17,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/TideCaller.png"
     },
     {
@@ -11370,6 +11529,8 @@
         60118,
         7403
       ],
+      "ascendancyName": "Trialmaster",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -11381,6 +11542,7 @@
       "group": 16,
       "orbit": 3,
       "orbitIndex": 2,
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/SpiritualCommand.png"
     },
     {
@@ -11392,6 +11554,7 @@
       "group": 517,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/CriticalAttacks.png"
     },
     {
@@ -11443,6 +11606,7 @@
       "group": 113,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/XirgilsCrankNode.png"
     },
     {
@@ -11510,6 +11674,7 @@
       "out": [
         63357
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -11581,6 +11746,7 @@
       "out": [
         59826
       ],
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LichNode1.png"
     },
     {
@@ -11677,6 +11843,8 @@
         63417,
         16093
       ],
+      "ascendancyName": "Juggernaut",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -11858,6 +12026,7 @@
       "group": 34,
       "orbit": 3,
       "orbitIndex": 7,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Unbreakable.png"
     },
     {
@@ -11911,6 +12080,7 @@
       "group": 60,
       "orbit": 4,
       "orbitIndex": 0,
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/MasteryBlank.png"
     },
     {
@@ -11941,6 +12111,7 @@
       "out": [
         35989
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -12058,6 +12229,7 @@
       "out": [
         48719
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/IncreasedMinionDamageIncreasedSkillDuration.png"
     },
     {
@@ -12069,6 +12241,7 @@
       "group": 791,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/Ambush.png"
     },
     {
@@ -12126,6 +12299,8 @@
         32417,
         17018
       ],
+      "ascendancyName": "Occultist",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -12193,6 +12368,7 @@
       "group": 19,
       "orbit": 2,
       "orbitIndex": 11,
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MoreWildWisps.png"
     },
     {
@@ -12214,6 +12390,7 @@
       "out": [
         3554
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/ManaNode.png"
     },
     {
@@ -12241,6 +12418,8 @@
         869,
         64785
       ],
+      "ascendancyName": "Saboteur",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -12530,6 +12709,7 @@
       "out": [
         13362
       ],
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/CrustaceousGrowth.png"
     },
     {
@@ -12544,6 +12724,7 @@
       "out": [
         9014
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/Assassinate.png"
     },
     {
@@ -12613,6 +12794,7 @@
       "group": 10,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampGazeoftheLichNode2.png"
     },
     {
@@ -12729,6 +12911,7 @@
         27055,
         35739
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/InstrumentsOfVirtue.png"
     },
     {
@@ -12744,6 +12927,7 @@
         36958,
         29662
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/TincturesNode.png"
     },
     {
@@ -12794,6 +12978,7 @@
       "out": [
         29825
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/DefensiveNodeTrickster.png"
     },
     {
@@ -12808,6 +12993,7 @@
       "out": [
         57197
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageAttackCasteSpeed.png"
     },
     {
@@ -12823,6 +13009,7 @@
         23024,
         47531
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/ToxicDelivery.png"
     },
     {
@@ -12865,6 +13052,7 @@
       "group": 29,
       "orbit": 4,
       "orbitIndex": 19,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/Unwavering Crusade.png"
     },
     {
@@ -12900,6 +13088,7 @@
       "out": [
         57850
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -13116,6 +13305,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable11.png"
     },
     {
@@ -13159,6 +13349,7 @@
       "out": [
         64768
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ArmourEnergyShieldManaPool.png"
     },
     {
@@ -13198,6 +13389,7 @@
       "group": 100,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/FidelitasSpikeNode.png"
     },
     {
@@ -13318,6 +13510,7 @@
       "group": 793,
       "orbit": 2,
       "orbitIndex": 9,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectDamageOverTime.png"
     },
     {
@@ -13433,6 +13626,7 @@
       "out": [
         41197
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -13555,6 +13749,7 @@
       "group": 41,
       "orbit": 4,
       "orbitIndex": 22,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanBloodMagic2.png"
     },
     {
@@ -13583,6 +13778,7 @@
       "out": [
         38180
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgAOE.png"
     },
     {
@@ -13740,6 +13936,7 @@
       "group": 792,
       "orbit": 4,
       "orbitIndex": 1,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/ChaosDamageOverTimeNotable.png"
     },
     {
@@ -13792,6 +13989,7 @@
       "group": 790,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/Ambush.png"
     },
     {
@@ -14036,6 +14234,7 @@
       "group": 6,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlinechargedex.png"
     },
     {
@@ -14288,6 +14487,7 @@
       "out": [
         29914
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistNode.png"
     },
     {
@@ -14453,6 +14653,7 @@
       "out": [
         36489
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -14556,6 +14757,7 @@
       "out": [
         41534
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusstrengthintelligence.png"
     },
     {
@@ -14624,6 +14826,7 @@
       "group": 83,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/DawnbreakerNode.png"
     },
     {
@@ -14638,6 +14841,7 @@
       "out": [
         25651
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -14759,6 +14963,7 @@
       "out": [
         23169
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAttackSpeed.png"
     },
     {
@@ -14848,6 +15053,7 @@
       "group": 792,
       "orbit": 3,
       "orbitIndex": 15,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -14957,6 +15163,7 @@
       "out": [
         58281
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -14968,6 +15175,7 @@
       "group": 797,
       "orbit": 4,
       "orbitIndex": 27,
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/ProtectiveWinds.png"
     },
     {
@@ -15022,6 +15230,7 @@
       "group": 794,
       "orbit": 4,
       "orbitIndex": 23,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/OneStepAheadTrickster.png"
     },
     {
@@ -15193,6 +15402,7 @@
       "out": [
         23572
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/CorpseConsumptionNode.png"
     },
     {
@@ -15240,6 +15450,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 12,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/CorpseConsumptionNotable2.png"
     },
     {
@@ -15436,6 +15647,7 @@
       "group": 35,
       "orbit": 4,
       "orbitIndex": 12,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourAttackDamage.png"
     },
     {
@@ -15566,6 +15778,7 @@
       "out": [
         36958
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/TincturesNode.png"
     },
     {
@@ -15720,6 +15933,7 @@
       "out": [
         33645
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -15748,6 +15962,7 @@
       "out": [
         63623
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistNode.png"
     },
     {
@@ -15808,6 +16023,7 @@
       "group": 28,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/CombatFrenzy.png"
     },
     {
@@ -15822,6 +16038,7 @@
       "out": [
         2598
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADBlockChance.png"
     },
     {
@@ -15915,6 +16132,8 @@
         14996,
         10238
       ],
+      "ascendancyName": "Chieftain",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -15970,6 +16189,7 @@
         31628,
         50904
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Str.png"
     },
     {
@@ -15984,6 +16204,7 @@
       "out": [
         63362
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -16012,6 +16233,7 @@
         34774,
         43195
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -16042,6 +16264,7 @@
       "out": [
         22852
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/GatherWinds.png"
     },
     {
@@ -16128,6 +16351,7 @@
       "out": [
         20931
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -16171,6 +16395,8 @@
         43725,
         41433
       ],
+      "ascendancyName": "Champion",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -16235,6 +16461,7 @@
       "out": [
         11412
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnEAura.png"
     },
     {
@@ -16264,6 +16491,7 @@
       "out": [
         39834
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMines.png"
     },
     {
@@ -16314,6 +16542,7 @@
       "group": 24,
       "orbit": 2,
       "orbitIndex": 4,
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/ExpeditionNode1.png"
     },
     {
@@ -16396,6 +16625,7 @@
       "group": 367,
       "orbit": 4,
       "orbitIndex": 27,
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/WitheringPresence.png"
     },
     {
@@ -16640,6 +16870,7 @@
       "group": 37,
       "orbit": 3,
       "orbitIndex": 4,
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/DiscipleOfRuin.png"
     },
     {
@@ -16669,6 +16900,7 @@
       "out": [
         28609
       ],
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AbyssNode1.png"
     },
     {
@@ -16807,6 +17039,7 @@
       "group": 115,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/RiriTeNgamahuNode.png"
     },
     {
@@ -16875,6 +17108,7 @@
       "group": 49,
       "orbit": 3,
       "orbitIndex": 8,
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable6.png"
     },
     {
@@ -16978,6 +17212,7 @@
       "group": 104,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ShatteredDivinityNode.png"
     },
     {
@@ -16989,6 +17224,7 @@
       "group": 797,
       "orbit": 4,
       "orbitIndex": 38,
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/Additionalprojectile.png"
     },
     {
@@ -17128,6 +17364,7 @@
       "out": [
         54159
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/IncreasedMinionDamageIncreasedMinionLife.png"
     },
     {
@@ -17175,6 +17412,7 @@
       "out": [
         38918
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMines.png"
     },
     {
@@ -17299,6 +17537,7 @@
       "out": [
         8982
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -17378,6 +17617,7 @@
       "out": [
         1105
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -17481,6 +17721,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ShockSpecialisation.png"
     },
     {
@@ -17492,6 +17733,7 @@
       "group": 118,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/AldihNode.png"
     },
     {
@@ -17506,6 +17748,7 @@
       "out": [
         13851
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageAttackCasteSpeed.png"
     },
     {
@@ -17521,6 +17764,7 @@
         31316,
         43242
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/VoidBeacon.png"
     },
     {
@@ -17546,6 +17790,7 @@
       "group": 7,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNotable4.png"
     },
     {
@@ -17560,6 +17805,7 @@
       "out": [
         1564
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNode.png"
     },
     {
@@ -17891,6 +18137,7 @@
       "out": [
         4849
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/SpellSuppressionEvasion.png"
     },
     {
@@ -17944,6 +18191,7 @@
       "group": 427,
       "orbit": 4,
       "orbitIndex": 37,
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/FirstStrikeLastFall.png"
     },
     {
@@ -18083,6 +18331,7 @@
       "group": 31,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNotableStoneCircle.png"
     },
     {
@@ -18151,6 +18400,7 @@
       "out": [
         33179
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADViolence.png"
     },
     {
@@ -18173,6 +18423,7 @@
       "group": 26,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNotable1.png"
     },
     {
@@ -18498,6 +18749,7 @@
       "group": 795,
       "orbit": 3,
       "orbitIndex": 0,
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/PerfectCrime.png"
     },
     {
@@ -18531,6 +18783,7 @@
       "group": 43,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanSpecialCurse1.png"
     },
     {
@@ -18542,6 +18795,7 @@
       "group": 1,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampStygianSpires.png"
     },
     {
@@ -18667,6 +18921,7 @@
       "group": 792,
       "orbit": 4,
       "orbitIndex": 11,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/Elusive.png"
     },
     {
@@ -18728,6 +18983,7 @@
       "group": 794,
       "orbit": 2,
       "orbitIndex": 15,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/ImmuneToDoT.png"
     },
     {
@@ -18774,6 +19030,7 @@
       "out": [
         45313
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -18802,6 +19059,7 @@
       "out": [
         29994
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/MindOverBeing.png"
     },
     {
@@ -18925,6 +19183,7 @@
       "out": [
         5502
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldMaximumMana.png"
     },
     {
@@ -18988,6 +19247,7 @@
       "group": 78,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenTracking.png"
     },
     {
@@ -19002,6 +19262,7 @@
       "out": [
         29212
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -19035,6 +19296,8 @@
         8592,
         5865
       ],
+      "ascendancyName": "Berserker",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -19233,6 +19496,7 @@
       "group": 28,
       "orbit": 4,
       "orbitIndex": 3,
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/CloakedAgony.png"
     },
     {
@@ -19244,6 +19508,7 @@
       "group": 796,
       "orbit": 4,
       "orbitIndex": 5,
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenSaps2.png"
     },
     {
@@ -19312,6 +19577,7 @@
         58454,
         2336
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/HeedfulRecovery.png"
     },
     {
@@ -19323,6 +19589,7 @@
       "group": 792,
       "orbit": 3,
       "orbitIndex": 0,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/LifeGainOnHitNotable.png"
     },
     {
@@ -19379,6 +19646,7 @@
       "out": [
         54139
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/MasteryBlank.png"
     },
     {
@@ -19432,6 +19700,7 @@
       "group": 37,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -19471,6 +19740,7 @@
       "group": 25,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNotable1.png"
     },
     {
@@ -19597,6 +19867,7 @@
       "group": 32,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNotableMonsters2.png"
     },
     {
@@ -19817,6 +20088,7 @@
       "out": [
         699
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -19845,6 +20117,7 @@
       "out": [
         15900
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNode.png"
     },
     {
@@ -19877,6 +20150,7 @@
       "out": [
         24755
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -20042,6 +20316,7 @@
       "group": 67,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Guardian.png"
     },
     {
@@ -20074,6 +20349,8 @@
         26714,
         38387
       ],
+      "ascendancyName": "Hierophant",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -20274,6 +20551,7 @@
       "out": [
         25309
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/EnergyShieldChaos.png"
     },
     {
@@ -20292,6 +20570,7 @@
       "group": 367,
       "orbit": 4,
       "orbitIndex": 32,
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/FatefulEchoes.png"
     },
     {
@@ -20320,6 +20599,7 @@
       "out": [
         63940
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenLightningAilments.png"
     },
     {
@@ -20466,6 +20746,7 @@
       "group": 49,
       "orbit": 4,
       "orbitIndex": 23,
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable2.png"
     },
     {
@@ -20529,6 +20810,7 @@
       "out": [
         38689
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusdexterity.png"
     },
     {
@@ -20582,6 +20864,7 @@
       "group": 38,
       "orbit": 3,
       "orbitIndex": 7,
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/ArohunguiMoonsPresenceWarcry.png"
     },
     {
@@ -20617,6 +20900,7 @@
       "out": [
         35185
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/Fortitude.png"
     },
     {
@@ -20708,6 +20992,7 @@
       "out": [
         15739
       ],
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNode1.png"
     },
     {
@@ -20754,6 +21039,8 @@
         8638,
         32740
       ],
+      "ascendancyName": "Lycia",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -20796,6 +21083,7 @@
       "out": [
         37127
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldManaReservation.png"
     },
     {
@@ -20888,6 +21176,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable10.png"
     },
     {
@@ -20902,6 +21191,7 @@
       "out": [
         44297
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourAttackSpeed.png"
     },
     {
@@ -20970,6 +21260,7 @@
       "group": 19,
       "orbit": 3,
       "orbitIndex": 3,
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MoreVividWisps.png"
     },
     {
@@ -21032,6 +21323,7 @@
       "group": 38,
       "orbit": 4,
       "orbitIndex": 6,
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/ValakoStormsEmbrace.png"
     },
     {
@@ -21043,6 +21335,7 @@
       "group": 28,
       "orbit": 3,
       "orbitIndex": 0,
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/WarBringer.png"
     },
     {
@@ -21061,6 +21354,7 @@
       "group": 24,
       "orbit": 3,
       "orbitIndex": 8,
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothNotable.png"
     },
     {
@@ -21111,6 +21405,7 @@
       "out": [
         55146
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ArmourEnergyShieldDefenseFromShields.png"
     },
     {
@@ -21148,6 +21443,7 @@
       "out": [
         27096
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldAttackAndCastSpeed.png"
     },
     {
@@ -21299,6 +21595,7 @@
       "out": [
         5220
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -21310,6 +21607,7 @@
       "group": 793,
       "orbit": 3,
       "orbitIndex": 15,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectElementalResistance.png"
     },
     {
@@ -21342,6 +21640,7 @@
       "out": [
         40813
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectDamageOverTime.png"
     },
     {
@@ -21356,6 +21655,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable13.png"
     },
     {
@@ -21420,6 +21720,8 @@
         14726,
         37623
       ],
+      "ascendancyName": "Gladiator",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -21462,6 +21764,7 @@
       "out": [
         3872
       ],
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNode1.png"
     },
     {
@@ -21501,6 +21804,7 @@
       "group": 40,
       "orbit": 4,
       "orbitIndex": 4,
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/GloryOfTheSavant.png"
     },
     {
@@ -21555,6 +21859,7 @@
       "out": [
         37191
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/UncontrolledVigour.png"
     },
     {
@@ -21569,6 +21874,7 @@
       "out": [
         39728
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ArmourEnergyShieldStaves.png"
     },
     {
@@ -21640,6 +21946,7 @@
       "out": [
         60462
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -21654,6 +21961,7 @@
       "out": [
         15616
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADOneHand.png"
     },
     {
@@ -21777,6 +22085,7 @@
       "group": 130,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/KaomBeltNode.png"
     },
     {
@@ -21909,6 +22218,7 @@
       "out": [
         15550
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenFireAilments.png"
     },
     {
@@ -21931,6 +22241,7 @@
       "group": 25,
       "orbit": 3,
       "orbitIndex": 4,
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNotable1.png"
     },
     {
@@ -22102,6 +22413,8 @@
         61393,
         50845
       ],
+      "ascendancyName": "Slayer",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -22156,6 +22469,7 @@
       "out": [
         61437
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -22170,6 +22484,7 @@
       "out": [
         8243
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -22223,6 +22538,7 @@
       "group": 427,
       "orbit": 4,
       "orbitIndex": 29,
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/Unstopable.png"
     },
     {
@@ -22251,6 +22567,7 @@
       "out": [
         1945
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -22461,6 +22778,7 @@
       "out": [
         34484
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgLeech.png"
     },
     {
@@ -22486,6 +22804,7 @@
       "group": 60,
       "orbit": 3,
       "orbitIndex": 5,
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistCorpseLoot.png"
     },
     {
@@ -22598,6 +22917,7 @@
       "group": 37,
       "orbit": 4,
       "orbitIndex": 9,
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/AncestralZeal.png"
     },
     {
@@ -22612,6 +22932,7 @@
       "out": [
         30061
       ],
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNode1.png"
     },
     {
@@ -22649,6 +22970,7 @@
       "group": 517,
       "orbit": 4,
       "orbitIndex": 2,
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/EndlessHunger.png"
     },
     {
@@ -22735,6 +23057,7 @@
       "group": 93,
       "orbit": 1,
       "orbitIndex": 2,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Deadeye.png"
     },
     {
@@ -22830,6 +23153,7 @@
       "group": 78,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenSaps2.png"
     },
     {
@@ -22931,6 +23255,7 @@
       "group": 71,
       "orbit": 1,
       "orbitIndex": 3,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Gladiator.png"
     },
     {
@@ -22942,6 +23267,7 @@
       "group": 78,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenBarkskin2.png"
     },
     {
@@ -23026,6 +23352,7 @@
       "out": [
         48251
       ],
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNode1.png"
     },
     {
@@ -23071,6 +23398,7 @@
       "out": [
         17080
       ],
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/CrustaceousGrowth.png"
     },
     {
@@ -23096,6 +23424,7 @@
       "group": 13,
       "orbit": 3,
       "orbitIndex": 7,
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/FarrulNotable1.png"
     },
     {
@@ -23157,6 +23486,7 @@
       "out": [
         6344
       ],
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachBossClaspedHands.png"
     },
     {
@@ -23236,6 +23566,7 @@
       "out": [
         33940
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnEFortify.png"
     },
     {
@@ -23280,6 +23611,8 @@
         2643,
         25703
       ],
+      "ascendancyName": "Abyssal",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -23444,6 +23777,7 @@
       "group": 15,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampGazeoftheLichNode1.png"
     },
     {
@@ -23504,6 +23838,7 @@
       "group": 80,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/KaomsRootsNode.png"
     },
     {
@@ -23574,6 +23909,7 @@
       "out": [
         23225
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/OffensiveNodeTrickster.png"
     },
     {
@@ -23676,6 +24012,7 @@
       "out": [
         3154
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageAttackCasteSpeed.png"
     },
     {
@@ -23687,6 +24024,7 @@
       "group": 427,
       "orbit": 4,
       "orbitIndex": 6,
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/WorthyCauses.png"
     },
     {
@@ -23706,6 +24044,8 @@
         607,
         193
       ],
+      "ascendancyName": "Ascendant",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -23794,6 +24134,7 @@
       "out": [
         46479
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNode.png"
     },
     {
@@ -23848,6 +24189,7 @@
       "out": [
         22441
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -23893,6 +24235,7 @@
         33467,
         2768
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/ReliquarianAscendancyCenter.png"
     },
     {
@@ -23918,6 +24261,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 28,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/CommandingTheDarkness.png"
     },
     {
@@ -23932,6 +24276,7 @@
       "out": [
         27869
       ],
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNode1.png"
     },
     {
@@ -23957,6 +24302,7 @@
       "group": 133,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/GloomfangNode.png"
     },
     {
@@ -24073,6 +24419,7 @@
       "out": [
         51101
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectFlaskDuration.png"
     },
     {
@@ -24145,6 +24492,7 @@
       "out": [
         47543
       ],
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MorePrimalWispsSmall.png"
     },
     {
@@ -24214,6 +24562,7 @@
         35448,
         22628
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/ReliquarianAscendancyCenter.png"
     },
     {
@@ -24586,6 +24935,7 @@
       "group": 796,
       "orbit": 3,
       "orbitIndex": 1,
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/TinctureRangedNotable.png"
     },
     {
@@ -24637,6 +24987,7 @@
       "out": [
         61259
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageAttackCasteSpeed.png"
     },
     {
@@ -24648,6 +24999,7 @@
       "group": 367,
       "orbit": 4,
       "orbitIndex": 29,
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/LotusExtract.png"
     },
     {
@@ -24711,6 +25063,7 @@
       "group": 794,
       "orbit": 3,
       "orbitIndex": 11,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/OffensiveNodeTrickster.png"
     },
     {
@@ -24722,6 +25075,7 @@
       "group": 117,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/TheBlackCaneNode.png"
     },
     {
@@ -24778,6 +25132,7 @@
       "out": [
         42264
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ArmourEnergyShieldManaPool.png"
     },
     {
@@ -24814,6 +25169,7 @@
       "out": [
         48214
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageCasteSpeed.png"
     },
     {
@@ -24828,6 +25184,7 @@
       "out": [
         29161
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/SoulCatalyst.png"
     },
     {
@@ -24967,6 +25324,7 @@
       "out": [
         63490
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADBlockChance.png"
     },
     {
@@ -25030,6 +25388,7 @@
       "group": 12,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNotable6.png"
     },
     {
@@ -25128,6 +25487,8 @@
         13988,
         25187
       ],
+      "ascendancyName": "Olroth",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -25362,6 +25723,7 @@
       "group": 517,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/Impact.png"
     },
     {
@@ -25498,6 +25860,7 @@
       "out": [
         51492
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -25724,6 +26087,7 @@
       "out": [
         49532
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -25763,6 +26127,7 @@
       "out": [
         8066
       ],
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNode.png"
     },
     {
@@ -25883,6 +26248,7 @@
       "out": [
         14190
       ],
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LichNode1.png"
     },
     {
@@ -25922,6 +26288,7 @@
       "group": 795,
       "orbit": 4,
       "orbitIndex": 38,
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ChainReaction.png"
     },
     {
@@ -25998,6 +26365,7 @@
       "group": 28,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/Blitz.png"
     },
     {
@@ -26054,6 +26422,7 @@
       "out": [
         52780
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -26115,6 +26484,7 @@
       "out": [
         51685
       ],
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/CrustaceousGrowth.png"
     },
     {
@@ -26168,6 +26538,7 @@
       "out": [
         52408
       ],
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNode1.png"
     },
     {
@@ -26223,6 +26594,7 @@
       "group": 72,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Champion.png"
     },
     {
@@ -26341,6 +26713,7 @@
       "group": 29,
       "orbit": 3,
       "orbitIndex": 7,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ShieldMastery.png"
     },
     {
@@ -26434,6 +26807,7 @@
       "out": [
         57222
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/Sanctify.png"
     },
     {
@@ -26462,6 +26836,7 @@
       "out": [
         65153
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/IncreasedMinionDamageIncreasedMinionLife.png"
     },
     {
@@ -26488,6 +26863,7 @@
       "group": 795,
       "orbit": 4,
       "orbitIndex": 27,
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/DemolitionSpecialist.png"
     },
     {
@@ -26609,6 +26985,7 @@
       "out": [
         4494
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/Minion Damage Armour and Energy Shield.png"
     },
     {
@@ -26627,6 +27004,7 @@
       "group": 40,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/ElementalDomination.png"
     },
     {
@@ -26667,6 +27045,7 @@
       "out": [
         58650
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenSaps3.png"
     },
     {
@@ -26802,6 +27181,7 @@
       "group": 114,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ShimmeronNode.png"
     },
     {
@@ -26969,6 +27349,7 @@
       "out": [
         33167
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ArcaneSurge.png"
     },
     {
@@ -27034,6 +27415,7 @@
         65296,
         61805
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectElementalResistance.png"
     },
     {
@@ -27183,6 +27565,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ChillSpecialisation.png"
     },
     {
@@ -27194,6 +27577,7 @@
       "group": 793,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/MasterHerbalist.png"
     },
     {
@@ -27326,6 +27710,7 @@
       "out": [
         58438
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothRune2.png"
     },
     {
@@ -27407,6 +27792,7 @@
       "out": [
         51462
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMovementSpeed.png"
     },
     {
@@ -27487,6 +27873,7 @@
         48606,
         24764
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenSaps1.png"
     },
     {
@@ -27622,6 +28009,7 @@
       "out": [
         35011
       ],
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BestiaryNode1.png"
     },
     {
@@ -27638,6 +28026,8 @@
         63834,
         12542
       ],
+      "ascendancyName": "Oshabi",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -27677,6 +28067,7 @@
       "out": [
         13374
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/ImpalePassive.png"
     },
     {
@@ -27691,6 +28082,7 @@
       "out": [
         9437
       ],
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlineNode.png"
     },
     {
@@ -27754,6 +28146,7 @@
       "out": [
         15435
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -27912,6 +28305,7 @@
       "group": 794,
       "orbit": 4,
       "orbitIndex": 13,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/SupressionEnergyShieldTrickster.png"
     },
     {
@@ -27969,6 +28363,7 @@
       "out": [
         24798
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -28104,6 +28499,7 @@
       "group": 61,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Hierophant.png"
     },
     {
@@ -28150,6 +28546,7 @@
       "out": [
         20050
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/RadientFaith.png"
     },
     {
@@ -28164,6 +28561,7 @@
       "out": [
         62817
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgSpeed.png"
     },
     {
@@ -28195,6 +28593,8 @@
         26596,
         19689
       ],
+      "ascendancyName": "Warlock",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -28299,6 +28699,7 @@
       "out": [
         772
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -28392,6 +28793,7 @@
       "out": [
         32249
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenTotemPlacementSpeed.png"
     },
     {
@@ -28420,6 +28822,7 @@
       "out": [
         7618
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -28587,6 +28990,7 @@
       "out": [
         24528
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgAttackSpeed.png"
     },
     {
@@ -28729,6 +29133,7 @@
       "group": 94,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Assassin.png"
     },
     {
@@ -28778,6 +29183,7 @@
       "out": [
         19417
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageAttackCasteSpeed.png"
     },
     {
@@ -28789,6 +29195,7 @@
       "group": 68,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Slayer.png"
     },
     {
@@ -28803,6 +29210,7 @@
       "out": [
         28782
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -28817,6 +29225,7 @@
       "out": [
         47630
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/EnergyShieldCold.png"
     },
     {
@@ -28885,6 +29294,7 @@
       "out": [
         53992
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -28911,6 +29321,7 @@
       "group": 4,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlinechargestr.png"
     },
     {
@@ -29045,6 +29456,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable14.png"
     },
     {
@@ -29067,6 +29479,7 @@
       "group": 39,
       "orbit": 3,
       "orbitIndex": 4,
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNotable3.png"
     },
     {
@@ -29081,6 +29494,7 @@
       "out": [
         22174
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/MasteryBlank.png"
     },
     {
@@ -29138,6 +29552,7 @@
       "out": [
         27604
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnEAttDamage.png"
     },
     {
@@ -29205,6 +29620,7 @@
       "group": 101,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ArakaalisFangNode.png"
     },
     {
@@ -29216,6 +29632,7 @@
       "group": 23,
       "orbit": 4,
       "orbitIndex": 10,
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/RitualBloodLineNotable.png"
     },
     {
@@ -29234,6 +29651,7 @@
       "group": 63,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Inquisitor.png"
     },
     {
@@ -29463,6 +29881,7 @@
       "group": 35,
       "orbit": 3,
       "orbitIndex": 1,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Undeniable.png"
     },
     {
@@ -29622,6 +30041,7 @@
       "group": 797,
       "orbit": 2,
       "orbitIndex": 7,
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/DeadeyeFrenzyChargeNotable.png"
     },
     {
@@ -29780,6 +30200,7 @@
       "out": [
         40510
       ],
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ManaRegen.png"
     },
     {
@@ -29833,6 +30254,7 @@
       "out": [
         17309
       ],
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LichNode1.png"
     },
     {
@@ -29847,6 +30269,7 @@
       "out": [
         43902
       ],
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/RitualBloodlineNode.png"
     },
     {
@@ -30176,6 +30599,7 @@
       "out": [
         64028
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/FarShot.png"
     },
     {
@@ -30295,6 +30719,7 @@
       "out": [
         42546
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusintelligencedexterity.png"
     },
     {
@@ -30489,6 +30914,7 @@
       "out": [
         10143
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgLeech.png"
     },
     {
@@ -30500,6 +30926,7 @@
       "group": 41,
       "orbit": 3,
       "orbitIndex": 8,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanVoodooDoll.png"
     },
     {
@@ -30854,6 +31281,7 @@
         32095,
         19993
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable1.png"
     },
     {
@@ -30939,6 +31367,7 @@
       "out": [
         43902
       ],
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/RitualBloodlineNode.png"
     },
     {
@@ -30979,6 +31408,7 @@
         21264,
         18335
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/DamageOverTime.png"
     },
     {
@@ -31004,6 +31434,7 @@
       "out": [
         33670
       ],
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNode1.png"
     },
     {
@@ -31161,6 +31592,7 @@
       "out": [
         61372
       ],
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/ArmourEnergyMeleeDamage.png"
     },
     {
@@ -31200,6 +31632,7 @@
       "group": 103,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/AhnsMightNode.png"
     },
     {
@@ -31414,6 +31847,7 @@
       "out": [
         39834
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageMines.png"
     },
     {
@@ -31543,6 +31977,7 @@
         53095,
         31667
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/LifeRegenStrength.png"
     },
     {
@@ -31585,6 +32020,7 @@
       "out": [
         21192
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -31596,6 +32032,7 @@
       "group": 19,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MorePrimalWisps.png"
     },
     {
@@ -31614,6 +32051,7 @@
       "group": 367,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/FrigidWake.png"
     },
     {
@@ -31639,6 +32077,7 @@
       "group": 26,
       "orbit": 3,
       "orbitIndex": 5,
+      "ascendancyName": "Lycia",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/LyciaNotable1.png"
     },
     {
@@ -31653,6 +32092,7 @@
       "out": [
         63135
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/BombSpecialist.png"
     },
     {
@@ -31692,6 +32132,7 @@
       "out": [
         258
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageElementalResistances.png"
     },
     {
@@ -31744,6 +32185,7 @@
       "group": 79,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ElvoreNode.png"
     },
     {
@@ -31815,6 +32257,7 @@
       "out": [
         37492
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldMaximumMana.png"
     },
     {
@@ -31877,6 +32320,7 @@
       "group": 40,
       "orbit": 4,
       "orbitIndex": 16,
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/ElementalForce.png"
     },
     {
@@ -31888,6 +32332,7 @@
       "group": 792,
       "orbit": 4,
       "orbitIndex": 19,
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/NoxiousStrike.png"
     },
     {
@@ -31899,6 +32344,7 @@
       "group": 13,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "Farrul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/FarrulNotable1.png"
     },
     {
@@ -32031,6 +32477,7 @@
       "out": [
         52855
       ],
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachBossClaspedHands.png"
     },
     {
@@ -32042,6 +32489,7 @@
       "group": 131,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/PolaricDevastationNode.png"
     },
     {
@@ -32110,6 +32558,7 @@
       "out": [
         42659
       ],
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/TasalioCleansingWater.png"
     },
     {
@@ -32195,6 +32644,7 @@
       "out": [
         34637
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -32260,6 +32710,7 @@
       "group": 36,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachNotable4.png"
     },
     {
@@ -32298,6 +32749,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 9,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/GiftsOfTheDamned.png"
     },
     {
@@ -32312,6 +32764,7 @@
       "out": [
         27864
       ],
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADOneHand.png"
     },
     {
@@ -32392,6 +32845,7 @@
       "out": [
         58438
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothRune1.png"
     },
     {
@@ -32452,6 +32906,7 @@
       "out": [
         52553
       ],
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/RitualBloodlineNode.png"
     },
     {
@@ -32498,6 +32953,7 @@
       "out": [
         29630
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgCrit.png"
     },
     {
@@ -32562,6 +33018,7 @@
       "group": 794,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/SoulThiefTrickster.png"
     },
     {
@@ -32626,6 +33083,7 @@
       "out": [
         1734
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourAttackDamage.png"
     },
     {
@@ -32904,6 +33362,7 @@
         34567,
         9327
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -33183,6 +33642,7 @@
       "group": 30,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNotableMonsters1.png"
     },
     {
@@ -33329,6 +33789,7 @@
       "out": [
         32251
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgWarcry.png"
     },
     {
@@ -33690,6 +34151,7 @@
       "group": 38,
       "orbit": 4,
       "orbitIndex": 13,
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/NgamahuFlamesAdvance.png"
     },
     {
@@ -33765,6 +34227,7 @@
       "out": [
         16306
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgFrenzyEnduranceCharge.png"
     },
     {
@@ -33824,6 +34287,7 @@
       "out": [
         5502
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/IncreasedEnergyShieldMaximumMana.png"
     },
     {
@@ -33877,6 +34341,7 @@
       "out": [
         14156
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/NaturesAdrenaline.png"
     },
     {
@@ -34068,6 +34533,7 @@
       "out": [
         29844
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -34126,6 +34592,7 @@
       "group": 795,
       "orbit": 2,
       "orbitIndex": 8,
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/LikeClockworkNotable.png"
     },
     {
@@ -34144,6 +34611,7 @@
       "group": 37,
       "orbit": 3,
       "orbitIndex": 8,
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/SignOfPurpose.png"
     },
     {
@@ -34232,6 +34700,7 @@
       "group": 18,
       "orbit": 3,
       "orbitIndex": 4,
+      "ascendancyName": "Brinerot",
       "icon": "Art/2DArt/SkillIcons/passives/BrineRot.png"
     },
     {
@@ -34275,6 +34744,7 @@
         8281,
         12597
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -34437,6 +34907,7 @@
       "out": [
         53816
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourStunDuration.png"
     },
     {
@@ -34534,6 +35005,7 @@
       "out": [
         60582
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -34652,6 +35124,7 @@
       "group": 3,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Aul",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AulBloodlinechargeint.png"
     },
     {
@@ -34677,6 +35150,7 @@
       "group": 25,
       "orbit": 3,
       "orbitIndex": 9,
+      "ascendancyName": "Delirious",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/DeliriumNotable1.png"
     },
     {
@@ -34704,6 +35178,7 @@
       "group": 45,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanSpecialCurse3.png"
     },
     {
@@ -34775,6 +35250,7 @@
       "group": 23,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "KingInTheMists",
       "icon": "Art/2DArt/SkillIcons/passives/RitualBloodLineNotable.png"
     },
     {
@@ -34786,6 +35262,7 @@
       "group": 351,
       "orbit": 3,
       "orbitIndex": 8,
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GladiatorDualWiledSwordAxeNotable.png"
     },
     {
@@ -34821,6 +35298,7 @@
       "out": [
         25944
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable9.png"
     },
     {
@@ -34873,6 +35351,7 @@
       "group": 41,
       "orbit": 4,
       "orbitIndex": 31,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanBloodMagic3.png"
     },
     {
@@ -34919,6 +35398,7 @@
       "group": 36,
       "orbit": 3,
       "orbitIndex": 6,
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachNotable4.png"
     },
     {
@@ -35058,6 +35538,7 @@
       "out": [
         5443
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAttackSpeed.png"
     },
     {
@@ -35069,6 +35550,7 @@
       "group": 38,
       "orbit": 4,
       "orbitIndex": 20,
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/TukomahaWarsHerald.png"
     },
     {
@@ -35110,6 +35592,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 23,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/IgniteSpecialisation.png"
     },
     {
@@ -35271,6 +35754,7 @@
       "out": [
         48711
       ],
+      "ascendancyName": "Breachlord",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BreachBossClaspedHands.png"
     },
     {
@@ -35285,6 +35769,7 @@
       "out": [
         34814
       ],
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenNode.png"
     },
     {
@@ -35299,6 +35784,7 @@
       "out": [
         16848
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -35555,6 +36041,7 @@
       "group": 34,
       "orbit": 3,
       "orbitIndex": 5,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/JuggernautArmourNotable.png"
     },
     {
@@ -35610,6 +36097,7 @@
       "out": [
         37486
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/ElementalMastery.png"
     },
     {
@@ -35669,6 +36157,7 @@
         45272,
         38129
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/DexInt.png"
     },
     {
@@ -35711,6 +36200,7 @@
       "out": [
         18060
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistNode.png"
     },
     {
@@ -35756,6 +36246,7 @@
       "out": [
         39818
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/GenericMinionNotable.png"
     },
     {
@@ -35809,6 +36300,7 @@
       "group": 426,
       "orbit": 2,
       "orbitIndex": 5,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageElementalResistances.png"
     },
     {
@@ -35941,6 +36433,7 @@
       "group": 136,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/PresenceofChayulaNode.png"
     },
     {
@@ -36171,6 +36664,7 @@
         63965,
         20228
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/StrInt.png"
     },
     {
@@ -36225,6 +36719,7 @@
       "group": 116,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/SacredChaliceNode.png"
     },
     {
@@ -36356,6 +36851,7 @@
       "group": 29,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/TimeOfNeed.png"
     },
     {
@@ -36443,6 +36939,8 @@
         13219,
         19587
       ],
+      "ascendancyName": "Trickster",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -36634,6 +37132,7 @@
       "group": 796,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenAllAilments.png"
     },
     {
@@ -36702,6 +37201,7 @@
         54159,
         14603
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/IncreasedMinionDamageIncreasedMinionLife.png"
     },
     {
@@ -36769,6 +37269,7 @@
       "out": [
         48239
       ],
+      "ascendancyName": "Assassin",
       "icon": "Art/2DArt/SkillIcons/passives/Assassin/SmallNode.png"
     },
     {
@@ -36882,6 +37383,7 @@
       "group": 794,
       "orbit": 4,
       "orbitIndex": 30,
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/PolymathTrickster.png"
     },
     {
@@ -36953,6 +37455,7 @@
       "out": [
         44482
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -37112,6 +37615,7 @@
       "out": [
         26067
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -37252,6 +37756,7 @@
       "group": 49,
       "orbit": 4,
       "orbitIndex": 17,
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNotable5.png"
     },
     {
@@ -37376,6 +37881,7 @@
       "out": [
         54279
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/LiegeOfThePrimordial.png"
     },
     {
@@ -37524,6 +38030,7 @@
         57264,
         57226
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Int.png"
     },
     {
@@ -37545,6 +38052,7 @@
       "out": [
         23972
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Unrelenting.png"
     },
     {
@@ -37622,6 +38130,8 @@
         59837,
         1729
       ],
+      "ascendancyName": "Deadeye",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -37688,6 +38198,7 @@
       "group": 76,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/ApostateNode.png"
     },
     {
@@ -37699,6 +38210,7 @@
       "group": 427,
       "orbit": 3,
       "orbitIndex": 3,
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/WorthyFoe.png"
     },
     {
@@ -37782,6 +38294,7 @@
       "group": 59,
       "orbit": 1,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Chieftain.png"
     },
     {
@@ -37854,6 +38367,7 @@
       "out": [
         65085
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ShrapnelSpecialist.png"
     },
     {
@@ -37880,6 +38394,7 @@
       "group": 426,
       "orbit": 4,
       "orbitIndex": 29,
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/PendulumOfDestruction.png"
     },
     {
@@ -37916,6 +38431,7 @@
       "out": [
         32816
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageAvoidElementalStatusEffects.png"
     },
     {
@@ -38064,6 +38580,7 @@
         30271,
         27737
       ],
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNotable4.png"
     },
     {
@@ -38113,6 +38630,7 @@
       "out": [
         54877
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -38158,6 +38676,7 @@
         14588,
         64963
       ],
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampGazeoftheLich.png"
     },
     {
@@ -38172,6 +38691,7 @@
       "out": [
         42861
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/RiteOfRuin.png"
     },
     {
@@ -38301,6 +38821,7 @@
         52417,
         30632
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanCursesChoice.png"
     },
     {
@@ -38389,6 +38910,7 @@
       "out": [
         2521
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/plusintelligence.png"
     },
     {
@@ -38540,6 +39062,8 @@
         23024,
         51402
       ],
+      "ascendancyName": "Assassin",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -38586,6 +39110,7 @@
       "group": 41,
       "orbit": 3,
       "orbitIndex": 13,
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanCorpses.png"
     },
     {
@@ -38691,6 +39216,8 @@
         27536,
         53421
       ],
+      "ascendancyName": "Raider",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -38705,6 +39232,7 @@
       "out": [
         13988
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/BloodLineOlrothNotable.png"
     },
     {
@@ -38750,6 +39278,7 @@
       "out": [
         41891
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/DefensiveNodeTrickster.png"
     },
     {
@@ -38892,6 +39421,7 @@
       "out": [
         29662
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/TincturesNode.png"
     },
     {
@@ -38953,6 +39483,7 @@
       "group": 107,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Saboteur.png"
     },
     {
@@ -39089,6 +39620,7 @@
       "out": [
         27038
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/ElementalDamageFreezeShockIgnite.png"
     },
     {
@@ -39103,6 +39635,7 @@
       "out": [
         16287
       ],
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/AbyssNode1.png"
     },
     {
@@ -39164,6 +39697,7 @@
       "group": 102,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/FemuroftheSaintsNode.png"
     },
     {
@@ -39479,6 +40013,7 @@
       "out": [
         6038
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/FlaskEffectElementalResistance.png"
     },
     {
@@ -39490,6 +40025,7 @@
       "group": 16,
       "orbit": 3,
       "orbitIndex": 12,
+      "ascendancyName": "Catarina",
       "icon": "Art/2DArt/SkillIcons/passives/IncreasedMinionDamageNotable.png"
     },
     {
@@ -39518,6 +40054,7 @@
       "out": [
         24848
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAttackSpeed.png"
     },
     {
@@ -39557,6 +40094,7 @@
       "out": [
         48904
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/AspectOfCarnage.png"
     },
     {
@@ -39676,6 +40214,7 @@
       "out": [
         61092
       ],
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNode1.png"
     },
     {
@@ -39859,6 +40398,7 @@
       "group": 37,
       "orbit": 4,
       "orbitIndex": 2,
+      "ascendancyName": "Hierophant",
       "icon": "Art/2DArt/SkillIcons/passives/Hierophant/ItemAugment.png"
     },
     {
@@ -39904,6 +40444,7 @@
       "out": [
         31700
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnEFortify.png"
     },
     {
@@ -39918,6 +40459,7 @@
       "out": [
         45727
       ],
+      "ascendancyName": "Warlock",
       "icon": "Art/2DArt/SkillIcons/passives/VoodooShaman/VoodooShamanNode.png"
     },
     {
@@ -39968,6 +40510,7 @@
       "out": [
         11490
       ],
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/CorpseConsumptionNode.png"
     },
     {
@@ -39997,6 +40540,7 @@
       "out": [
         12003
       ],
+      "ascendancyName": "Reliquarian",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -40068,6 +40612,7 @@
       "out": [
         43660
       ],
+      "ascendancyName": "Necromantic",
       "icon": "Art/2DArt/SkillIcons/passives/SareshBloodlineNode.png"
     },
     {
@@ -40128,6 +40673,7 @@
       "out": [
         40059
       ],
+      "ascendancyName": "Inquisitor",
       "icon": "Art/2DArt/SkillIcons/passives/Inquistitor/IncreasedElementalDamageElementalPenetration.png"
     },
     {
@@ -40160,6 +40706,8 @@
         18574,
         5415
       ],
+      "ascendancyName": "Necromancer",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -40347,6 +40895,7 @@
       "group": 62,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Juggernaut.png"
     },
     {
@@ -40358,6 +40907,7 @@
       "group": 27,
       "orbit": 3,
       "orbitIndex": 11,
+      "ascendancyName": "Trialmaster",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/UltimatumNotable3.png"
     },
     {
@@ -40372,6 +40922,7 @@
       "out": [
         56292
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNode.png"
     },
     {
@@ -40428,6 +40979,7 @@
       "out": [
         19595
       ],
+      "ascendancyName": "Elementalist",
       "icon": "Art/2DArt/SkillIcons/passives/Elementalist/PrimevalForce.png"
     },
     {
@@ -40590,6 +41142,7 @@
       "group": 38,
       "orbit": 3,
       "orbitIndex": 1,
+      "ascendancyName": "Chieftain",
       "icon": "Art/2DArt/SkillIcons/passives/Chieftain/RamakoSunsLight.png"
     },
     {
@@ -40601,6 +41154,7 @@
       "group": 29,
       "orbit": 3,
       "orbitIndex": 1,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/HarmonyOfPurpose.png"
     },
     {
@@ -40630,6 +41184,7 @@
       "out": [
         17315
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/2HdmgCritStrikeMultiplier.png"
     },
     {
@@ -40661,6 +41216,7 @@
         61072,
         57052
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/Ascendancy.png"
     },
     {
@@ -40696,6 +41252,7 @@
       "out": [
         35750
       ],
+      "ascendancyName": "Champion",
       "icon": "Art/2DArt/SkillIcons/passives/Champion/AnEAura.png"
     },
     {
@@ -40782,6 +41339,7 @@
       "out": [
         56134
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/Ricochet.png"
     },
     {
@@ -40853,6 +41411,7 @@
       "out": [
         55509
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -40890,6 +41449,7 @@
       "group": 793,
       "orbit": 4,
       "orbitIndex": 2,
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/MasterAlchemist.png"
     },
     {
@@ -40942,6 +41502,8 @@
         43193,
         662
       ],
+      "ascendancyName": "Inquisitor",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -41093,6 +41655,7 @@
       "out": [
         47778
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -41180,6 +41743,7 @@
       "out": [
         26067
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -41201,6 +41765,7 @@
       "out": [
         56722
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/SkillPoint.png"
     },
     {
@@ -41288,6 +41853,7 @@
       "out": [
         62595
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourStunDuration.png"
     },
     {
@@ -41369,6 +41935,7 @@
       "out": [
         50935
       ],
+      "ascendancyName": "Occultist",
       "icon": "Art/2DArt/SkillIcons/passives/Occultist/VowOfDamnation.png"
     },
     {
@@ -41431,6 +41998,7 @@
       "group": 35,
       "orbit": 4,
       "orbitIndex": 5,
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/Unyielding.png"
     },
     {
@@ -41632,6 +42200,7 @@
       "out": [
         15286
       ],
+      "ascendancyName": "Slayer",
       "icon": "Art/2DArt/SkillIcons/passives/Slayer/Headman.png"
     },
     {
@@ -41714,6 +42283,7 @@
       "out": [
         32265
       ],
+      "ascendancyName": "Olroth",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/ExpeditionNode1.png"
     },
     {
@@ -41797,6 +42367,7 @@
       "out": [
         14103
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -41952,6 +42523,7 @@
       "out": [
         36242
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/MasterSurgeon.png"
     },
     {
@@ -41981,6 +42553,7 @@
         47389,
         39725
       ],
+      "ascendancyName": "Ascendant",
       "icon": "Art/2DArt/SkillIcons/passives/Ascendants/StrDex.png"
     },
     {
@@ -41992,6 +42565,7 @@
       "group": 78,
       "orbit": 4,
       "orbitIndex": 23,
+      "ascendancyName": "Warden",
       "icon": "Art/2DArt/SkillIcons/passives/Warden/WardenSaps3.png"
     },
     {
@@ -42034,6 +42608,7 @@
       "out": [
         5819
       ],
+      "ascendancyName": "Juggernaut",
       "icon": "Art/2DArt/SkillIcons/passives/Juggernaut/IncreasedArmourMovementSpeed.png"
     },
     {
@@ -42132,6 +42707,7 @@
       "group": 351,
       "orbit": 4,
       "orbitIndex": 2,
+      "ascendancyName": "Gladiator",
       "icon": "Art/2DArt/SkillIcons/passives/Gladiator/GLADViolentRetaliation.png"
     },
     {
@@ -42171,6 +42747,7 @@
       "out": [
         24528
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgAttackSpeed.png"
     },
     {
@@ -42219,6 +42796,7 @@
       "out": [
         4245
       ],
+      "ascendancyName": "Primalist",
       "icon": "Art/2DArt/SkillIcons/passives/Primalist/PrimalistInventoryExpansion.png"
     },
     {
@@ -42235,6 +42813,8 @@
         48406,
         53398
       ],
+      "ascendancyName": "Breachlord",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -42293,6 +42873,7 @@
       "out": [
         59920
       ],
+      "ascendancyName": "Berserker",
       "icon": "Art/2DArt/SkillIcons/passives/Berserker/DmgCrit.png"
     },
     {
@@ -42389,6 +42970,7 @@
       "out": [
         32216
       ],
+      "ascendancyName": "Oshabi",
       "icon": "Art/2DArt/SkillIcons/passives/AtlasTrees/MoreVividWispsSmall.png"
     },
     {
@@ -42447,6 +43029,7 @@
       "out": [
         28884
       ],
+      "ascendancyName": "Trickster",
       "icon": "Art/2DArt/SkillIcons/passives/Trickster/DefensiveNodeTrickster.png"
     },
     {
@@ -42489,6 +43072,7 @@
       "out": [
         55509
       ],
+      "ascendancyName": "Raider",
       "icon": "Art/2DArt/SkillIcons/passives/Raider/IncreasedElementalDamage.png"
     },
     {
@@ -42518,6 +43102,7 @@
       "out": [
         31517
       ],
+      "ascendancyName": "Luminary",
       "icon": "Art/2DArt/SkillIcons/passives/Luminary/LuminaryNode.png"
     },
     {
@@ -42593,6 +43178,7 @@
       "out": [
         26067
       ],
+      "ascendancyName": "Deadeye",
       "icon": "Art/2DArt/SkillIcons/passives/DeadEye/ProjectileDamageAccuracy.png"
     },
     {
@@ -42638,6 +43224,8 @@
         14156,
         20480
       ],
+      "ascendancyName": "Pathfinder",
+      "ascendancyStart": true,
       "icon": "Art/2DArt/SkillIcons/passives/damage.png"
     },
     {
@@ -43038,6 +43626,7 @@
       "group": 29,
       "orbit": 4,
       "orbitIndex": 1,
+      "ascendancyName": "Guardian",
       "icon": "Art/2DArt/SkillIcons/passives/Guardian/UnwaveringFaith.png"
     },
     {
@@ -43074,6 +43663,7 @@
       "out": [
         57175
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -43103,6 +43693,7 @@
       "out": [
         5087
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -43158,6 +43749,7 @@
       "group": 9,
       "orbit": 0,
       "orbitIndex": 0,
+      "ascendancyName": "Abyssal",
       "icon": "Art/2DArt/SkillIcons/passives/AbyssRevampGazeoftheLichNode3.png"
     },
     {
@@ -43222,6 +43814,7 @@
       "out": [
         14103
       ],
+      "ascendancyName": "Saboteur",
       "icon": "Art/2DArt/SkillIcons/passives/Saboteur/ElementalDamageElementalResistance.png"
     },
     {
@@ -43340,6 +43933,7 @@
       "group": 499,
       "orbit": 4,
       "orbitIndex": 22,
+      "ascendancyName": "Necromancer",
       "icon": "Art/2DArt/SkillIcons/passives/Necromancer/OffensiveMinionNotable.png"
     },
     {
@@ -43448,6 +44042,7 @@
       "out": [
         32640
       ],
+      "ascendancyName": "Pathfinder",
       "icon": "Art/2DArt/SkillIcons/passives/PathFinder/AlchemistGift.png"
     },
     {

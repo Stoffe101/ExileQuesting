@@ -1,4 +1,4 @@
-import { hasPassiveTreeGeometry, indexPassiveNodes, passiveClassStart, type PassiveNodeRecord, type PassiveTreeSnapshot } from './passive-data';
+import { hasPassiveTreeGeometry, indexPassiveNodes, passiveAscendancyNameFromScope, passiveAscendancyStart, passiveClassStart, passiveNodeScopeKey, type PassiveNodeRecord, type PassiveTreeScopeKey, type PassiveTreeSnapshot } from './passive-data';
 
 export interface TreePoint {
   id: number;
@@ -62,6 +62,8 @@ export interface PassiveHudAnchorOptions {
   classId?: number;
   /** Already resolved start node when the caller has one. */
   classStartNodeId?: number;
+  /** Restrict registration to the base tree or one named Ascendancy sub-tree. */
+  scopeKey?: PassiveTreeScopeKey;
 }
 
 export interface EdgeIndicator {
@@ -86,6 +88,29 @@ function squaredDistance(left: { x: number; y: number }, right: { x: number; y: 
 export function passiveNodePoint(node?: PassiveNodeRecord): TreePoint | undefined {
   if (!node || node.dynamic || node.kind === 'ascendancy' || node.x === undefined || node.y === undefined) return undefined;
   return { id: node.id, x: node.x, y: node.y };
+}
+
+/** Any fixed GGG tree node, including Ascendancy nodes in their local scope. */
+export function passiveFixedNodePoint(node?: PassiveNodeRecord): TreePoint | undefined {
+  if (!node || node.dynamic || node.x === undefined || node.y === undefined || !passiveNodeScopeKey(node)) return undefined;
+  return { id: node.id, x: node.x, y: node.y };
+}
+
+export function passiveHudScopeForNode(snapshot: PassiveTreeSnapshot | undefined, nodeId: number | undefined): PassiveTreeScopeKey | undefined {
+  if (!snapshot || !nodeId || !hasPassiveTreeGeometry(snapshot)) return undefined;
+  return passiveNodeScopeKey(indexPassiveNodes(snapshot).get(nodeId));
+}
+
+export function passiveHudScopesForTargets(snapshot: PassiveTreeSnapshot | undefined, nodeIds: number[]): PassiveTreeScopeKey[] {
+  if (!snapshot || !hasPassiveTreeGeometry(snapshot)) return [];
+  const nodes = indexPassiveNodes(snapshot);
+  const result: PassiveTreeScopeKey[] = [];
+  const seen = new Set<PassiveTreeScopeKey>();
+  for (const nodeId of nodeIds) {
+    const scope = passiveNodeScopeKey(nodes.get(nodeId));
+    if (scope && !seen.has(scope)) { seen.add(scope); result.push(scope); }
+  }
+  return result;
 }
 
 export function projectPassiveTreePoint(transform: PassiveTreeTransform, point: { x: number; y: number }): ScreenPoint {
@@ -285,21 +310,30 @@ export function selectPassiveHudAnchors(
   const maxAnchors = options.maxAnchors ?? 20;
   const nodes = indexPassiveNodes(snapshot);
   const graph = graphNeighbours(nodes);
+  const targetNodeIds = [...new Set((options.targetNodeIds?.length
+    ? options.targetNodeIds
+    : operations[Math.min(cursor, Math.max(0, operations.length - 1))]?.nodeId
+      ? [operations[Math.min(cursor, operations.length - 1)].nodeId]
+      : []).filter((id) => Number.isSafeInteger(id) && id > 0))];
+  const scopeKey = options.scopeKey ?? (targetNodeIds[0] ? passiveNodeScopeKey(nodes.get(targetNodeIds[0])) : undefined) ?? 'base';
   const ids: number[] = [];
   const seen = new Set<number>();
-  const push = (id: number) => { if (!seen.has(id) && passiveNodePoint(nodes.get(id))) { seen.add(id); ids.push(id); } };
+  const pointInScope = (id: number): TreePoint | undefined => {
+    const node = nodes.get(id);
+    if (passiveNodeScopeKey(node) !== scopeKey) return undefined;
+    return passiveFixedNodePoint(node);
+  };
+  const push = (id: number) => {
+    if (seen.has(id) || !pointInScope(id)) return;
+    seen.add(id);
+    ids.push(id);
+  };
 
   if (operations.length) {
     const start = Math.max(0, cursor - recentOperations);
     const end = Math.min(operations.length, cursor + upcomingOperations + 1);
     for (let index = start; index < end; index += 1) push(operations[index].nodeId);
   }
-
-  const targetNodeIds = [...new Set((options.targetNodeIds?.length
-    ? options.targetNodeIds
-    : operations[Math.min(cursor, Math.max(0, operations.length - 1))]?.nodeId
-      ? [operations[Math.min(cursor, operations.length - 1)].nodeId]
-      : []).filter((id) => Number.isSafeInteger(id) && id > 0))];
   for (const id of targetNodeIds) push(id);
 
   for (const targetId of targetNodeIds.slice(0, 12)) {
@@ -311,31 +345,36 @@ export function selectPassiveHudAnchors(
         for (const neighbour of graph.get(id) ?? []) {
           if (visited.has(neighbour)) continue;
           visited.add(neighbour);
-          push(neighbour);
-          next.push(neighbour);
+          if (passiveNodeScopeKey(nodes.get(neighbour)) === scopeKey) { push(neighbour); next.push(neighbour); }
         }
       }
       frontier = next;
     }
   }
 
-  const explicitStart = options.classStartNodeId ? nodes.get(options.classStartNodeId) : undefined;
-  const resolvedStart = explicitStart ?? passiveClassStart(snapshot, { className: options.className, classId: options.classId });
-  if (resolvedStart) push(resolvedStart.id);
-  else if (targetNodeIds[0]) {
-    // Last-resort compatibility path for malformed third-party build metadata.
-    // It is deliberately generic and only used when the build did not identify
-    // a class at all.
-    const target = passiveNodePoint(nodes.get(targetNodeIds[0]));
-    if (target) {
-      const starts = [...nodes.values()].filter((node) => node.kind === 'class-start').map(passiveNodePoint).filter((point): point is TreePoint => Boolean(point));
-      starts.sort((left, right) => squaredDistance(left, target) - squaredDistance(right, target));
-      if (starts[0]) push(starts[0].id);
+  if (scopeKey === 'base') {
+    const explicitStart = options.classStartNodeId ? nodes.get(options.classStartNodeId) : undefined;
+    const resolvedStart = explicitStart ?? passiveClassStart(snapshot, { className: options.className, classId: options.classId });
+    if (resolvedStart) push(resolvedStart.id);
+    else if (targetNodeIds[0]) {
+      const target = pointInScope(targetNodeIds[0]);
+      if (target) {
+        const starts = [...nodes.values()]
+          .filter((node) => node.kind === 'class-start')
+          .map((node) => passiveNodePoint(node))
+          .filter((point): point is TreePoint => Boolean(point));
+        starts.sort((left, right) => squaredDistance(left, target) - squaredDistance(right, target));
+        if (starts[0]) push(starts[0].id);
+      }
     }
+  } else {
+    const ascendancyName = passiveAscendancyNameFromScope(scopeKey);
+    const root = ascendancyName ? passiveAscendancyStart(snapshot, ascendancyName) : undefined;
+    if (root) push(root.id);
   }
 
-  const primaryTarget = targetNodeIds[0] ? passiveNodePoint(nodes.get(targetNodeIds[0])) : undefined;
-  const points = ids.map((id) => passiveNodePoint(nodes.get(id))).filter((point): point is TreePoint => Boolean(point));
+  const primaryTarget = targetNodeIds[0] ? pointInScope(targetNodeIds[0]) : undefined;
+  const points = ids.map((id) => pointInScope(id)).filter((point): point is TreePoint => Boolean(point));
   if (!primaryTarget || points.length <= maxAnchors) return points.slice(0, maxAnchors);
 
   const selected: TreePoint[] = [primaryTarget];
@@ -354,7 +393,7 @@ export function selectPassiveHudAnchors(
 
 export function passiveHudTarget(snapshot: PassiveTreeSnapshot | undefined, nodeId: number | undefined): TreePoint | undefined {
   if (!snapshot || !nodeId || !hasPassiveTreeGeometry(snapshot)) return undefined;
-  return passiveNodePoint(indexPassiveNodes(snapshot).get(nodeId));
+  return passiveFixedNodePoint(indexPassiveNodes(snapshot).get(nodeId));
 }
 
 export function edgeIndicatorForTarget(

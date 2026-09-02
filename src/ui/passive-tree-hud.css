@@ -113,3 +113,5 @@ html[data-mode="passive-tree-hud"] #root { margin: 0; width: 100%; height: 100%;
   70%, 100% { transform: scale(1.3); opacity: 0; }
 }
 .passive-tree-hud-root.reduced-motion * { animation: none !important; transition: none !important; }
+
+.passive-scope-label { display: block; margin-bottom: 4px; font-size: 8px; font-style: normal; font-weight: 800; letter-spacing: .14em; color: rgba(215, 228, 222, .58); text-transform: uppercase; }

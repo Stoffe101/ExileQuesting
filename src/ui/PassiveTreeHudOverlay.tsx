@@ -11,6 +11,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
   if (!hud.visible || hud.status !== 'locked') return <main className="passive-tree-hud-root" aria-hidden="true" />;
   const target = hud.target;
   const exact = Boolean(target);
+  const scopeLabel = hud.ascendancyName ? `${hud.ascendancyName} Ascendancy` : `${hud.className ?? 'Passive'} tree`;
 
   return (
     <main className={`passive-tree-hud-root ${state.settings.reducedMotion ? 'reduced-motion' : ''}`} aria-label="Passive Tree HUD">
@@ -40,6 +41,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
         <div className={`passive-target operation-${target.operation}`} style={{ left: target.x, top: target.y, '--marker-radius': `${target.markerRadius}px` } as React.CSSProperties}>
           <div className="passive-target-ring"><i /><i /><b>✦</b></div>
           <div className="passive-target-label">
+            <em className="passive-scope-label">{scopeLabel}</em>
             <span>{target.operation === 'refund' ? 'REFUND PASSIVE' : 'NEXT PASSIVE'}</span>
             <strong>{target.name}</strong>
             <small>{shortKind(target.kind)}{target.total ? ` · ${target.index}/${target.total}` : ''}</small>
@@ -56,6 +58,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
 
       {!exact && hud.path.some((point) => point.state === 'stage') && (
         <div className="passive-stage-legend">
+          <em className="passive-scope-label">{scopeLabel}</em>
           <span>POB STAGE PASSIVES</span>
           <strong>{hud.path.filter((point) => point.state === 'stage').length} highlighted</strong>
           <small>PoB supplies the stage set, not an exact click order.</small>
