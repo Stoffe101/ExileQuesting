@@ -120,7 +120,55 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
   return { schemaVersion, gameVersion: source.gameVersion, generatedAt: source.generatedAt, source: { url: sourceInfo.url, sha256: sourceInfo.sha256.toLowerCase(), ...(repository ? { repository } : {}), ...(commit ? { commit } : {}), ...(sourcePath ? { path: sourcePath } : {}) }, nodes, ...(bounds ? { bounds } : {}), ...(skillsPerOrbit ? { skillsPerOrbit } : {}), ...(orbitRadii ? { orbitRadii } : {}) };
 }
 
-export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, PassiveNodeRecord> { return new Map(snapshot.nodes.map((node) => [node.id, node])); }
-export function passiveNode(snapshot: PassiveTreeSnapshot, id: number): PassiveNodeRecord | undefined { return snapshot.nodes.find((node) => node.id === id); }
-export function passiveAscendancyStarts(snapshot: PassiveTreeSnapshot): PassiveNodeRecord[] { return snapshot.nodes.filter((node) => node.kind === 'ascendancy' && node.ascendancyStart); }
-export function passiveScopeForNode(node: PassiveNodeRecord | undefined): PassiveTreeScopeKey { return node?.kind === 'ascendancy' && node.ascendancyName ? `ascendancy:${node.ascendancyName.toLowerCase()}` : 'base'; }
+export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, PassiveNodeRecord> {
+  return new Map(snapshot.nodes.map((node) => [node.id, node]));
+}
+
+export function hasPassiveTreeGeometry(snapshot?: PassiveTreeSnapshot): snapshot is PassiveTreeSnapshot & Required<Pick<PassiveTreeSnapshot, 'bounds' | 'skillsPerOrbit' | 'orbitRadii'>> {
+  if (!snapshot || snapshot.schemaVersion !== 2 || !snapshot.bounds || !snapshot.skillsPerOrbit || !snapshot.orbitRadii) return false;
+  return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && !node.dynamic && node.x !== undefined && node.y !== undefined);
+}
+
+/** Return the local registration scope for any fixed passive-tree node. */
+export function passiveNodeScopeKey(node?: PassiveNodeRecord): PassiveTreeScopeKey | undefined {
+  if (!node || node.dynamic || node.x === undefined || node.y === undefined) return undefined;
+  if (node.kind !== 'ascendancy') return 'base';
+  const name = node.ascendancyName?.trim().toLowerCase();
+  return name ? `ascendancy:${name}` : undefined;
+}
+
+export function passiveAscendancyNameFromScope(scope?: PassiveTreeScopeKey): string | undefined {
+  return scope?.startsWith('ascendancy:') ? scope.slice('ascendancy:'.length) : undefined;
+}
+
+export function passiveAscendancyStarts(snapshot: PassiveTreeSnapshot): PassiveNodeRecord[] {
+  return snapshot.nodes
+    .filter((node) => node.kind === 'ascendancy' && node.ascendancyStart === true && passiveNodeScopeKey(node)?.startsWith('ascendancy:'))
+    .sort((left, right) => String(left.ascendancyName).localeCompare(String(right.ascendancyName)));
+}
+
+export function passiveAscendancyStart(snapshot: PassiveTreeSnapshot, ascendancyName: string): PassiveNodeRecord | undefined {
+  const normalized = ascendancyName.trim().toLowerCase();
+  return passiveAscendancyStarts(snapshot).find((node) => node.ascendancyName?.toLowerCase() === normalized);
+}
+
+function normalizedClassName(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[^a-z]/g, '');
+  return POE_BASE_CLASSES.find((candidate) => candidate.toLowerCase() === normalized)?.toLowerCase();
+}
+
+/** Return all seven GGG class-start nodes without relying on a hard-coded node ID. */
+export function passiveClassStarts(snapshot: PassiveTreeSnapshot): PassiveNodeRecord[] {
+  return snapshot.nodes
+    .filter((node) => node.kind === 'class-start' && !node.dynamic && node.x !== undefined && node.y !== undefined && node.classStartIndex !== undefined)
+    .sort((left, right) => Number(left.classStartIndex) - Number(right.classStartIndex));
+}
+
+export function passiveClassStart(snapshot: PassiveTreeSnapshot, selector: { className?: string; classId?: number } = {}): PassiveNodeRecord | undefined {
+  const starts = passiveClassStarts(snapshot);
+  const name = normalizedClassName(selector.className);
+  if (name) { const byName = starts.find((node) => node.name.trim().toLowerCase() === name); if (byName) return byName; }
+  if (Number.isSafeInteger(selector.classId)) { const byIndex = starts.find((node) => node.classStartIndex === selector.classId); if (byIndex) return byIndex; }
+  return undefined;
+}
