@@ -28,6 +28,8 @@ Pausing settles the active visit and town timer. Resuming begins a new active ti
 - zone time;
 - revisit time.
 
+Finishing a run while paused folds that final paused interval into the persisted pause total before the session becomes final. This keeps the finished-session clock equal to the completed-history time instead of letting the last pause reappear later.
+
 ## Revisit semantics
 
 A revisit means the player entered an area that already appeared earlier in the same run after visiting another area.
@@ -45,17 +47,37 @@ Older `run.json` files that predate visit tracing remain valid. They load with a
 
 After finishing a run, the just-finished entry is excluded from the `Previous` reference. This prevents the dashboard from comparing a run against itself.
 
+## Act pace
+
+Act pace is derived from the cumulative split data ExileQuesting already stores. It does not add another persisted timing format.
+
+For each completed Act, ExileQuesting converts cumulative split timestamps into the time spent inside that Act and can show:
+
+- Act duration;
+- delta versus the same Act in the previous completed run;
+- cumulative delta through that Act;
+- the biggest completed-Act slowdown;
+- the biggest completed-Act time gain.
+
+The currently active Act is shown as `LIVE`, but it is deliberately **not** compared against the previous run until that Act finishes. Comparing a partially completed Act against a full historical Act would create a misleading advantage.
+
+If the current run has completed Act 3, for example, the dashboard can safely say that Act 2 was `+1:14` versus the previous run and that the campaign is `-0:42 through A3`. It does not infer why the time changed.
+
+Act pace uses existing split history, so old completed runs can participate immediately even if they predate per-area visit tracing.
+
 ## Coaching signals
 
 The dashboard can surface bounded, conservative signals such as:
 
 - biggest comparable zone regression versus the previous run;
+- biggest completed-Act regression or time gain;
+- cumulative completed-Act pace versus the previous run;
 - accumulated revisit time;
 - unusually large town-time share;
 - a new personal best;
 - clean routing when a sufficiently long trace has no non-town revisits.
 
-Slow-zone and revisit coaching intentionally avoids pretending every delay has one known cause. The purpose is to tell the player where to review their run, not to fabricate certainty from timing alone.
+Slow-zone, Act-pace and revisit coaching intentionally avoids pretending every delay has one known cause. The purpose is to tell the player where to review their run, not to fabricate certainty from timing alone.
 
 ## Privacy and gameplay boundary
 
