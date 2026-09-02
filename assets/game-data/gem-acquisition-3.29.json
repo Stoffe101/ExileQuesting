@@ -12,90 +12,6 @@
   },
   "gems": [
     {
-      "id": "Metadata/Items/Gems/SkillGemComboStrike",
-      "name": "...",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCallOfTheWild",
-      "name": "[DNT] Call of the Wild",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBlitz",
-      "name": "[UNUSED] Blitz",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBloodWhirl",
-      "name": "[UNUSED] Blood Whirl",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCoilingAssault",
-      "name": "[UNUSED] Coiling Assault",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemConflagration",
-      "name": "[UNUSED] Conflagration Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemHandcastRapidFire",
-      "name": "[UNUSED] Handcast Rapid Fire",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemProjectilePortal",
-      "name": "[UNUSED] Projectile Portal",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemQuickBlock",
-      "name": "[UNUSED] Quick Block",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemReplicate",
-      "name": "[UNUSED] Replicate",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 18,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSerpentStrike",
-      "name": "[UNUSED] Serpent Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSliceAndDice",
-      "name": "[UNUSED] Slice And Dice",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemAbsolution",
       "name": "Absolution",
       "primaryAttribute": "strength",
@@ -117,13 +33,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemAddedColdDamageRoyale",
-      "name": "Added Cold Damage Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemAddedFireDamage",
       "name": "Added Fire Damage Support",
       "primaryAttribute": "strength",
@@ -135,13 +44,6 @@
       "name": "Added Lightning Damage Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAddedLightningDamageRoyale",
-      "name": "Added Lightning Damage Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -159,13 +61,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemTrapCooldownRoyale",
-      "name": "Advanced Traps Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemAlchemistsMark",
       "name": "Alchemist's Mark",
       "primaryAttribute": "dexterity",
@@ -180,21 +75,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemSlashTotem",
-      "name": "Ancestral Blademaster",
-      "primaryAttribute": "strength",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemSpiritStrike",
-      "name": "Ancestral Call Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSpiritStrikeRoyale",
       "name": "Ancestral Call Support",
       "primaryAttribute": "strength",
       "requiredLevel": 4,
@@ -205,34 +86,6 @@
       "name": "Ancestral Cry",
       "primaryAttribute": "strength",
       "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemMeleeTotem",
-      "name": "Ancestral Protector",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemMeleeTotemRoyale",
-      "name": "Ancestral Protector",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemAncestralWarchief",
-      "name": "Ancestral Warchief",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemAncestralWarchiefRoyale",
-      "name": "Ancestral Warchief",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -255,13 +108,6 @@
       "primaryAttribute": "dexterity",
       "requiredLevel": 4,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAnnihilation",
-      "name": "Annihilation Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemArc",
@@ -306,13 +152,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemNewArcticArmour",
-      "name": "Arctic Armour",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemArmageddonBrand",
       "name": "Armageddon Brand",
       "primaryAttribute": "intelligence",
@@ -334,13 +173,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemArrowNovaRoyale",
-      "name": "Arrow Nova Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemArtilleryBallista",
       "name": "Artillery Ballista",
       "primaryAttribute": "dexterity",
@@ -348,24 +180,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemArtilleryBallistaRoyale",
-      "name": "Artillery Ballista",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemCriticalWeakness",
       "name": "Assassin's Mark",
       "primaryAttribute": "intelligence",
       "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCriticalWeaknessRoyale",
-      "name": "Assassin's Mark",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -383,279 +201,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemAddedChaosDamagePlus",
-      "name": "Awakened Added Chaos Damage Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAddedColdDamagePlus",
-      "name": "Awakened Added Cold Damage Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAddedFireDamagePlus",
-      "name": "Awakened Added Fire Damage Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAddedLightningDamagePlus",
-      "name": "Awakened Added Lightning Damage Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAncestralCallPlus",
-      "name": "Awakened Ancestral Call Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemArrowNovaPlus",
-      "name": "Awakened Arrow Nova Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBlasphemyPlus",
-      "name": "Awakened Blasphemy Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBrutalityPlus",
-      "name": "Awakened Brutality Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBurningDamagePlus",
-      "name": "Awakened Burning Damage Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCastOnCritPlus",
-      "name": "Awakened Cast On Critical Strike Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCastWhileChannellingPlus",
-      "name": "Awakened Cast While Channelling Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemChainPlus",
-      "name": "Awakened Chain Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemColdPenetrationPlus",
-      "name": "Awakened Cold Penetration Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemControlledDestructionPlus",
-      "name": "Awakened Controlled Destruction Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemDeadlyAilmentsPlus",
-      "name": "Awakened Deadly Ailments Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemWeaponElementalDamagePlus",
-      "name": "Awakened Elemental Damage with Attacks Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemElementalFocusPlus",
-      "name": "Awakened Elemental Focus Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEmpowerPlus",
-      "name": "Awakened Empower Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEnhancePlus",
-      "name": "Awakened Enhance Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEnlightenPlus",
-      "name": "Awakened Enlighten Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFirePenetrationPlus",
-      "name": "Awakened Fire Penetration Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemForkPlus",
-      "name": "Awakened Fork Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGenerosityPlus",
-      "name": "Awakened Generosity Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterMultipleProjectilesPlus",
-      "name": "Awakened Greater Multiple Projectiles Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCurseOnHitPlus",
-      "name": "Awakened Hextouch Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemIncreasedAreaOfEffectPlus",
-      "name": "Awakened Increased Area of Effect Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemLightningPenetrationPlus",
-      "name": "Awakened Lightning Penetration Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMeleePhysicalDamagePlus",
-      "name": "Awakened Melee Physical Damage Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMeleeSplashPlus",
-      "name": "Awakened Melee Splash Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMinionDamagePlus",
-      "name": "Awakened Minion Damage Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMultistrikePlus",
-      "name": "Awakened Multistrike Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSpellCascadePlus",
-      "name": "Awakened Spell Cascade Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSpellEchoPlus",
-      "name": "Awakened Spell Echo Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSwiftAfflictionPlus",
-      "name": "Awakened Swift Affliction Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemUnboundAilmentsPlus",
-      "name": "Awakened Unbound Ailments Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemUnleashPlus",
-      "name": "Awakened Unleash Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemViciousProjectilesPlus",
-      "name": "Awakened Vicious Projectiles Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVoidManipulationPlus",
-      "name": "Awakened Void Manipulation Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBackstab",
-      "name": "Backstab",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemBallLightning",
       "name": "Ball Lightning",
       "primaryAttribute": "intelligence",
@@ -663,24 +208,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBallLightningRoyale",
-      "name": "Ball Lightning",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemRangedAttackTotem",
       "name": "Ballista Totem Support",
       "primaryAttribute": "strength",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemRangedAttackTotemRoyale",
-      "name": "Ballista Totem Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -719,13 +250,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBearTrapRoyale",
-      "name": "Bear Trap",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemBehead",
       "name": "Behead Support",
       "primaryAttribute": "strength",
@@ -747,24 +271,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBladeBlastRoyale",
-      "name": "Blade Blast",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemChargedAttack",
       "name": "Blade Flurry",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemChargedAttackRoyale",
-      "name": "Blade Flurry",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -782,24 +292,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBladeVortexRoyale",
-      "name": "Blade Vortex",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemBladefall",
       "name": "Bladefall",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBladefallRoyale",
-      "name": "Bladefall",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -810,13 +306,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBladestormRoyale",
-      "name": "Bladestorm",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemBlasphemy",
       "name": "Blasphemy Support",
       "primaryAttribute": "intelligence",
@@ -824,24 +313,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemBlasphemyRoyale",
-      "name": "Blasphemy Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemBlastRain",
       "name": "Blast Rain",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBlastRainRoyale",
-      "name": "Blast Rain",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -859,13 +334,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBlazingSalvoRoyale",
-      "name": "Blazing Salvo",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemBlessedCall",
       "name": "Blessed Call Support",
       "primaryAttribute": "strength",
@@ -880,32 +348,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBlightRoyale",
-      "name": "Blight",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemBlind",
       "name": "Blind Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 8,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBlindRoyale",
-      "name": "Blind Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBlindingAura",
-      "name": "Blinding Aura",
-      "primaryAttribute": "none",
-      "requiredLevel": 1,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SkillGemBlinkArrow",
@@ -915,38 +362,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBlinkArrowRoyale",
-      "name": "Blink Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBlockChanceReduction",
-      "name": "Block Chance Reduction Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemBloodAndSand",
       "name": "Blood and Sand",
       "primaryAttribute": "strength",
       "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBloodAndSandRoyale",
-      "name": "Blood and Sand",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemBloodOffering",
-      "name": "Blood Offering",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
       "isSupport": false
     },
     {
@@ -961,13 +380,6 @@
       "name": "Bloodlust Support",
       "primaryAttribute": "strength",
       "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemBloodsoakedBanner",
-      "name": "Bloodsoaked Banner Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -1006,13 +418,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemBonespire",
-      "name": "Bonespire Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemRecallBrands",
       "name": "Brand Recall",
       "primaryAttribute": "intelligence",
@@ -1034,32 +439,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBurningArrowRoyale",
-      "name": "Burning Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemIncreasedBurningDamage",
       "name": "Burning Damage Support",
       "primaryAttribute": "strength",
       "requiredLevel": 31,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Chayula/XophGraftGem3",
-      "name": "Call the Pyre",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCaptureMonster",
-      "name": "Capture Monster",
-      "primaryAttribute": "none",
-      "requiredLevel": 1,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SupportGemCastOnCrit",
@@ -1076,24 +460,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemCastOnDeathRoyale",
-      "name": "Cast on Death Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemCastOnKill",
       "name": "Cast on Melee Kill Support",
       "primaryAttribute": "strength",
       "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCastOnWardBreak",
-      "name": "Cast on Ward Break Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -1118,13 +488,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemCastWhileChannellingRoyale",
-      "name": "Cast while Channelling Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemPoisonArrow",
       "name": "Caustic Arrow",
       "primaryAttribute": "dexterity",
@@ -1132,24 +495,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemPoisonArrowRoyale",
-      "name": "Caustic Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemChainHook",
       "name": "Chain Hook",
       "primaryAttribute": "strength",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemChainHookRoyale",
-      "name": "Chain Hook",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -1164,13 +513,6 @@
       "name": "Chance to Bleed Support",
       "primaryAttribute": "strength",
       "requiredLevel": 1,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemChanceToBleedRoyale",
-      "name": "Chance to Bleed Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -1195,13 +537,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemChargedDashRoyale",
-      "name": "Charged Dash",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemChargedMines",
       "name": "Charged Mines Support",
       "primaryAttribute": "intelligence",
@@ -1223,21 +558,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemClarityRoyale",
-      "name": "Clarity",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemCleave",
-      "name": "Cleave",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCleaveRoyale",
       "name": "Cleave",
       "primaryAttribute": "strength",
       "requiredLevel": 1,
@@ -1265,13 +586,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemCobraLashRoyale",
-      "name": "Cobra Lash",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemColdPenetration",
       "name": "Cold Penetration Support",
       "primaryAttribute": "dexterity",
@@ -1283,13 +597,6 @@
       "name": "Cold Snap",
       "primaryAttribute": "intelligence",
       "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemColdSnapRoyale",
-      "name": "Cold Snap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1307,31 +614,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemMinionPact",
-      "name": "Communion Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCompanionship",
-      "name": "Companionship Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemConcentratedEffect",
       "name": "Concentrated Effect Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemConcentratedEffectRoyale",
-      "name": "Concentrated Effect Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -1347,13 +633,6 @@
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCongregation",
-      "name": "Congregation Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemConsecratedPath",
@@ -1391,25 +670,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemConvocation",
-      "name": "Convocation",
-      "primaryAttribute": "none",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemConvocationNew",
       "name": "Convocation",
       "primaryAttribute": "none",
       "requiredLevel": 31,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCooldownRecovery",
-      "name": "Cooldown Recovery Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SupportGemCorruptingCry",
@@ -1426,13 +691,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemCrustaceousGrasp",
-      "name": "Coursing Current Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemCracklingLance",
       "name": "Crackling Lance",
       "primaryAttribute": "intelligence",
@@ -1447,24 +705,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemArcticBreathRoyale",
-      "name": "Creeping Frost",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemCorpseEruption",
       "name": "Cremation",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemCorpseEruptionRoyale",
-      "name": "Cremation",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1489,20 +733,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemCrystalfall",
-      "name": "Crystalfall Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCullTheWeak",
-      "name": "Cull the Weak Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemCullingStrike",
       "name": "Culling Strike Support",
       "primaryAttribute": "dexterity",
@@ -1524,32 +754,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemCycloneRoyale",
-      "name": "Cyclone",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDamageInfusion",
-      "name": "Damage Infusion",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 2,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemMeleeDamageOnFullLife",
       "name": "Damage on Full Life Support",
       "primaryAttribute": "strength",
       "requiredLevel": 18,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Chayula/TulGraftGem1",
-      "name": "Dance in the White",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SkillGemDarkPact",
@@ -1559,21 +768,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemDarkPactRoyale",
-      "name": "Dark Bargain",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemDash",
-      "name": "Dash",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDashRoyale",
       "name": "Dash",
       "primaryAttribute": "dexterity",
       "requiredLevel": 4,
@@ -1585,13 +780,6 @@
       "primaryAttribute": "dexterity",
       "requiredLevel": 18,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDeathAura",
-      "name": "Death Aura",
-      "primaryAttribute": "none",
-      "requiredLevel": 62,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SupportGemDecay",
@@ -1622,24 +810,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemDesecrateRoyale",
-      "name": "Desecrate",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemVulnerability",
       "name": "Despair",
       "primaryAttribute": "intelligence",
       "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVulnerabilityRoyale",
-      "name": "Despair",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1658,13 +832,6 @@
     },
     {
       "id": "Metadata/Items/Gems/SkillGemDetonateDead",
-      "name": "Detonate Dead",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDetonateDeadRoyale",
       "name": "Detonate Dead",
       "primaryAttribute": "dexterity",
       "requiredLevel": 4,
@@ -1706,13 +873,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemDiscorectangleSlam",
-      "name": "Discorectangle Slam",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemDivineBlast",
       "name": "Divine Blast",
       "primaryAttribute": "strength",
@@ -1720,24 +880,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemDivineBlessing",
-      "name": "Divine Blessing Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 31,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemDivineTempest",
       "name": "Divine Ire",
       "primaryAttribute": "intelligence",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDivineTempestRoyale",
-      "name": "Divine Ire",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1748,24 +894,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemDivineSentinel",
-      "name": "Divine Sentinel Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemDominatingBlow",
       "name": "Dominating Blow",
       "primaryAttribute": "strength",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemDominatingBlowRoyale",
-      "name": "Dominating Blow",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -1790,31 +922,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemDualStrikeRoyale",
-      "name": "Dual Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEarthbreaker",
-      "name": "Earthbreaker Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemEarthquake",
       "name": "Earthquake",
       "primaryAttribute": "strength",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemEarthquakeRoyale",
-      "name": "Earthquake",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1825,31 +936,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemEclipse",
-      "name": "Eclipse Support",
-      "primaryAttribute": "none",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEdify",
-      "name": "Edify Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemEfficacy",
       "name": "Efficacy Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemEldritchBlasphemy",
-      "name": "Eldritch Blasphemy Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -1881,27 +971,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemElementalHitRoyale",
-      "name": "Elemental Hit",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemElementalPenetration",
-      "name": "Elemental Penetration Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 31,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemElementalProjectiles",
-      "name": "Elemental Projectiles",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemElementalProliferation",
       "name": "Elemental Proliferation Support",
       "primaryAttribute": "intelligence",
@@ -1916,20 +985,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemElementalWeaknessRoyale",
-      "name": "Elemental Weakness",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAdditionalLevel",
-      "name": "Empower Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemEnduranceChargeOnMeleeStun",
       "name": "Endurance Charge on Melee Stun Support",
       "primaryAttribute": "strength",
@@ -1941,13 +996,6 @@
       "name": "Enduring Cry",
       "primaryAttribute": "strength",
       "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemEnduringCryRoyale",
-      "name": "Enduring Cry",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -1965,32 +1013,11 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Chayula/EshGraftGem3",
-      "name": "Enervating Grasp",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemEnfeeble",
       "name": "Enfeeble",
       "primaryAttribute": "intelligence",
       "requiredLevel": 24,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAdditionalQuality",
-      "name": "Enhance Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemAdditionalXP",
-      "name": "Enlighten Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemEnsnaringArrow",
@@ -2000,31 +1027,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemEnsnaringArrowRoyale",
-      "name": "Ensnaring Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemEnvy",
-      "name": "Envy",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 60,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemEssenceDrain",
       "name": "Essence Drain",
       "primaryAttribute": "intelligence",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemEssenceDrainRoyale",
-      "name": "Essence Drain",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2036,13 +1042,6 @@
     },
     {
       "id": "Metadata/Items/Gems/SkillGemEtherealKnives",
-      "name": "Ethereal Knives",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemEtherealKnivesRoyale",
       "name": "Ethereal Knives",
       "primaryAttribute": "dexterity",
       "requiredLevel": 1,
@@ -2084,13 +1083,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemExplosiveArrowRoyale",
-      "name": "Explosive Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemExplosiveConcoction",
       "name": "Explosive Concoction",
       "primaryAttribute": "dexterity",
@@ -2119,24 +1111,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Chayula/TulGraftGem2",
-      "name": "Falling Crystals",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemFasterAttack",
       "name": "Faster Attacks Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFasterAttackRoyale",
-      "name": "Faster Attacks Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 10,
       "isSupport": true
     },
     {
@@ -2147,24 +1125,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemFasterCastRoyale",
-      "name": "Faster Casting Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemFasterProjectiles",
       "name": "Faster Projectiles Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 31,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFasterProjectilesRoyale",
-      "name": "Faster Projectiles Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -2189,28 +1153,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFireTrapRoyale",
-      "name": "Fire Trap",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFireWeapon",
-      "name": "Fire Weapon",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 5,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFireball",
-      "name": "Fireball",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFireballRoyale",
       "name": "Fireball",
       "primaryAttribute": "intelligence",
       "requiredLevel": 1,
@@ -2224,20 +1167,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFirestormRoyale",
-      "name": "Firestorm",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFissure",
-      "name": "Fissure Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemFistOfWar",
       "name": "Fist of War Support",
       "primaryAttribute": "strength",
@@ -2245,24 +1174,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemFistOfWarRoyale",
-      "name": "Fist of War Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFlameDash",
       "name": "Flame Dash",
       "primaryAttribute": "intelligence",
       "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFlameDashRoyale",
-      "name": "Flame Dash",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2301,13 +1216,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFlamethrowerTrapRoyale",
-      "name": "Flamethrower Trap",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemFlamewood",
       "name": "Flamewood Support",
       "primaryAttribute": "strength",
@@ -2319,13 +1227,6 @@
       "name": "Flammability",
       "primaryAttribute": "intelligence",
       "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFlammableShot",
-      "name": "Flammable Shot",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
       "isSupport": false
     },
     {
@@ -2385,31 +1286,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemFortifyRoyale",
-      "name": "Fortify Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFoulgrasp",
-      "name": "Foulgrasp Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFreezingPulse",
       "name": "Freezing Pulse",
       "primaryAttribute": "intelligence",
       "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFreezingPulseRoyale",
-      "name": "Freezing Pulse",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2441,21 +1321,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFrostBladesRoyale",
-      "name": "Frost Blades",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFrostBomb",
-      "name": "Frost Bomb",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFrostBombRoyale",
       "name": "Frost Bomb",
       "primaryAttribute": "intelligence",
       "requiredLevel": 4,
@@ -2490,32 +1356,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFrostblinkRoyale",
-      "name": "Frostblink",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFrostBolt",
       "name": "Frostbolt",
       "primaryAttribute": "intelligence",
       "requiredLevel": 1,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFrostBoltRoyale",
-      "name": "Frostbolt",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemFrostmage",
-      "name": "Frostmage Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemFrozenLegion",
@@ -2529,13 +1374,6 @@
       "name": "Galvanic Arrow",
       "primaryAttribute": "dexterity",
       "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemShrapnelShotRoyale",
-      "name": "Galvanic Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2553,13 +1391,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemGeneralsCryRoyale",
-      "name": "General's Cry",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemGenerosity",
       "name": "Generosity Support",
       "primaryAttribute": "strength",
@@ -2574,24 +1405,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemGlacialCascadeRoyale",
-      "name": "Glacial Cascade",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemGlacialHammer",
       "name": "Glacial Hammer",
       "primaryAttribute": "strength",
       "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemGlacialHammerRoyale",
-      "name": "Glacial Hammer",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2602,27 +1419,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Chayula/EshGraftGem2",
-      "name": "Glowing Silhouette",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemGluttonyOfElements",
-      "name": "Gluttony of Elements",
-      "primaryAttribute": "none",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGluttony",
-      "name": "Gluttony Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemGrace",
       "name": "Grace",
       "primaryAttribute": "dexterity",
@@ -2630,73 +1426,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemGreaterAncestralCall",
-      "name": "Greater Ancestral Call Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterChain",
-      "name": "Greater Chain Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterDevour",
-      "name": "Greater Devour Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterFork",
-      "name": "Greater Fork Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterKineticInstability",
-      "name": "Greater Kinetic Instability Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemGreaterMultipleProjectiles",
       "name": "Greater Multiple Projectiles Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterMultistrike",
-      "name": "Greater Multistrike Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterSpellCascade",
-      "name": "Greater Spell Cascade Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterSpellEcho",
-      "name": "Greater Spell Echo Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemGreaterUnleash",
-      "name": "Greater Unleash Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -2708,13 +1441,6 @@
     },
     {
       "id": "Metadata/Items/Gems/SkillGemGroundSlam",
-      "name": "Ground Slam",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemGroundSlamRoyale",
       "name": "Ground Slam",
       "primaryAttribute": "strength",
       "requiredLevel": 1,
@@ -2735,13 +1461,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemHarrowingThrong",
-      "name": "Harrowing Throng Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemHaste",
       "name": "Haste",
       "primaryAttribute": "dexterity",
@@ -2756,21 +1475,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Chayula/XophGraftGem1",
-      "name": "Heart of Flame",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemHeavyStrike",
-      "name": "Heavy Strike",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemHeavyStrikeRoyale",
       "name": "Heavy Strike",
       "primaryAttribute": "strength",
       "requiredLevel": 1,
@@ -2826,20 +1531,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemHexpass",
-      "name": "Hexpass Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemHextoad",
-      "name": "Hextoad Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemCurseOnHit",
       "name": "Hextouch Support",
       "primaryAttribute": "intelligence",
@@ -2854,28 +1545,7 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Chayula/XophGraftGem2",
-      "name": "His Burning Message",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemHiveborn",
-      "name": "Hiveborn Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFlameTotem",
-      "name": "Holy Flame Totem",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemFlameTotemRoyale",
       "name": "Holy Flame Totem",
       "primaryAttribute": "strength",
       "requiredLevel": 4,
@@ -2910,13 +1580,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemHydrosphereRoyale",
-      "name": "Hydrosphere",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemDamageAgainstChilled",
       "name": "Hypothermia Support",
       "primaryAttribute": "dexterity",
@@ -2938,24 +1601,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemIceCrashRoyale",
-      "name": "Ice Crash",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemIceNova",
       "name": "Ice Nova",
       "primaryAttribute": "intelligence",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemIceNovaRoyale",
-      "name": "Ice Nova",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -2966,24 +1615,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemIceShotRoyale",
-      "name": "Ice Shot",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemIceSpear",
       "name": "Ice Spear",
       "primaryAttribute": "intelligence",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemIceSpearRoyale",
-      "name": "Ice Spear",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -2994,31 +1629,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemIceTrapRoyale",
-      "name": "Ice Trap",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemIcefire",
-      "name": "Icefire",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFreezeMine",
       "name": "Icicle Mine",
       "primaryAttribute": "intelligence",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemIgnite",
-      "name": "Ignite",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 14,
       "isSupport": false
     },
     {
@@ -3057,13 +1671,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemImpendingDoomRoyale",
-      "name": "Impending Doom Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemIncinerate",
       "name": "Incinerate",
       "primaryAttribute": "intelligence",
@@ -3071,24 +1678,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemIncinerateRoyale",
-      "name": "Incinerate",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemIncreasedAreaOfEffect",
       "name": "Increased Area of Effect Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemIncreasedAreaOfEffectRoyale",
-      "name": "Increased Area of Effect Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -3106,31 +1699,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemIncreasedCriticalStrikesRoyale",
-      "name": "Increased Critical Strikes Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemIncreasedDurationRoyale",
-      "name": "Increased Duration Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemInfernalBlow",
       "name": "Infernal Blow",
       "primaryAttribute": "strength",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemInfernalBlowRoyale",
-      "name": "Infernal Blow",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -3146,13 +1718,6 @@
       "primaryAttribute": "intelligence",
       "requiredLevel": 8,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemInfernalSweep",
-      "name": "Infernal Sweep",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SupportGemStormBarrier",
@@ -3197,20 +1762,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemInvention",
-      "name": "Invention Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemInvertTheRules",
-      "name": "Invert the Rules Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemIronGrip",
       "name": "Iron Grip Support",
       "primaryAttribute": "strength",
@@ -3222,13 +1773,6 @@
       "name": "Iron Will Support",
       "primaryAttribute": "strength",
       "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemItemQuantity",
-      "name": "Item Quantity Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 24,
       "isSupport": true
     },
     {
@@ -3281,24 +1825,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemKnockbackRoyale",
-      "name": "Knockback Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemLacerate",
       "name": "Lacerate",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLacerateRoyale",
-      "name": "Lacerate",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -3316,38 +1846,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemLeapSlamRoyale",
-      "name": "Leap Slam",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemReducedDuration",
       "name": "Less Duration Support",
       "primaryAttribute": "strength",
       "requiredLevel": 31,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemReducedDurationRoyale",
-      "name": "Less Duration Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemTemporaryForTutorial",
-      "name": "Lesser Reduced Mana Cost Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemLethalDose",
-      "name": "Lethal Dose Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -3372,38 +1874,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemLifetapRoyale",
-      "name": "Lifetap Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemLightningArrow",
       "name": "Lightning Arrow",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLightningArrowRoyale",
-      "name": "Lightning Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLightningChannel",
-      "name": "Lightning Channel",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLightningCircle",
-      "name": "Lightning Circle",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -3428,13 +1902,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemLightningTowerTrapRoyale",
-      "name": "Lightning Spire Trap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemLightningStrike",
       "name": "Lightning Strike",
       "primaryAttribute": "dexterity",
@@ -3449,20 +1916,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemLightningTendrilsChannelled",
-      "name": "Lightning Tendrils",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLightningTendrilsRoyale",
-      "name": "Lightning Tendrils",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemLightningTrap",
       "name": "Lightning Trap",
       "primaryAttribute": "intelligence",
@@ -3470,24 +1923,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemLightningTrapRoyale",
-      "name": "Lightning Trap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemLightningWarp",
       "name": "Lightning Warp",
       "primaryAttribute": "intelligence",
       "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemLightningWarpRoyale",
-      "name": "Lightning Warp",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -3505,31 +1944,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemMachinations",
-      "name": "Machinations Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMagnetism",
-      "name": "Magnetism Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemMaim",
       "name": "Maim Support",
       "primaryAttribute": "strength",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMaimRoyale",
-      "name": "Maim Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -3596,13 +2014,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemMeleeSplashRoyale",
-      "name": "Melee Splash Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemMinefield",
       "name": "Minefield Support",
       "primaryAttribute": "intelligence",
@@ -3659,13 +2070,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemMoltenStrikeRoyale",
-      "name": "Molten Strike",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemOnslaught",
       "name": "Momentum Support",
       "primaryAttribute": "dexterity",
@@ -3687,24 +2091,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemLesserMultipleProjectilesRoyale",
-      "name": "Multiple Projectiles Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemMultiTotem",
       "name": "Multiple Totems Support",
       "primaryAttribute": "strength",
       "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemMultiTotemRoyale",
-      "name": "Multiple Totems Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -3722,34 +2112,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemMultistrikeRoyale",
-      "name": "Multistrike Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemNewBladeVortex",
-      "name": "New Blade Vortex",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemNewShockNova",
-      "name": "New Shock Nova",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemNewPunishment",
-      "name": "NewPunishment",
-      "primaryAttribute": "strength",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemNightblade",
       "name": "Nightblade Support",
       "primaryAttribute": "dexterity",
@@ -3764,13 +2126,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gem/SkillGemCallMercenary",
-      "name": "Order: To me!",
-      "primaryAttribute": "none",
-      "requiredLevel": 0,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemOvercharge",
       "name": "Overcharge Support",
       "primaryAttribute": "intelligence",
@@ -3778,67 +2133,11 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Chayula/EshGraftGem4",
-      "name": "Overcharged Sinews",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemOverexertion",
       "name": "Overexertion Support",
       "primaryAttribute": "strength",
       "requiredLevel": 38,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemOverheat",
-      "name": "Overheat Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemOverloadedIntensity",
-      "name": "Overloaded Intensity Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemPacifism",
-      "name": "Pacifism Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPactOfBeidat",
-      "name": "Pact of Beidat",
-      "primaryAttribute": "none",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPactOfGhorr",
-      "name": "Pact of Ghorr",
-      "primaryAttribute": "none",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPactOfKtash",
-      "name": "Pact of K'Tash",
-      "primaryAttribute": "none",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPactOfLycia",
-      "name": "Pact of Lycia",
-      "primaryAttribute": "none",
-      "requiredLevel": 24,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SkillGemPenanceBrand",
@@ -3869,24 +2168,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemNewPhaseRun",
-      "name": "Phase Run",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 34,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemPhaseRun",
       "name": "Phase Run",
       "primaryAttribute": "dexterity",
       "requiredLevel": 34,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPhaseRunRoyale",
-      "name": "Phase Run",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -3918,38 +2203,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemPlaytestAttack",
-      "name": "Playtest Attack",
-      "primaryAttribute": "none",
-      "requiredLevel": 0,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPlaytestSlam",
-      "name": "Playtest Slam",
-      "primaryAttribute": "none",
-      "requiredLevel": 0,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPlaytestSpell",
-      "name": "Playtest Spell",
-      "primaryAttribute": "none",
-      "requiredLevel": 0,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemPoachersMark",
       "name": "Poacher's Mark",
       "primaryAttribute": "dexterity",
       "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPoachersMarkRoyale",
-      "name": "Poacher's Mark",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -3960,24 +2217,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemPointBlankRoyale",
-      "name": "Point Blank Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemPoisonousConcoction",
       "name": "Poisonous Concoction",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemPortal",
-      "name": "Portal",
-      "primaryAttribute": "none",
-      "requiredLevel": 10,
       "isSupport": false
     },
     {
@@ -4002,25 +2245,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemPrecisionRoyale",
-      "name": "Precision",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemDeathmark",
       "name": "Predator Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 18,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Chayula/TulGraftGem4",
-      "name": "Preserving Stillness",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SkillGemPride",
@@ -4058,13 +2287,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemPunctureRoyale",
-      "name": "Puncture",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemPunishment",
       "name": "Punishment",
       "primaryAttribute": "strength",
@@ -4076,13 +2298,6 @@
       "name": "Purifying Flame",
       "primaryAttribute": "intelligence",
       "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSanctifyRoyale",
-      "name": "Purifying Flame",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -4114,13 +2329,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemPyre",
-      "name": "Pyre Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemFireNovaMine",
       "name": "Pyroclast Mine",
       "primaryAttribute": "intelligence",
@@ -4128,24 +2336,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemQuickstep",
-      "name": "Quickstep",
-      "primaryAttribute": "none",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemRage",
       "name": "Rage Support",
       "primaryAttribute": "strength",
       "requiredLevel": 18,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemRageRoyale",
-      "name": "Rage Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -4160,13 +2354,6 @@
       "name": "Rain of Arrows",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemRainOfArrowsRoyale",
-      "name": "Rain of Arrows",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -4198,13 +2385,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBloodreapRoyale",
-      "name": "Reap",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemReave",
       "name": "Reave",
       "primaryAttribute": "dexterity",
@@ -4216,27 +2396,6 @@
       "name": "Rejuvenation Totem",
       "primaryAttribute": "strength",
       "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemRejuvenationTotemRoyale",
-      "name": "Rejuvenation Totem",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemRendingSteel",
-      "name": "Rending Steel",
-      "primaryAttribute": "strength",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Chayula/UulNetolGraftGem1",
-      "name": "Return to Dust",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4254,28 +2413,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemRighteousLightning",
-      "name": "Righteous Lightning",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemRiptide",
-      "name": "Riptide",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemMagmaOrb",
-      "name": "Rolling Magma",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemMagmaOrbRoyale",
       "name": "Rolling Magma",
       "primaryAttribute": "intelligence",
       "requiredLevel": 1,
@@ -4324,24 +2462,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemScornfulHerald",
-      "name": "Scornful Herald Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemScourgeArrow",
       "name": "Scourge Arrow",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemScourgeArrowRoyale",
-      "name": "Scourge Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -4352,24 +2476,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemSearingBondRoyale",
-      "name": "Searing Bond",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemSecondWind",
       "name": "Second Wind Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 31,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSecondWindRoyale",
-      "name": "Second Wind Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -4387,20 +2497,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Chayula/UulNetolGraftGem2",
-      "name": "Seize the Flesh",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemShadowBlades",
-      "name": "Shadow Blades",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemShatteringSteel",
       "name": "Shattering Steel",
       "primaryAttribute": "dexterity",
@@ -4408,21 +2504,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemShatteringSteelRoyale",
-      "name": "Shattering Steel",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemShieldCharge",
-      "name": "Shield Charge",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemShieldChargeRoyale",
       "name": "Shield Charge",
       "primaryAttribute": "strength",
       "requiredLevel": 4,
@@ -4450,13 +2532,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemShockNovaRoyale",
-      "name": "Shock Nova",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemShockwave",
       "name": "Shockwave Support",
       "primaryAttribute": "strength",
@@ -4468,13 +2543,6 @@
       "name": "Shockwave Totem",
       "primaryAttribute": "strength",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemShockwaveTotemRoyale",
-      "name": "Shockwave Totem",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4492,13 +2560,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemSiegeBallistaRoyale",
-      "name": "Siege Ballista",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemSigilOfPower",
       "name": "Sigil of Power",
       "primaryAttribute": "intelligence",
@@ -4510,13 +2571,6 @@
       "name": "Siphoning Trap",
       "primaryAttribute": "intelligence",
       "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemIceSiphonTrapRoyale",
-      "name": "Siphoning Trap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -4534,24 +2588,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemSmiteRoyale",
-      "name": "Smite",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemSmokeMine",
       "name": "Smoke Mine",
       "primaryAttribute": "dexterity",
       "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSmokeMineRoyale",
-      "name": "Smoke Mine",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4611,28 +2651,7 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemThrownShieldProjectileRoyale",
-      "name": "Spectral Shield Throw",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSpectralSpinningWeapon",
-      "name": "Spectral Spinning Weapon",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemThrownWeapon",
-      "name": "Spectral Throw",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemThrownWeaponRoyale",
       "name": "Spectral Throw",
       "primaryAttribute": "dexterity",
       "requiredLevel": 1,
@@ -4646,13 +2665,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemSpellCascadeRoyale",
-      "name": "Spell Cascade Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemMulticast",
       "name": "Spell Echo Support",
       "primaryAttribute": "intelligence",
@@ -4660,24 +2672,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemMulticastRoyale",
-      "name": "Spell Echo Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemSpellTotem",
       "name": "Spell Totem Support",
       "primaryAttribute": "strength",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemSpellTotemRoyale",
-      "name": "Spell Totem Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -4709,13 +2707,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemSplit",
-      "name": "Split Projectiles Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 24,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemSplittingSteel",
       "name": "Splitting Steel",
       "primaryAttribute": "dexterity",
@@ -4727,13 +2718,6 @@
       "name": "Static Strike",
       "primaryAttribute": "strength",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemStaticTether",
-      "name": "Static Tether",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4765,13 +2749,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemStormCallRoyale",
-      "name": "Storm Call",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemStormRain",
       "name": "Storm Rain",
       "primaryAttribute": "dexterity",
@@ -4797,13 +2774,6 @@
       "name": "Stun Support",
       "primaryAttribute": "strength",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemStunRoyale",
-      "name": "Stun Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -4856,24 +2826,10 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemSummonGhostOnKillRoyale",
-      "name": "Summon Phantasm Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemSummonRagingSpirit",
       "name": "Summon Raging Spirit",
       "primaryAttribute": "intelligence",
       "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSummonRagingSpiritRoyale",
-      "name": "Summon Raging Spirit",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4886,20 +2842,6 @@
     {
       "id": "Metadata/Items/Gems/SkillGemSummonSkeletons",
       "name": "Summon Skeletons",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSummonSkeletonsRoyale",
-      "name": "Summon Skeletons",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSummonSkeletonsChannelled",
-      "name": "Summon Skeletons Channelled",
       "primaryAttribute": "intelligence",
       "requiredLevel": 10,
       "isSupport": false
@@ -4923,20 +2865,6 @@
       "name": "Sunder",
       "primaryAttribute": "strength",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSunderRoyale",
-      "name": "Sunder",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemSweepRoyale",
-      "name": "Sweep",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -4996,27 +2924,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Chayula/UulNetolGraftGem4",
-      "name": "Tender Embrace",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Chayula/TulGraftGem3",
-      "name": "The Great Avalanche",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Chayula/XophGraftGem4",
-      "name": "The Grey Wind Howls",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemThunderstorm",
       "name": "Thunderstorm",
       "primaryAttribute": "dexterity",
@@ -5038,32 +2945,11 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemTouchOfGod",
-      "name": "Touch of God",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemToxicRain",
       "name": "Toxic Rain",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemToxicRainRoyale",
-      "name": "Toxic Rain",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemTransfusion",
-      "name": "Transfusion Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SupportGemTrapAndMineDamage",
@@ -5077,13 +2963,6 @@
       "name": "Trap Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemTrapRoyale",
-      "name": "Trap Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -5115,31 +2994,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemBoneLanceRoyale",
-      "name": "Unearth",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemUnholyTrinity",
-      "name": "Unholy Trinity Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemHandcastAnticipation",
       "name": "Unleash Support",
       "primaryAttribute": "intelligence",
       "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemHandcastAnticipationRoyale",
-      "name": "Unleash Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": true
     },
     {
@@ -5148,433 +3006,6 @@
       "primaryAttribute": "strength",
       "requiredLevel": 31,
       "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalAbsolution",
-      "name": "Vaal Absolution",
-      "primaryAttribute": "strength",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalAncestralWarchief",
-      "name": "Vaal Ancestral Warchief",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalAnimateWeapon",
-      "name": "Vaal Animate Weapon",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalArc",
-      "name": "Vaal Arc",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalArcticArmour",
-      "name": "Vaal Arctic Armour",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalChargedAttack",
-      "name": "Vaal Blade Flurry",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalBladeVortex",
-      "name": "Vaal Blade Vortex",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalBlight",
-      "name": "Vaal Blight",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalPortal",
-      "name": "Vaal Breach",
-      "primaryAttribute": "none",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalBurningArrow",
-      "name": "Vaal Burning Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalCausticArrow",
-      "name": "Vaal Caustic Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalClarity",
-      "name": "Vaal Clarity",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalCleave",
-      "name": "Vaal Cleave",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalColdSnap",
-      "name": "Vaal Cold Snap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalCyclone",
-      "name": "Vaal Cyclone",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalDetonateDead",
-      "name": "Vaal Detonate Dead",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalDiscipline",
-      "name": "Vaal Discipline",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalDomination",
-      "name": "Vaal Domination",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalDoubleStrike",
-      "name": "Vaal Double Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalEarthquake",
-      "name": "Vaal Earthquake",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFireball",
-      "name": "Vaal Fireball",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFirestorm",
-      "name": "Vaal Firestorm",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFireTrap",
-      "name": "Vaal FireTrap",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFlameblast",
-      "name": "Vaal Flameblast",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFleshOffering",
-      "name": "Vaal Flesh Offering",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFlickerStrike",
-      "name": "Vaal Flicker Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalGlacialHammer",
-      "name": "Vaal Glacial Hammer",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalGrace",
-      "name": "Vaal Grace",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalGroundSlam",
-      "name": "Vaal Ground Slam",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalHaste",
-      "name": "Vaal Haste",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalHeavyStrike",
-      "name": "Vaal Heavy Strike",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalIceNova",
-      "name": "Vaal Ice Nova",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalIceShot",
-      "name": "Vaal Ice Shot",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalImmortalCall",
-      "name": "Vaal Immortal Call",
-      "primaryAttribute": "strength",
-      "requiredLevel": 34,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalFireResistAura",
-      "name": "Vaal Impurity of Fire",
-      "primaryAttribute": "strength",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalColdResistAura",
-      "name": "Vaal Impurity of Ice",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalLightningResistAura",
-      "name": "Vaal Impurity of Lightning",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalLightningArrow",
-      "name": "Vaal Lightning Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalLightningStrike",
-      "name": "Vaal Lightning Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalLightningTrap",
-      "name": "Vaal Lightning Trap",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalLightningWarp",
-      "name": "Vaal Lightning Warp",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalMoltenShell",
-      "name": "Vaal Molten Shell",
-      "primaryAttribute": "strength",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalMoltenStrike",
-      "name": "Vaal Molten Strike",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalPowerSiphon",
-      "name": "Vaal Power Siphon",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalRainOfArrows",
-      "name": "Vaal Rain of Arrows",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalReap",
-      "name": "Vaal Reap",
-      "primaryAttribute": "strength",
-      "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalReave",
-      "name": "Vaal Reave",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalRejuvenationTotem",
-      "name": "Vaal Rejuvenation Totem",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalRighteousFire",
-      "name": "Vaal Righteous Fire",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVaalSacrifice",
-      "name": "Vaal Sacrifice Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalSmite",
-      "name": "Vaal Smite",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVaalSoulHarvesting",
-      "name": "Vaal Soul Harvesting",
-      "primaryAttribute": "none",
-      "requiredLevel": 38,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalSpark",
-      "name": "Vaal Spark",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalThrownWeapon",
-      "name": "Vaal Spectral Throw",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalSplitArrow",
-      "name": "Vaal Split Arrow",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalStormCall",
-      "name": "Vaal Storm Call",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalSummonSkeletons",
-      "name": "Vaal Summon Skeletons",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalSweep",
-      "name": "Vaal Sweep",
-      "primaryAttribute": "strength",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVaalTemptation",
-      "name": "Vaal Temptation Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalVenomGyre",
-      "name": "Vaal Venom Gyre",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVaalVolcanicFissure",
-      "name": "Vaal Volcanic Fissure",
-      "primaryAttribute": "strength",
-      "requiredLevel": 12,
-      "isSupport": false
     },
     {
       "id": "Metadata/Items/Gems/SkillGemVampiricLink",
@@ -5595,13 +3026,6 @@
       "name": "Venom Gyre",
       "primaryAttribute": "dexterity",
       "requiredLevel": 12,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVenomGyreRoyale",
-      "name": "Venom Gyre",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
@@ -5626,21 +3050,7 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Chayula/UulNetolGraftGem3",
-      "name": "Violent Desire",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemViperStrike",
-      "name": "Viper Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemViperStrikeRoyale",
       "name": "Viper Strike",
       "primaryAttribute": "dexterity",
       "requiredLevel": 1,
@@ -5654,24 +3064,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemVitalityRoyale",
-      "name": "Vitality",
-      "primaryAttribute": "strength",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SupportGemVoidManipulation",
       "name": "Void Manipulation Support",
       "primaryAttribute": "dexterity",
       "requiredLevel": 8,
-      "isSupport": true
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVoidShockwave",
-      "name": "Void Shockwave Support",
-      "primaryAttribute": "strength",
-      "requiredLevel": 72,
       "isSupport": true
     },
     {
@@ -5680,20 +3076,6 @@
       "primaryAttribute": "intelligence",
       "requiredLevel": 34,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVoidSphereRoyale",
-      "name": "Void Sphere",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemVoidstorm",
-      "name": "Voidstorm Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 72,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemVolatileDead",
@@ -5724,13 +3106,6 @@
       "isSupport": true
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemParallelProjectilesRoyale",
-      "name": "Volley Support",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemVoltaxicBurst",
       "name": "Voltaxic Burst",
       "primaryAttribute": "intelligence",
@@ -5745,31 +3120,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemFrostBoltNovaRoyale",
-      "name": "Vortex",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemVortexMine",
-      "name": "Vortex Mine",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 1,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemNewVulnerability",
       "name": "Vulnerability",
       "primaryAttribute": "strength",
       "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemNewVulnerabilityRoyale",
-      "name": "Vulnerability",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -5780,13 +3134,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemWandTeleport",
-      "name": "Wand Teleport",
-      "primaryAttribute": "none",
-      "requiredLevel": 10,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemWarBanner",
       "name": "War Banner",
       "primaryAttribute": "strength",
@@ -5794,24 +3141,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SupportGemWard",
-      "name": "Ward Support",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 72,
-      "isSupport": true
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemWarlordsMark",
       "name": "Warlord's Mark",
       "primaryAttribute": "strength",
       "requiredLevel": 16,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemWarlordsMarkRoyale",
-      "name": "Warlord's Mark",
-      "primaryAttribute": "strength",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -5822,13 +3155,6 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemPurgeRoyale",
-      "name": "Wave of Conviction",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemWhirlingBlades",
       "name": "Whirling Blades",
       "primaryAttribute": "dexterity",
@@ -5836,31 +3162,10 @@
       "isSupport": false
     },
     {
-      "id": "Metadata/Items/Gems/SkillGemWhirlingBladesRoyale",
-      "name": "Whirling Blades",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
       "id": "Metadata/Items/Gems/SkillGemWildStrike",
       "name": "Wild Strike",
       "primaryAttribute": "dexterity",
       "requiredLevel": 28,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemWildStrikeRoyale",
-      "name": "Wild Strike",
-      "primaryAttribute": "dexterity",
-      "requiredLevel": 4,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SkillGemInfernalSwarm",
-      "name": "Wildfire",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 4,
       "isSupport": false
     },
     {
@@ -5883,13 +3188,6 @@
       "primaryAttribute": "intelligence",
       "requiredLevel": 12,
       "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Gems/SupportGemCastLinkedCursesOnCurse",
-      "name": "WIP Support",
-      "primaryAttribute": "none",
-      "requiredLevel": 1,
-      "isSupport": true
     },
     {
       "id": "Metadata/Items/Gems/SkillGemWither",
@@ -5917,13 +3215,6 @@
       "name": "Wrath",
       "primaryAttribute": "intelligence",
       "requiredLevel": 24,
-      "isSupport": false
-    },
-    {
-      "id": "Metadata/Items/Chayula/EshGraftGem1",
-      "name": "Wreathed in Light",
-      "primaryAttribute": "intelligence",
-      "requiredLevel": 1,
       "isSupport": false
     },
     {
