@@ -1,0 +1,47 @@
+name: Harden Passive Tree HUD visual capture temp
+
+on:
+  push:
+    branches:
+      - feature/passive-tree-hud
+    paths:
+      - .github/workflows/hud-visual-capture-fix-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/passive-tree-hud
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Harden offscreen capture synchronization
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('tools/visual-passive-tree-hud.ts')
+          text = p.read_text(encoding='utf-8')
+          old = """      await waitFor(window, `document.querySelector(${JSON.stringify(fixture.selector)})`, `${fixture.name} fixture`);\n      await new Promise((resolve) => setTimeout(resolve, 80));\n      const metrics = await window.webContents.executeJavaScript(`(() => {\n"""
+          new = """      await waitFor(window, `document.querySelector(${JSON.stringify(fixture.selector)})`, `${fixture.name} fixture`);\n      // Offscreen Chromium can report the new DOM before its compositor has\n      // painted that state, especially at fractional DPI. Wait through two\n      // animation frames, explicitly invalidate, and discard one warm capture\n      // before asserting/saving the frame used as release evidence.\n      await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);\n      window.webContents.invalidate();\n      await new Promise((resolve) => setTimeout(resolve, 180));\n      const warmFrame = await window.webContents.capturePage();\n      if (warmFrame.isEmpty()) throw new Error(`${fixture.name} ${viewport.label}: warmup screenshot was empty.`);\n      await window.webContents.executeJavaScript(`new Promise((resolve) => requestAnimationFrame(resolve))`);\n      await new Promise((resolve) => setTimeout(resolve, 80));\n      const metrics = await window.webContents.executeJavaScript(`(() => {\n"""
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one visual-capture snippet, found {count}.')
+          p.write_text(text.replace(old, new), encoding='utf-8')
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Remove temporary workflow and commit
+        shell: bash
+        run: |
+          git rm .github/workflows/hud-visual-capture-fix-temp.yml
+          git add tools/visual-passive-tree-hud.ts
+          git config user.name "Stoffe101"
+          git config user.email "94893570+Stoffe101@users.noreply.github.com"
+          git commit -m "Harden Passive Tree HUD visual capture synchronization"
+          git push origin HEAD:feature/passive-tree-hud
