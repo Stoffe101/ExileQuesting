@@ -38,7 +38,7 @@ export interface MaxrollBuildCoach {
   passiveCompleted: number;
   passiveTotal: number;
   skillMilestones: string[];
-  equipmentMilestones: Array<{ id: string; name: string; itemNames: string[] }>;
+  equipmentMilestones: Array<{ id: string; name: string; itemNames: string[]; slots: Array<{ slot: string; itemId: string; name?: string; baseId?: string; uniqueId?: string }> }>;
   alternateSkillPaths: string[];
 }
 
