@@ -1,10 +1,10 @@
 # Gear Coach
 
-Gear Coach is the v0.2 bridge between a build guide and the pile of items actually dropping on the floor.
+Gear Coach is the bridge between a build guide and the pile of items actually dropping on the floor.
 
-Its job is intentionally narrow: answer **“is this visible item useful for my active leveling build right now?”** without pretending ExileQuesting can inspect hidden game state.
+Its job is intentionally narrow: answer **“is this visible item useful for my active build right now?”** and, when the player supplies a current item, **“is this candidate actually better than what I am wearing?”** without pretending ExileQuesting can inspect hidden game state.
 
-## Fast workflow
+## Quick score workflow
 
 1. Hover an item in Path of Exile.
 2. Press `Ctrl+C` so the game copies its public item text.
@@ -13,7 +13,21 @@ Its job is intentionally narrow: answer **“is this visible item useful for my 
 
 The clipboard is read only after that explicit button press. ExileQuesting does not watch the clipboard continuously, move the mouse, press keys, equip gear or automate gameplay.
 
-A normal paste-text box is also available for troubleshooting or comparing an item copied earlier.
+A normal paste-text box is also available for troubleshooting or scoring an item copied earlier.
+
+## Upgrade comparison workflow
+
+Gear Coach can also compare a candidate against an explicitly supplied currently equipped item.
+
+1. Hover the item you are currently wearing in the slot you want to compare.
+2. Press `Ctrl+C` and click **Capture equipped**.
+3. Hover the drop, vendor item or other candidate.
+4. Press `Ctrl+C` again and click **Compare copied candidate**.
+5. Keep the equipped reference loaded while checking additional candidates, or click **Forget** when you are done.
+
+The reference item exists only in the current Gear Coach renderer state. It is not inferred from process memory, game files or hidden character state, and it is not persisted as authoritative equipment data.
+
+Comparisons are deliberately same-slot only. If the player captures boots and then analyzes a helmet, Gear Coach refuses to call one an upgrade over the other and asks for a matching equipped reference.
 
 ## What is parsed
 
@@ -39,7 +53,7 @@ Gear Coach is not a generic rare-item tier list. Its strongest signals come from
 
 ### Path of Building
 
-v0.2 parses equipment inside named PoB item stages. When a stage references an item from PoB's shared item catalogue, ExileQuesting resolves the slot and parses that item into the same local model used for copied game items.
+Gear Coach parses equipment inside named PoB item stages. When a stage references an item from PoB's shared item catalogue, ExileQuesting resolves the slot and parses that item into the same local model used for copied game items.
 
 This allows Gear Coach to recognise evidence such as:
 
@@ -52,9 +66,9 @@ Empty/self-closing PoB item stages remain valid stages. The parser does not drop
 
 ### Maxroll
 
-Maxroll equipment milestones already preserve slot/item/base/unique references. When Maxroll supplies a real friendly item name, Gear Coach can recognise an exact named target. Internal Maxroll identifiers are not presented as player-facing item names.
+Maxroll equipment milestones preserve slot/item/base/unique references. When Maxroll supplies a real friendly item name, Gear Coach can recognise an exact named target. Internal Maxroll identifiers are not presented as player-facing item names.
 
-## Score and verdict
+## Stage score and verdict
 
 The 0–100 score is a campaign-oriented heuristic, not a simulator DPS result.
 
@@ -70,7 +84,7 @@ Depending on the slot and active stage, it considers:
 - active main-skill link requirement;
 - whether the detected character can equip the item yet.
 
-The resulting verdict is one of:
+The resulting item verdict is one of:
 
 - **Equip-worthy**: unusually strong fit for the current stage;
 - **Good fit**: several strong current-build signals;
@@ -79,6 +93,30 @@ The resulting verdict is one of:
 - **Save for later**: promising, but above the detected character level.
 
 The explanation list matters more than the raw number. It shows which signals actually moved the score.
+
+## Equipped-item comparison
+
+The comparison engine evaluates the candidate and equipped reference through the same build-stage model, then exposes the visible deltas that matter for that slot.
+
+For defensive gear it can compare:
+
+- maximum Life;
+- combined elemental resistance value;
+- local Armour/Evasion/Energy Shield/Ward weighting;
+- movement speed on boots;
+- maximum linked group where links are relevant.
+
+For weapons it compares the same conservative visible offensive-signal model already used by Gear Coach. It does **not** claim to calculate exact Path of Building DPS.
+
+The comparison verdict is intentionally harder to earn than a simple one-point score lead:
+
+- **Upgrade**: candidate stage score is at least 8 points higher;
+- **Sidegrade**: scores are close enough that the visible stat trade should decide it;
+- **Keep current**: candidate stage score is at least 8 points lower;
+- **Future item**: candidate cannot yet be equipped at the detected level;
+- **Wrong slot**: candidate and equipped reference are not comparable slots.
+
+This margin is deliberate. Gear Coach should say “sidegrade” when information is ambiguous rather than manufacture certainty from a tiny heuristic difference.
 
 ## Cheap repair advice
 
@@ -111,7 +149,7 @@ The BUILD overlay shows only the highest-priority concise LOOK FOR hint. The man
 
 When the selected PoB stage exposes gear targets, the generated `ExileQuesting.filter` can highlight those bases before falling through to the player's existing filter.
 
-The wrapper still remains intentionally narrow:
+The wrapper remains intentionally narrow:
 
 - campaign-scoped to `AreaLevel <= 67`;
 - exact target base rules before link rules;
@@ -127,8 +165,10 @@ Gear Coach does **not**:
 
 - know unidentified hidden affixes;
 - inspect the player's currently equipped item automatically;
+- persist a manually captured equipped reference as authoritative character state;
 - calculate exact PoB DPS from arbitrary copied gear;
 - know whether a rare has an open prefix/suffix with perfect certainty from every copy-text form;
+- compare unrelated equipment slots as if their scores were interchangeable;
 - click, equip, craft or vendor anything;
 - simulate input into Path of Exile.
 
@@ -136,4 +176,4 @@ Those boundaries are deliberate. The feature is meant to make visible informatio
 
 ## Future extension
 
-A later Gear/Crafting Coach can build on the same item model with a versioned local item/mod dataset, exact affix classification, richer build weights, budget-aware crafting and optional manually supplied current-equipment comparisons. v0.2 establishes the safe parsing, build-stage targeting and player-facing workflow first.
+The same item and comparison models can grow into Advanced Gear Coach and Crafting Coach with a versioned local item/mod dataset, exact affix classification, richer weapon/build weighting, exact Maxroll base/unique resolution, early-map/endgame recommendations, budget-aware crafting and explicit stop conditions.
