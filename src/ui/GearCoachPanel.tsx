@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { compareGearAnalyses } from '../core/gear-comparison';
 import './gear-comparison.css';
 
@@ -42,6 +42,13 @@ export default function GearCoachPanel({ workspace }: { workspace: Workspace }) 
     () => analysis && equippedAnalysis ? compareGearAnalyses(analysis, equippedAnalysis) : null,
     [analysis, equippedAnalysis],
   );
+
+  useEffect(() => {
+    setInput('');
+    setAnalysis(null);
+    setEquippedAnalysis(null);
+    setError('');
+  }, [active?.profile.id, active?.activeStageId, workspace.characterLevel]);
 
   const run = async (source: 'text' | 'clipboard') => {
     if (!active || busyAction) return;
