@@ -273,9 +273,9 @@ function rebuildBuildGuidance(): void {
 }
 
 async function refreshBuildLootFilter(): Promise<void> {
-  if (!lootFilter.basePath || !activeBuildCoach) return;
+  if (!lootFilter.basePath) return;
   const pendingReload = lootFilter.needsReload;
-  const generated = await writeBuildAwareLootFilter(lootFilter.basePath, activeBuildCoach.loot, lootFilter.fingerprint);
+  const generated = await writeBuildAwareLootFilter(lootFilter.basePath, activeBuildCoach?.loot, lootFilter.fingerprint);
   lootFilter = { ...generated, needsReload: pendingReload || generated.needsReload };
   await saveLootFilterState();
 }
