@@ -88,8 +88,8 @@ function treeBounds(tree: Record<string, unknown>, nodes: PassiveNodeRecord[]): 
   const maxX = Number(tree.max_x);
   const maxY = Number(tree.max_y);
   if ([minX, minY, maxX, maxY].every(Number.isFinite) && minX < maxX && minY < maxY) return { minX, minY, maxX, maxY };
-  const positioned = nodes.filter((node) => node.x !== undefined && node.y !== undefined);
-  if (!positioned.length) throw new Error('Passive tree contained no usable geometry.');
+  const positioned = nodes.filter((node) => node.kind !== 'ascendancy' && node.x !== undefined && node.y !== undefined);
+  if (!positioned.length) throw new Error('Passive tree contained no usable base-tree geometry.');
   return {
     minX: Math.min(...positioned.map((node) => node.x!)),
     minY: Math.min(...positioned.map((node) => node.y!)),
@@ -155,10 +155,15 @@ async function main() {
     if (kind !== 'ascendancy' && !position && !dynamic) {
       throw new Error(`Static passive ${id} (${name}) had incomplete or invalid group/orbit geometry.`);
     }
+    if (kind === 'ascendancy' && !position) {
+      throw new Error(`Ascendancy passive ${id} (${name}) had incomplete or invalid local group/orbit geometry.`);
+    }
     const group = Number(node.group);
     const orbit = Number(node.orbit);
     const orbitIndex = Number(node.orbitIndex);
     const out = Array.isArray(node.out) ? node.out.map(Number).filter((candidate) => Number.isSafeInteger(candidate) && candidate > 0) : [];
+    const ascendancyName = typeof node.ascendancyName === 'string' ? node.ascendancyName.trim() : undefined;
+    const ascendancyStart = node.isAscendancyStart === true;
     const icon = typeof node.icon === 'string' ? node.icon : undefined;
     nodes.push({
       id,
@@ -171,6 +176,8 @@ async function main() {
       ...(Number.isSafeInteger(orbitIndex) ? { orbitIndex } : {}),
       ...(out.length ? { out } : {}),
       ...(Number.isSafeInteger(classStartIndex) && classStartIndex >= 0 ? { classStartIndex } : {}),
+      ...(ascendancyName ? { ascendancyName } : {}),
+      ...(ascendancyStart ? { ascendancyStart: true } : {}),
       ...(icon ? { icon } : {}),
     });
   }
@@ -182,6 +189,22 @@ async function main() {
   const classStarts = nodes.filter((node) => node.kind === 'class-start');
   if (classStarts.length !== classNames.size) throw new Error(`Expected ${classNames.size} class starts, extracted ${classStarts.length}.`);
   const dynamicCount = nodes.filter((node) => node.dynamic).length;
+
+  const ascendancyNodes = nodes.filter((node) => node.kind === 'ascendancy');
+  const ascendancyNames = new Map<string, { nodes: number; starts: number }>();
+  for (const node of ascendancyNodes) {
+    if (!node.ascendancyName || node.x === undefined || node.y === undefined) throw new Error(`Ascendancy node ${node.id} is missing local scope geometry.`);
+    const entry = ascendancyNames.get(node.ascendancyName) ?? { nodes: 0, starts: 0 };
+    entry.nodes += 1;
+    if (node.ascendancyStart) entry.starts += 1;
+    ascendancyNames.set(node.ascendancyName, entry);
+  }
+  if (ascendancyNodes.length < 300 || ascendancyNames.size < 18) {
+    throw new Error(`Passive tree exposed suspiciously little Ascendancy data (${ascendancyNodes.length} nodes, ${ascendancyNames.size} scopes).`);
+  }
+  for (const [ascendancyName, entry] of ascendancyNames) {
+    if (entry.starts !== 1 || entry.nodes < 2) throw new Error(`${ascendancyName} exposed ${entry.nodes} nodes and ${entry.starts} start nodes.`);
+  }
 
   const normalizedPayload = JSON.stringify(nodes);
   const sha256 = createHash('sha256').update(normalizedPayload).digest('hex');
@@ -197,7 +220,7 @@ async function main() {
   };
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
   await fs.writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions; ${classStarts.length} canonical class starts (${sha256.slice(0, 12)}).`);
+  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions; ${classStarts.length} canonical class starts; ${ascendancyNodes.length} Ascendancy nodes across ${ascendancyNames.size} local scopes (${sha256.slice(0, 12)}).`);
 }
 
 await main();
