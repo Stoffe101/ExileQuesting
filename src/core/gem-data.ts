@@ -165,6 +165,11 @@ function normalizedSkillTail(value: string): string {
   );
 }
 
+function exactNameCandidate(value: string, index: GemDataIndex): GemDataRecord | undefined {
+  const matches = index.byName.get(normalizeGemName(value)) ?? [];
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function resolveGemRequirement(requirement: GemRequirement, index: GemDataIndex): GemDataRecord | undefined {
   if (requirement.skillId) {
     const exact = index.byId.get(requirement.skillId);
@@ -173,6 +178,17 @@ export function resolveGemRequirement(requirement: GemRequirement, index: GemDat
     const byTail = [...index.byId.values()].filter((gem) => normalizedSkillTail(gem.id) === skillTail);
     if (byTail.length === 1) return byTail[0];
   }
-  const byName = index.byName.get(normalizeGemName(requirement.name)) ?? [];
-  return byName.length === 1 ? byName[0] : undefined;
+
+  const byName = exactNameCandidate(requirement.name, index);
+  if (byName) return byName;
+
+  // Maxroll's planner uses labels such as "Support Volley" while the game-facing
+  // gem is "Volley Support". Some of those planner IDs are aliases rather than PoE
+  // metadata tails (Volley is SupportGemParallelProjectiles), so after ID resolution
+  // fails we may flip this one known label convention and require one exact bundled
+  // display-name match. No fuzzy/partial matching is accepted.
+  const maxrollSupportLabel = requirement.name.match(/^Support\s+(.+)$/i)?.[1]?.trim();
+  if (maxrollSupportLabel) return exactNameCandidate(`${maxrollSupportLabel} Support`, index);
+
+  return undefined;
 }
