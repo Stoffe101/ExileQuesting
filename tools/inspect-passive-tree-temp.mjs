@@ -20,26 +20,50 @@ function extractAssignedObject(source, marker) {
   throw new Error('Unterminated object');
 }
 
+function kind(node) {
+  if (node.isAscendancyStart || typeof node.ascendancyName === 'string') return 'ascendancy';
+  if (node.classStartIndex !== undefined) return 'class-start';
+  if (node.isKeystone) return 'keystone';
+  if (node.isNotable) return 'notable';
+  if (node.isMastery) return 'mastery';
+  if (node.isJewelSocket) return 'socket';
+  return 'normal';
+}
+
 const response = await fetch(SOURCE_URL, { headers: { 'User-Agent': 'ExileQuesting passive tree research' } });
 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-const html = await response.text();
-const tree = extractAssignedObject(html, 'var passiveSkillTreeData');
+const tree = extractAssignedObject(await response.text(), 'var passiveSkillTreeData');
 const nodes = Object.values(tree.nodes ?? {});
-const ranger = nodes.find((node) => node.classStartIndex === 2 || node.classStartIndex === 3) ?? nodes.find((node) => node.classStartIndex !== undefined);
-const ordinary = nodes.find((node) => node.group !== undefined && node.orbit !== undefined && node.orbitIndex !== undefined && Array.isArray(node.out));
+const groups = tree.groups ?? {};
+const missing = nodes.filter((node) => {
+  const group = groups[String(node.group)];
+  return node.name && (!group || !Number.isInteger(Number(node.orbit)) || !Number.isInteger(Number(node.orbitIndex)));
+});
+const byKind = {};
+const flags = {};
+for (const node of missing) {
+  const nodeKind = kind(node);
+  byKind[nodeKind] = (byKind[nodeKind] ?? 0) + 1;
+  for (const key of ['isProxy','isMastery','isBlighted','isMultipleChoice','isMultipleChoiceOption','isJewelSocket','isKeystone','isNotable','isAscendancyStart']) {
+    if (node[key]) flags[key] = (flags[key] ?? 0) + 1;
+  }
+  if (!groups[String(node.group)]) flags.missingGroup = (flags.missingGroup ?? 0) + 1;
+  if (!Number.isInteger(Number(node.orbit))) flags.missingOrbit = (flags.missingOrbit ?? 0) + 1;
+  if (!Number.isInteger(Number(node.orbitIndex))) flags.missingOrbitIndex = (flags.missingOrbitIndex ?? 0) + 1;
+}
 console.log(JSON.stringify({
-  treeKeys: Object.keys(tree),
-  constantsKeys: Object.keys(tree.constants ?? {}),
-  orbitRadii: tree.constants?.orbitRadii,
-  orbitAngles: tree.constants?.orbitAngles,
-  groupsCount: Object.keys(tree.groups ?? {}).length,
-  groupSample: Object.entries(tree.groups ?? {}).slice(0, 2),
-  nodeCount: nodes.length,
-  nodeSample: ordinary,
-  classStartSample: ranger,
-  root: tree.root,
-  minX: tree.min_x,
-  maxX: tree.max_x,
-  minY: tree.min_y,
-  maxY: tree.max_y,
+  namedNodes: nodes.filter((node) => node.name).length,
+  missingGeometry: missing.length,
+  byKind,
+  flags,
+  samples: missing.slice(0, 30).map((node) => ({
+    skill: node.skill,
+    name: node.name,
+    kind: kind(node),
+    group: node.group,
+    orbit: node.orbit,
+    orbitIndex: node.orbitIndex,
+    ascendancyName: node.ascendancyName,
+    keys: Object.keys(node),
+  })),
 }, null, 2));
