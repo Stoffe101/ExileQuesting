@@ -35,6 +35,25 @@ describe('build profiles', () => {
     expect(normalized[0].build.configStages).toEqual([]);
   });
 
+  it('persists parsed PoB equipment targets used by Gear Coach', () => {
+    const withGear: PobBuildSummary = {
+      ...build,
+      itemStages: [{
+        id: 'items:1', sourceId: '9', title: 'Level 38', kind: 'items', active: true, ordinal: 1,
+        equipment: [{
+          raw: 'Rarity: Rare\nFleet Pace\nSharkskin Boots', rarity: 'Rare', name: 'Fleet Pace', baseType: 'Sharkskin Boots', slot: 'boots', slotName: 'Boots', itemId: '17',
+          requirements: { level: 35 }, sockets: 4, maxLinks: 4, corrupted: false, mirrored: false, unidentified: false,
+          stats: { maximumLife: 65, maximumMana: 0, fireResistance: 28, coldResistance: 30, lightningResistance: 0, chaosResistance: 0, allElementalResistance: 0, strength: 0, dexterity: 20, intelligence: 0, allAttributes: 0, movementSpeed: 25, attackSpeed: 0, castSpeed: 0, increasedDamage: 0, gemLevels: 0, armour: 0, evasion: 240, energyShield: 0, ward: 0 },
+          modifierLines: ['+65 to maximum Life', '25% increased Movement Speed'],
+        }],
+      }],
+    };
+    const normalized = normalizeBuildProfiles([{ ...profile('gear'), build: withGear }]);
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0].build.itemStages[0].equipment?.[0]).toMatchObject({ slot: 'boots', slotName: 'Boots', baseType: 'Sharkskin Boots', itemId: '17' });
+    expect(normalized[0].build.itemStages[0].equipment?.[0].stats.maximumLife).toBe(65);
+  });
+
   it('restores Maxroll provenance, passive operations and Twink equipment references', () => {
     const persisted = {
       id: 'maxroll-ranger',
