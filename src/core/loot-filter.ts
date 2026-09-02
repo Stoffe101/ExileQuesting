@@ -131,6 +131,16 @@ function levelingScope(lines: string[]): void {
   lines.push(`    AreaLevel <= ${LEVELING_AREA_MAX}`);
 }
 
+export function renderLootFilterPassthrough(baseFilterFileName: string): string {
+  if (!baseFilterFileName.toLowerCase().endsWith('.filter')) throw new Error('Base loot filter must use the .filter extension.');
+  return [
+    '# ExileQuesting build-aware loot intelligence',
+    '# No active Build Profile. ExileQuesting is intentionally adding no item rules.',
+    `Import "${escapedFilterString(baseFilterFileName)}"`,
+    '',
+  ].join('\n');
+}
+
 export function renderLootFilter(plan: LootFilterPlan, baseFilterFileName: string): string {
   if (!baseFilterFileName.toLowerCase().endsWith('.filter')) throw new Error('Base loot filter must use the .filter extension.');
   const lines: string[] = [
