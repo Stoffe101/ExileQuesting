@@ -17,9 +17,9 @@ export interface PassiveTreeHudScreenNode {
   y: number;
   markerRadius: number;
   operation: 'allocate' | 'refund';
-  index: number;
-  total: number;
-  checkpoint: number;
+  index?: number;
+  total?: number;
+  checkpoint?: number;
   offscreen: boolean;
   arrowX?: number;
   arrowY?: number;
@@ -28,15 +28,21 @@ export interface PassiveTreeHudScreenNode {
 
 export interface PassiveTreeHudPathPoint {
   nodeId: number;
+  name?: string;
   x: number;
   y: number;
-  state: 'recent' | 'next' | 'upcoming';
+  state: 'recent' | 'next' | 'upcoming' | 'stage';
+  offscreen?: boolean;
 }
 
 export interface PassiveTreeHudState {
   status: PassiveTreeHudStatus;
   enabled: boolean;
   visible: boolean;
+  mode?: 'exact' | 'stage';
+  sourceLabel?: string;
+  className?: string;
+  classStartNodeId?: number;
   message: string;
   confidence?: number;
   inliers?: number;
@@ -54,7 +60,7 @@ export function passiveTreeHudIdle(enabled = true): PassiveTreeHudState {
     status: enabled ? 'waiting-build' : 'disabled',
     enabled,
     visible: false,
-    message: enabled ? 'Waiting for an exact Maxroll passive target.' : 'Passive Tree HUD is disabled.',
+    message: enabled ? 'Waiting for passive guidance from the active build.' : 'Passive Tree HUD is disabled.',
     path: [],
   };
 }
