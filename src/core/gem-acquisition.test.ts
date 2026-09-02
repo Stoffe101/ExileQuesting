@@ -37,6 +37,15 @@ const snapshot = buildGemAcquisitionSnapshot({
       },
     },
   },
+  a3q1: {
+    id: 'a3q1', name: 'A Fixture of Fate', act: '3', reward_offers: {
+      a3q1: {
+        quest_npc: 'Siosa',
+        quest: { 'Metadata/Items/Gems/SupportGemFasterCasting': { classes: ['Witch'] } },
+        vendor: {},
+      },
+    },
+  },
 }, {
   Witch: { start_gem_id: 'Metadata/Items/Gems/SkillGemFireball', chest_gem_id: 'Metadata/Items/Gems/SupportGemArcaneSurge' },
 }, { gameVersion: '3.29', generatedAt: '2026-09-02T01:00:00.000Z', source });
@@ -77,12 +86,13 @@ describe('gem acquisition planner', () => {
     expect(result.sources[0]).toMatchObject({ questName: 'Enemy at the Gate', npc: 'Nessa', timingVerified: true });
   });
 
-  it('prefers character starting gems, then class-valid quest rewards, then vendors', () => {
+  it('prefers starting gems and sources that are actually available by an Act-labelled stage', () => {
     const plan = buildGemAcquisitionPlan(profile(), snapshot);
     const byName = new Map(plan.needs.map((need) => [need.requirement.name, need]));
     expect(byName.get('Fireball')?.preferred?.kind).toBe('starting');
     expect(byName.get('Arc')?.preferred?.kind).toBe('quest');
     expect(byName.get('Faster Casting')?.preferred).toMatchObject({ kind: 'vendor', npc: 'Yeena', act: 2, timingVerified: true });
+    expect(byName.get('Faster Casting')?.alternatives[0]).toMatchObject({ kind: 'quest', npc: 'Siosa', act: 3, timingVerified: false });
     expect(plan.gameVersion).toBe('3.29');
     expect(plan.sourceCommit).toBe(source.commit);
   });
