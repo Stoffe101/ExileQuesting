@@ -184,7 +184,7 @@ See `BUILD_INTELLIGENCE.md` for the build-aware planner, passive, crafting and l
 - [x] visible resistance/attribute/life analysis
 - [x] gear-slot/build-stage match score
 - [x] cheap campaign repair suggestions
-- [ ] compare candidate against an explicitly copied currently equipped item
+- [x] compare candidate against an explicitly copied currently equipped item
 - [ ] richer weapon-specific build weighting from local modifier/base data
 - [ ] exact unique/base resolution for Maxroll internal item metadata
 - [ ] early-map and endgame upgrade recommendations
