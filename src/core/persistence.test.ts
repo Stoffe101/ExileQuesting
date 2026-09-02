@@ -7,6 +7,7 @@ const defaults: AppSettings = {
   overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true }, overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5,
+  passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true,
   reducedMotion: false, reducedTransparency: false, onboardingComplete: false, launchMinimized: false, autoCheckAppUpdates: true,
   autoDownloadAppUpdates: false, autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: { toggleOverlay: 'Ctrl+H', nextStep: 'Right', previousStep: 'Left', toggleInteraction: 'Ctrl+I', cycleOverlayMode: 'Ctrl+M' },
@@ -21,12 +22,14 @@ describe('persistence migrations', () => {
     expect(result.overlayOpacity).toBe(0.7);
     expect(result.overlayTypography).toEqual(defaults.overlayTypography);
     expect(result.hotkeys).toEqual(defaults.hotkeys);
+    expect(result.passiveTreeHudEnabled).toBe(true);
+    expect(result.passiveTreeHudPathPreview).toBe(true);
   });
 
   it('round-trips the explicit v1 settings envelope', () => {
-    const saved = settingsDocument({ ...defaults, guidanceMode: 'balanced', overlayScale: 1.25 });
+    const saved = settingsDocument({ ...defaults, guidanceMode: 'balanced', overlayScale: 1.25, passiveTreeHudPathPreview: false });
     expect(saved.schemaVersion).toBe(1);
-    expect(normalizeSettingsDocument(saved, defaults)).toMatchObject({ guidanceMode: 'balanced', overlayScale: 1.25 });
+    expect(normalizeSettingsDocument(saved, defaults)).toMatchObject({ guidanceMode: 'balanced', overlayScale: 1.25, passiveTreeHudPathPreview: false });
   });
 
   it('does not trust unknown fields from a newer settings envelope', () => {

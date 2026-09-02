@@ -83,6 +83,8 @@ export function normalizeSettingsDocument(value: unknown, defaults: AppSettings)
     },
     overlayAutoCollapse: boolean(source.overlayAutoCollapse, defaults.overlayAutoCollapse),
     overlayAutoCollapseSeconds: finite(source.overlayAutoCollapseSeconds, defaults.overlayAutoCollapseSeconds, 1, 30),
+    passiveTreeHudEnabled: boolean(source.passiveTreeHudEnabled, defaults.passiveTreeHudEnabled),
+    passiveTreeHudPathPreview: boolean(source.passiveTreeHudPathPreview, defaults.passiveTreeHudPathPreview),
     reducedMotion: boolean(source.reducedMotion, defaults.reducedMotion),
     reducedTransparency: boolean(source.reducedTransparency, defaults.reducedTransparency),
     onboardingComplete: boolean(source.onboardingComplete, defaults.onboardingComplete),

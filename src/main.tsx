@@ -8,6 +8,10 @@ import './ui/v020.css';
 import './ui/reliability.css';
 import './ui/responsive.css';
 import './ui/lab.css';
+import './ui/passive-tree-hud.css';
+
+const rendererMode = new URLSearchParams(window.location.search).get('mode') ?? 'manager';
+document.documentElement.dataset.mode = rendererMode;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

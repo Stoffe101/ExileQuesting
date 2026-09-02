@@ -237,8 +237,14 @@ function skillGroups(step: UnknownRecord): PobSkillGroupSummary[] {
 function classNameFromMaxroll(value: unknown, guideTitle: string): string | undefined {
   const raw = text(value, 80)?.toLowerCase();
   const map: Record<string, string> = {
-    dex: 'Ranger', str: 'Marauder', int: 'Witch', dexint: 'Shadow', intdex: 'Shadow',
-    strdex: 'Duelist', dexstr: 'Duelist', strint: 'Templar', intstr: 'Templar', scion: 'Scion',
+    dex: 'Ranger', ranger: 'Ranger', deadeye: 'Ranger', pathfinder: 'Ranger', warden: 'Ranger', raider: 'Ranger',
+    str: 'Marauder', marauder: 'Marauder', juggernaut: 'Marauder', berserker: 'Marauder', chieftain: 'Marauder',
+    int: 'Witch', witch: 'Witch', necromancer: 'Witch', elementalist: 'Witch', occultist: 'Witch',
+    dexint: 'Shadow', intdex: 'Shadow', shadow: 'Shadow', assassin: 'Shadow', saboteur: 'Shadow', trickster: 'Shadow',
+    strdex: 'Duelist', dexstr: 'Duelist', duelist: 'Duelist', slayer: 'Duelist', gladiator: 'Duelist', champion: 'Duelist',
+    strint: 'Templar', intstr: 'Templar', templar: 'Templar', inquisitor: 'Templar', hierophant: 'Templar', guardian: 'Templar',
+    strdexint: 'Scion', strintdex: 'Scion', dexstrint: 'Scion', dexintstr: 'Scion', intstrdex: 'Scion', intdexstr: 'Scion',
+    scion: 'Scion', ascendant: 'Scion', reliquarian: 'Scion', luminary: 'Scion',
   };
   const compact = raw?.replace(/[^a-z]/g, '');
   if (compact && map[compact]) return map[compact];

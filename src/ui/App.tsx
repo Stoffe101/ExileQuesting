@@ -14,6 +14,7 @@ import {
   UpdatePanel,
 } from './reliability';
 import PreplaytestLab from './PreplaytestLab';
+import PassiveTreeHudOverlay from './PassiveTreeHudOverlay';
 import type {
   AppSettings,
   CampaignStep,
@@ -436,6 +437,19 @@ function Settings({ state, setState }: { state: RuntimeState; setState: (state: 
         </section>
 
         <section className="panel settings-section wide-section">
+          <div className="section-title"><h2>Passive Tree HUD</h2><span>All seven classes · build-aware</span></div>
+          <p className="setting-note">When Path of Exile's passive tree is visible, ExileQuesting registers the live tree geometry and draws guidance over the real nodes. Maxroll ordered planners show one exact next passive. PoB stages highlight newly-added nodes without inventing a click order.</p>
+          <SettingRow title="Enable Passive Tree HUD" description="Read-only, click-through visual guidance. It never allocates or refunds a passive for you."><Toggle checked={state.settings.passiveTreeHudEnabled} onChange={(passiveTreeHudEnabled) => update({ passiveTreeHudEnabled })} /></SettingRow>
+          <SettingRow title="Show nearby path preview" description="Show recent/upcoming Maxroll path nodes around the exact target. PoB stage highlights are still shown when applicable."><Toggle checked={state.settings.passiveTreeHudPathPreview} onChange={(passiveTreeHudPathPreview) => update({ passiveTreeHudPathPreview })} /></SettingRow>
+          <div className="diagnostic-summary">
+            <div><span>Status</span><strong>{state.passiveTreeHud.status}</strong><small>{state.passiveTreeHud.mode ?? 'waiting'}</small></div>
+            <div><span>Class</span><strong>{state.passiveTreeHud.className ?? 'From active build'}</strong><small>{state.passiveTreeHud.classStartNodeId ? 'start ' + state.passiveTreeHud.classStartNodeId : 'data-driven start'}</small></div>
+            <div><span>Alignment</span><strong>{state.passiveTreeHud.confidence === undefined ? 'Not locked' : Math.round(state.passiveTreeHud.confidence * 100) + '%'}</strong><small>{state.passiveTreeHud.inliers ? state.passiveTreeHud.inliers + ' anchors' : 'fail-closed'}</small></div>
+          </div>
+          <p className="source-message">{state.passiveTreeHud.message}</p>
+        </section>
+
+        <section className="panel settings-section wide-section">
           <div className="section-title"><h2>Overlay typography</h2><span>Readable from a glance</span></div>
           <div className="segmented-control four">{(['compact', 'default', 'large', 'extra-large'] as const).map((preset) => <button className={typography.preset === preset ? 'active' : ''} key={preset} onClick={() => applyTypographyPreset(preset)}>{preset === 'extra-large' ? 'Extra large' : preset[0].toUpperCase() + preset.slice(1)}</button>)}</div>
           <div className="typography-grid">
@@ -473,6 +487,7 @@ function Diagnostics({ state, setState }: { state: RuntimeState; setState: (stat
         <section className="panel diagnostic-card"><div className="section-title"><h2>Client tracking</h2><span>{state.logConnected ? 'Healthy' : 'Needs attention'}</span></div><dl className="diagnostic-list"><dt>Path</dt><dd>{state.logDiagnostics.path || 'Not configured'}</dd><dt>File exists</dt><dd>{state.logDiagnostics.fileExists ? 'Yes' : 'No'}</dd><dt>Watcher</dt><dd>{state.logDiagnostics.watcherActive ? 'Active' : 'Inactive'}</dd><dt>Polling fallback</dt><dd>{state.logDiagnostics.pollingActive ? 'Active' : 'Inactive'}</dd><dt>Last file change</dt><dd>{state.logDiagnostics.lastFileChangeAt ?? 'None yet'}</dd><dt>Last parsed event</dt><dd>{state.logDiagnostics.lastParsedEventAt ?? 'None yet'}</dd><dt>Internal area</dt><dd>{state.currentAreaId ?? 'Unknown'}</dd><dt>Displayed zone</dt><dd>{state.currentZone ?? 'Unknown'}</dd><dt>Character / area level</dt><dd>{state.characterLevel ?? '?'} / {state.currentAreaLevel ?? '?'}</dd></dl>{state.logDiagnostics.lastError && <div className="inline-alert"><strong>Watcher error</strong>{state.logDiagnostics.lastError}</div>}</section>
         <section className="panel diagnostic-card"><div className="section-title"><h2>Route & run state</h2><span>{state.progress + 1}/{state.dataset.steps.length}</span></div><dl className="diagnostic-list"><dt>Semantic step ID</dt><dd>{step?.id}</dd><dt>Objective</dt><dd>{summarizeActions(step.actions).now?.title ?? step.title}</dd><dt>XP state</dt><dd>{state.xpGuidance.pace}</dd><dt>Run timer</dt><dd>{state.runStats.session.state}</dd><dt>Act splits</dt><dd>{state.runStats.session.splits.length}</dd><dt>Passive confirmed</dt><dd>{state.rewardAudit.passive.confirmed}/{state.rewardAudit.passive.knownTotal}</dd><dt>Trials confirmed</dt><dd>{state.rewardAudit.trials.confirmed}/{state.rewardAudit.trials.knownTotal}</dd></dl><div className="history-list">{lastHistory.length ? lastHistory.map((entry) => <div key={entry.id}><span>{new Date(entry.at).toLocaleTimeString()}</span><strong>{entry.from + 1} → {entry.to + 1}</strong><small>{entry.confidence} · {entry.reason}</small></div>) : <p>No progress changes recorded yet.</p>}</div><button className="ghost-button" disabled={!state.progressHistory.length} onClick={() => void window.exileQuesting.undoProgress().then(setState)}>Undo last progress change</button></section>
         <section className="panel diagnostic-card wide-diagnostic"><div className="section-title"><h2>Application & campaign data</h2><span>{state.sourceStatus.state}</span></div><div className="diagnostic-summary"><div><span>Application</span><strong>v{state.appVersion}</strong><small>{state.appUpdate.status}</small></div><div><span>Campaign source</span><strong>{state.dataset.source.repository}</strong><small>{state.dataset.source.commit.slice(0, 12)}</small></div><div><span>Schema</span><strong>v{state.dataset.schemaVersion}</strong></div><div><span>Route pages</span><strong>{state.dataset.steps.length}</strong></div></div><p className="source-message">{state.sourceStatus.message}</p><p className="source-message">App update: {state.appUpdate.message}</p><div className="diagnostic-actions"><button className="primary-button" disabled={state.sourceStatus.state === 'checking'} onClick={() => void window.exileQuesting.checkCampaignUpdates().then(setState)}>{state.sourceStatus.state === 'checking' ? 'Checking…' : 'Check campaign data'}</button><button className="ghost-button" disabled={state.appUpdate.status === 'checking'} onClick={() => void window.exileQuesting.checkAppUpdates().then(setState)}>Check app update</button></div></section>
+        <section className="panel diagnostic-card"><div className="section-title"><h2>Passive Tree HUD</h2><span>{state.passiveTreeHud.status}</span></div><dl className="diagnostic-list"><dt>Enabled</dt><dd>{state.settings.passiveTreeHudEnabled ? 'Yes' : 'No'}</dd><dt>Mode</dt><dd>{state.passiveTreeHud.mode ?? 'None'}</dd><dt>Build source</dt><dd>{state.passiveTreeHud.sourceLabel ?? 'No active passive guide'}</dd><dt>Class</dt><dd>{state.passiveTreeHud.className ?? 'Unknown'}</dd><dt>Class start</dt><dd>{state.passiveTreeHud.classStartNodeId ?? 'Not resolved'}</dd><dt>Display</dt><dd>{state.passiveTreeHud.displayId ?? 'Not locked'}</dd><dt>Confidence</dt><dd>{state.passiveTreeHud.confidence === undefined ? 'Not locked' : Math.round(state.passiveTreeHud.confidence * 100) + '%'}</dd><dt>Inliers / RMS</dt><dd>{state.passiveTreeHud.inliers ?? 0} / {state.passiveTreeHud.rms?.toFixed(2) ?? '?'}</dd><dt>Target</dt><dd>{state.passiveTreeHud.target?.name ?? (state.passiveTreeHud.mode === 'stage' ? state.passiveTreeHud.path.filter((point) => point.state === 'stage').length + ' stage nodes' : 'None')}</dd></dl><p className="source-message">{state.passiveTreeHud.message}</p></section>
         <DetectionTracePanel state={state} />
         <div className="wide-diagnostic"><RewardAuditPanel state={state} setState={setState} /></div>
       </div>
@@ -525,6 +540,7 @@ export default function App() {
   const [state, setState] = useRuntime();
   if (!state) return <div className="loading-screen"><div className="brand-mark">EQ</div><span>Loading verified campaign data…</span></div>;
   const mode = new URLSearchParams(window.location.search).get('mode');
+  if (mode === 'passive-tree-hud') return <PassiveTreeHudOverlay state={state} />;
   if (mode === 'overlay') return <Overlay state={state} />;
   if (mode === 'lab') return <PreplaytestLab state={state} setState={setState} />;
   return <Manager state={state} setState={setState} />;

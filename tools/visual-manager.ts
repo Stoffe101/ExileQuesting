@@ -5,6 +5,7 @@ import { normalizeCampaign } from '../src/core/campaign';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
+import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
 import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
 
 const output = path.resolve(process.argv[2] || 'artifacts/manager-visual');
@@ -25,6 +26,8 @@ const settings: AppSettings = {
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true },
   overlayAutoCollapse: true,
   overlayAutoCollapseSeconds: 5,
+  passiveTreeHudEnabled: true,
+  passiveTreeHudPathPreview: true,
   reducedMotion: false,
   reducedTransparency: false,
   onboardingComplete: true,
@@ -99,9 +102,11 @@ async function makeState(): Promise<RuntimeState> {
       reason: 'Current zone established without changing campaign progress.', raw: "You have entered Cartographer's Hideout.",
     }],
     runStats: runStatsFor(emptyRunSession(), []),
-    appUpdate: { status: 'up-to-date', currentVersion: '0.1.3', latestVersion: '0.1.3', message: 'ExileQuesting 0.1.3 is up to date.' },
+    appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
     recovery: { previousSessionUnclean: false, acknowledged: true },
-    appVersion: '0.1.3',
+    lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in this visual fixture.' },
+    passiveTreeHud: passiveTreeHudIdle(true),
+    appVersion: '0.2.0',
     diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
 }

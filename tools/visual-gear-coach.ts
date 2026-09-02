@@ -9,6 +9,7 @@ import { buildPlannerSnapshot, normalizeBuildPlannerState } from '../src/core/bu
 import { buildGemAcquisitionPlan } from '../src/core/gem-acquisition';
 import { validateGemAcquisitionSnapshot } from '../src/core/gem-data';
 import { validatePassiveTreeSnapshot } from '../src/core/passive-data';
+import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
 import { buildCoachSnapshot } from '../src/core/build-coach';
 import { analyzeGearItem } from '../src/core/gear-coach';
 import type { BuildProfile } from '../src/core/build-profiles';
@@ -39,6 +40,7 @@ const settings: AppSettings = {
   autoAdvance: true, autoShowOnZoneChange: true, overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true }, overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5,
+  passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true,
   reducedMotion: false, reducedTransparency: false, onboardingComplete: true, launchMinimized: false, autoCheckAppUpdates: true, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: { toggleOverlay: 'CommandOrControl+Shift+H', nextStep: 'Alt+Shift+Right', previousStep: 'Alt+Shift+Left', toggleInteraction: 'CommandOrControl+Shift+I', cycleOverlayMode: 'CommandOrControl+Shift+M' },
@@ -124,7 +126,8 @@ async function main(): Promise<void> {
     rewardAudit: buildRewardAudit(dataset, progress, new Set()), progressHistory: [], startupReconciliation: { state: 'none' }, logConnected: true,
     logDiagnostics: { path: settings.logPath, fileExists: true, watcherActive: true, pollingActive: true, lastParsedEventAt: now, characterLevel: 30, areaLevel: 23 }, detectionTrace: [],
     runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
-    recovery: { previousSessionUnclean: false, acknowledged: true }, buildCoach: coach, lootFilter: workspace.lootFilter, appVersion: '0.2.0', diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
+    recovery: { previousSessionUnclean: false, acknowledged: true }, buildCoach: coach, lootFilter: workspace.lootFilter,
+    passiveTreeHud: passiveTreeHudIdle(true), appVersion: '0.2.0', diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
 
   ipcMain.handle('app:bootstrap', () => state);
