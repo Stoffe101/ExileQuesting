@@ -1,4 +1,5 @@
 // Development-only live contract. Delete this probe before opening the pull request.
+// Final run also covers abbreviated planner gem IDs against bundled PoE 3.29 data.
 import { readFile } from 'node:fs/promises';
 import { importMaxrollGuide } from '../electron/services/maxroll-service';
 import { validateGemAcquisitionSnapshot } from '../src/core/gem-data';
