@@ -142,5 +142,3 @@ Coverage includes schema-v1 compatibility, strict v2 geometry, all seven base st
 Release automation can prove current GGG geometry, the transform/rejection algorithms, packaged Electron behavior, resolution/DPI rendering and the updater. It cannot manufacture the exact pixels rendered by the player's Path of Exile client and graphics/UI settings.
 
 The first v0.2.1 in-game run is therefore also the final detector-calibration test. Expected failure behavior is safe: if live node rendering does not satisfy the detector thresholds, the HUD stays hidden/searching rather than drawing an unproven marker. Diagnostics then provide a controlled calibration target without changing the underlying build or tree geometry.
-
-Release target: v0.2.1.
