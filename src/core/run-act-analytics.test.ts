@@ -144,6 +144,25 @@ describe('act-level pace analytics', () => {
     expect(analytics.acts[2].deltaVsPreviousMs).toBeUndefined();
   });
 
+  it('treats the final split as unproven when legacy state has no current Act', () => {
+    const session: RunSession = {
+      state: 'finished',
+      startedAt: '2026-09-03T10:00:00Z',
+      finishedAt: '2026-09-03T10:20:00Z',
+      pausedMs: 0,
+      townTimeMs: 0,
+      splits: [
+        { act: 1, at: '2026-09-03T10:10:00Z', elapsedMs: 600_000 },
+        { act: 2, at: '2026-09-03T10:20:00Z', elapsedMs: 1_200_000 },
+      ],
+      visits: [],
+    };
+    const analytics = buildRunActAnalytics(session, history('previous', 500_000, 700_000, 900_000));
+    expect(analytics.acts[0]).toMatchObject({ act: 1, complete: true, deltaVsPreviousMs: 100_000 });
+    expect(analytics.acts[1]).toMatchObject({ act: 2, complete: false });
+    expect(analytics.acts[1].deltaVsPreviousMs).toBeUndefined();
+  });
+
   it('handles skipped split acts deterministically without negative durations', () => {
     const session: RunSession = {
       state: 'finished',
