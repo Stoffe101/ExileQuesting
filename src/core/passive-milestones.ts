@@ -18,6 +18,8 @@ export interface PassiveMilestone {
   namedTargets: PassiveMilestoneTarget[];
   unnamedAllocations: number;
   masteryCount: number;
+  /** False means allocation counts are safe, but current-tree node names were deliberately not applied to an older/newer PoB tree. */
+  namesVerified: boolean;
 }
 
 const KIND_RANK: Record<PassiveNodeKind, number> = {
@@ -30,6 +32,20 @@ const KIND_RANK: Record<PassiveNodeKind, number> = {
   normal: 6,
 };
 
+function normalizedGameVersion(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const match = value.trim().replaceAll('_', '.').match(/^(\d+)\.(\d+)/);
+  return match ? `${Number(match[1])}.${Number(match[2])}` : undefined;
+}
+
+function compatiblePassiveSnapshot(profile: BuildProfile, snapshot: PassiveTreeSnapshot | undefined): PassiveTreeSnapshot | undefined {
+  if (!snapshot) return undefined;
+  const pobVersion = normalizedGameVersion(profile.build.targetVersion ?? profile.build.treeStages.find((stage) => stage.active)?.treeVersion ?? profile.build.treeStages[0]?.treeVersion);
+  const dataVersion = normalizedGameVersion(snapshot.gameVersion);
+  if (pobVersion && dataVersion && pobVersion !== dataVersion) return undefined;
+  return snapshot;
+}
+
 export function nextPassiveMilestone(
   profile: BuildProfile,
   activeStageId: string | undefined,
@@ -40,7 +56,8 @@ export function nextPassiveMilestone(
   const currentIndex = transitions.findIndex((transition) => transition.toStageId === activeStageId);
   if (currentIndex < 0 || currentIndex + 1 >= transitions.length) return undefined;
   const next = transitions[currentIndex + 1];
-  const index: Map<number, PassiveNodeRecord> = snapshot ? indexPassiveNodes(snapshot) : new Map<number, PassiveNodeRecord>();
+  const compatibleSnapshot = compatiblePassiveSnapshot(profile, snapshot);
+  const index: Map<number, PassiveNodeRecord> = compatibleSnapshot ? indexPassiveNodes(compatibleSnapshot) : new Map<number, PassiveNodeRecord>();
   const namedTargets = next.passiveNodesAdded
     .map((id) => index.get(id))
     .filter((node): node is PassiveNodeRecord => Boolean(node))
@@ -58,6 +75,7 @@ export function nextPassiveMilestone(
     namedTargets,
     unnamedAllocations: Math.max(0, next.passiveNodesAdded.length - namedTargets.length),
     masteryCount: next.masteriesAdded.length,
+    namesVerified: Boolean(compatibleSnapshot),
   };
 }
 
