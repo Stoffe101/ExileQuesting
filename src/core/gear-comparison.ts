@@ -104,7 +104,7 @@ function deltaReason(item: GearComparisonDelta): GearCoachReason | undefined {
 function headline(verdict: GearComparisonVerdict, equippedName: string): string {
   if (verdict === 'upgrade') return `Clear upgrade over ${equippedName}`;
   if (verdict === 'downgrade') return 'Current item still looks stronger';
-  if (verdict === 'future') return 'Potential upgrade later, but not usable yet';
+  if (verdict === 'future') return 'Candidate is not usable yet';
   if (verdict === 'different-slot') return 'Compare items from the same gear slot';
   return 'Sidegrade: choose the stats you need most';
 }
