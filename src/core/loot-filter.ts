@@ -10,13 +10,15 @@ export interface LootLinkTarget {
   stageTitle: string;
   label: string;
   links: number;
-  colours: LootSocketColour[];
+  /** Matching non-white socket colours grant +10% gem quality in PoE 3.29; they are not equip requirements. */
+  qualityBonusColours: LootSocketColour[];
   gems: string[];
 }
 
 export interface LootFilterPlan {
   profileId: string;
   profileName: string;
+  gameVersion: string;
   stageId?: string;
   stageTitle?: string;
   linkTargets: LootLinkTarget[];
@@ -44,6 +46,8 @@ const ATTRIBUTE_COLOUR: Record<string, LootSocketColour> = {
   intelligence: 'B',
 };
 
+const LEVELING_AREA_MAX = 67;
+
 function colourFor(attribute: string): LootSocketColour | undefined {
   return ATTRIBUTE_COLOUR[attribute.trim().toLowerCase()];
 }
@@ -56,7 +60,7 @@ function canonicalColours(colours: LootSocketColour[]): LootSocketColour[] {
 function dedupeTargets(targets: LootLinkTarget[]): LootLinkTarget[] {
   const seen = new Set<string>();
   return targets.filter((target) => {
-    const key = `${target.links}:${target.colours.join('')}`;
+    const key = `${target.links}:${target.qualityBonusColours.join('')}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -84,7 +88,7 @@ export function buildLootFilterPlan(
       const resolved = resolveGemRequirement({ key: gemIdentity(gem), name: gem.name, skillId: gem.skillId, count: 1 }, index);
       const colour = resolved ? colourFor(resolved.primaryAttribute) : undefined;
       if (!resolved || !colour) {
-        warnings.push(`${gem.name}: socket colour could not be derived from bundled gem metadata.`);
+        warnings.push(`${gem.name}: matching quality-bonus socket colour could not be derived from bundled gem metadata.`);
         continue;
       }
       colours.push(colour);
@@ -97,7 +101,7 @@ export function buildLootFilterPlan(
       stageTitle: selected!.title,
       label: group.label?.trim() || names[0] || 'Skill setup',
       links: enabled.length,
-      colours: canonical,
+      qualityBonusColours: canonical,
       gems: names,
     });
   }
@@ -105,9 +109,10 @@ export function buildLootFilterPlan(
   return {
     profileId: profile.id,
     profileName: profile.name,
+    gameVersion: snapshot.gameVersion,
     stageId: selected?.id,
     stageTitle: selected?.title,
-    linkTargets: dedupeTargets(linkTargets).sort((left, right) => right.links - left.links || left.colours.join('').localeCompare(right.colours.join(''))),
+    linkTargets: dedupeTargets(linkTargets).sort((left, right) => right.links - left.links || left.qualityBonusColours.join('').localeCompare(right.qualityBonusColours.join(''))),
     showChromaticRecipe: true,
     showSixSockets: true,
     warnings: [...new Set(warnings)],
@@ -122,32 +127,54 @@ function escapedFilterString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ').trim();
 }
 
+function levelingScope(lines: string[]): void {
+  lines.push(`    AreaLevel <= ${LEVELING_AREA_MAX}`);
+}
+
 export function renderLootFilter(plan: LootFilterPlan, baseFilterFileName: string): string {
   if (!baseFilterFileName.toLowerCase().endsWith('.filter')) throw new Error('Base loot filter must use the .filter extension.');
   const lines: string[] = [
-    '# ExileQuesting build-aware loot intelligence',
+    '# ExileQuesting build-aware leveling loot intelligence',
     `# Profile: ${plan.profileName}`,
     `# Stage: ${plan.stageTitle ?? 'No aligned stage'}`,
-    '# Generated rules are intentionally narrow. Everything else falls through to your selected base filter.',
+    `# PoE: ${plan.gameVersion}`,
+    '# PoE 3.29: socket colour does not gate gem placement. Matching non-white colours only grant +10% gem quality.',
+    '# Generated rules are campaign-scoped and intentionally narrow. Everything else falls through to your selected base filter.',
     '',
   ];
 
   for (const target of plan.linkTargets) {
+    // Matching non-white colours are a quality optimisation in 3.29, not a requirement to use the links.
+    lines.push('Show');
+    levelingScope(lines);
     lines.push(
-      'Show',
-      `    SocketGroup >= ${target.links}${colourText(target.colours)}`,
+      `    SocketGroup >= ${target.links}${colourText(target.qualityBonusColours)}`,
       '    SetFontSize 45',
       '    SetBorderColor 239 169 78 255',
       '    SetBackgroundColor 35 24 12 230',
       '    PlayEffect Yellow Temp',
-      `    # ${target.label}: ${target.gems.join(' + ')}`,
+      `    # QUALITY BONUS MATCH · ${target.label}: ${target.gems.join(' + ')}`,
       '',
     );
+
+    // A correctly linked white/mismatched item is fully usable in 3.29, so never hide it behind colour matching.
+    if (target.links >= 3) {
+      lines.push('Show');
+      levelingScope(lines);
+      lines.push(
+        `    LinkedSockets >= ${target.links}`,
+        '    SetFontSize 42',
+        '    SetBorderColor 218 196 137 255',
+        `    # USABLE LINK TARGET · ${target.label}: colours are optional for gem compatibility in PoE 3.29`,
+        '',
+      );
+    }
   }
 
   if (plan.showChromaticRecipe) {
+    lines.push('Show');
+    levelingScope(lines);
     lines.push(
-      'Show',
       '    SocketGroup RGB',
       '    SetFontSize 38',
       '    SetBorderColor 117 186 240 255',
@@ -157,12 +184,23 @@ export function renderLootFilter(plan: LootFilterPlan, baseFilterFileName: strin
   }
 
   if (plan.showSixSockets) {
+    lines.push('Show');
+    levelingScope(lines);
     lines.push(
+      '    LinkedSockets 6',
+      '    SetFontSize 45',
+      '    SetBorderColor 239 169 78 255',
+      '    PlayEffect Yellow Temp',
+      '    # Six-linked item: 20 Orbs of Fusing vendor recipe; inspect before vendoring',
+      '',
       'Show',
+    );
+    levelingScope(lines);
+    lines.push(
       '    Sockets 6',
       '    SetFontSize 40',
       '    SetBorderColor 184 155 232 255',
-      '    # Six sockets: valuable Jeweller\'s Orb vendor recipe',
+      "    # Six sockets: 7 Jeweller's Orbs vendor recipe when not six-linked",
       '',
     );
   }
