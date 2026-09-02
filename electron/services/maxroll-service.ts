@@ -7,7 +7,7 @@ import {
   parseMaxrollGuide,
   type MaxrollGuideMetadata,
 } from '../../src/core/maxroll';
-import type { PobBuildSummary, PobGemSummary, PobSkillGroupSummary, PobStageSummary } from '../../src/core/pob';
+import type { PobBuildSummary, PobSkillGroupSummary, PobStageSummary } from '../../src/core/pob';
 import { readBoundedResponseText } from '../../src/core/security';
 
 const MAX_MAXROLL_GUIDE_BYTES = 4 * 1024 * 1024;
@@ -60,16 +60,6 @@ function importedId(metadata: MaxrollGuideMetadata, importedAt: string): string 
     hash = Math.imul(hash, 16777619);
   }
   return `maxroll-${(hash >>> 0).toString(36)}`;
-}
-
-function canonicalizeGem(gem: PobGemSummary, snapshot: GemAcquisitionSnapshot): PobGemSummary {
-  const resolved = resolveGemRequirement({
-    key: gem.skillId ? `skill:${gem.skillId.toLowerCase()}` : `name:${gem.name.toLowerCase()}`,
-    name: gem.name,
-    skillId: gem.skillId,
-    count: 1,
-  }, indexGemData(snapshot));
-  return resolved ? { ...gem, name: resolved.name, skillId: resolved.id } : gem;
 }
 
 function canonicalizeGroups(groups: PobSkillGroupSummary[], snapshot: GemAcquisitionSnapshot): PobSkillGroupSummary[] {
