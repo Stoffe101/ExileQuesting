@@ -1,0 +1,64 @@
+.build-profile-source {
+  color: rgba(121, 224, 189, .82) !important;
+  font-size: 9px !important;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.build-source-details {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 9px;
+  background: rgba(255,255,255,.018);
+}
+
+.build-source-details summary {
+  cursor: pointer;
+  color: var(--text-muted, var(--muted));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+.build-source-details a,
+.build-source-details code,
+.build-source-details p {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--text-muted, var(--muted));
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.build-source-details a {
+  color: #79e0bd;
+  text-decoration: none;
+}
+
+.build-source-details a:hover {
+  text-decoration: underline;
+}
+
+.build-look-for-card {
+  border-color: rgba(86, 214, 173, .24) !important;
+  background: linear-gradient(145deg, rgba(86, 214, 173, .065), rgba(255,255,255,.018));
+}
+
+.build-look-for-card > span {
+  color: #79e0bd !important;
+}
+
+.build-overlay-look-for {
+  border-color: rgba(86, 214, 173, .24) !important;
+  background: rgba(86, 214, 173, .05) !important;
+}
+
+.build-overlay-look-for span {
+  color: rgba(121, 224, 189, .82) !important;
+  font-weight: 800;
+  letter-spacing: .08em;
+}

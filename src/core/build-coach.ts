@@ -1,6 +1,7 @@
 import type { BuildProfile } from './build-profiles';
 import type { GemAcquisitionPlan } from './gem-acquisition';
 import type { GemAcquisitionSnapshot } from './gem-data';
+import { gearLookForHints, type GearLookForHint } from './gear-coach';
 import { buildLootFilterPlan, type LootFilterPlan } from './loot-filter';
 import { describePassiveMilestone, nextPassiveMilestone, type PassiveMilestone } from './passive-milestones';
 import type { PassiveNodeKind, PassiveTreeSnapshot } from './passive-data';
@@ -54,6 +55,7 @@ export interface BuildCoachSnapshot {
   nextPassiveText?: string;
   maxroll?: MaxrollBuildCoach;
   loot: LootFilterPlan;
+  gearHints: GearLookForHint[];
   craftingHints: string[];
 }
 
@@ -119,6 +121,7 @@ export function buildCoachSnapshot(
   gemData: GemAcquisitionSnapshot,
   passiveData?: PassiveTreeSnapshot,
   passiveCursor = 0,
+  characterLevel?: number,
 ): BuildCoachSnapshot {
   const stages = alignPobStages(profile.build);
   const active = stages.find((stage) => stage.id === activeStageId)
@@ -153,6 +156,7 @@ export function buildCoachSnapshot(
     nextPassiveText,
     maxroll,
     loot,
+    gearHints: gearLookForHints(profile, active?.id, gemData, characterLevel),
     craftingHints: craftingHintsFor(loot),
   };
 }

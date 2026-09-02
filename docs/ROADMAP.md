@@ -85,11 +85,9 @@ See `PRE_PLAYTEST.md` for the exact automation/live-test boundary.
 - [x] real previous-stable -> candidate upgrade rehearsal before package/release acceptance
 - [x] v0.1.4 public installer + SHA-256 checksum published from verified commit `d1f59724cc28848e8139cb713c8d8828499fe00e`
 
-## 0.2 — PoB to Play
+## 0.2 — Player Coach / PoB to Play
 
-The parser, bounded pobb.in fetcher and Build Profile persistence are established. This milestone turns them into a deterministic, player-facing leveling planner.
-
-PR #9 ships the original checked stage-persistence, manager import, bundled gem-planning, and semantic campaign-bridge slices. The build-intelligence follow-up completes several planner presentation/data slices while the unchecked items remain deliberate future work.
+v0.2 turns the build foundation into an active leveling companion. PoB and Maxroll are both first-class build sources, build stages drive overlay/loot/crafting guidance, and Gear Coach can evaluate manually copied items against the active stage without gameplay automation.
 
 ### Stage model
 
@@ -97,20 +95,22 @@ PR #9 ships the original checked stage-persistence, manager import, bundled gem-
 - [x] preserve independent native IDs for skill/item/config sets without assuming cross-family ID equality
 - [x] parse configuration sets as a fourth PoB stage family
 - [x] preserve passive-stage tree version, class/ascendancy IDs, allocated node IDs and mastery selections
+- [x] parse stage-specific PoB equipment and shared item-catalog references
+- [x] preserve empty/self-closing PoB item stages without dropping stage metadata
 - [x] migrate v0.1 Build Profiles that predate config-stage parsing
 - [x] confidence-rated stage alignment: exact loadout title -> semantic milestone -> guarded ordinal fallback -> explicit ambiguity
 - [x] recognize PoB linked-title `{token}` convention
-- [ ] validate stage alignment against a corpus of current real-world PoBs
+- [ ] validate stage alignment against a broader corpus of current real-world PoBs
 - [x] active Build Stage selection and persistence
 
 ### Import + interpretation
 
 - [x] paste export code or pobb.in URL in the manager
+- [x] local `.xml` build import through a bounded desktop file picker
 - [x] import public Maxroll PoE leveling-guide URLs as first-class Build Profiles
 - [x] support normal and Twink Maxroll planner schemas with bounded public fetches
-- [ ] local `.xml` build discovery/import UX
+- [x] surface Maxroll guide links, imported-source information and PoB notes in the planner
 - [ ] background import/decompression workflow
-- [ ] build notes and guide-source link
 - [ ] character-linked Build Profiles
 
 ### Leveling plan
@@ -127,7 +127,35 @@ PR #9 ships the original checked stage-persistence, manager import, bundled gem-
 - [x] exact Maxroll next-passive/refund coaching with persisted manual cursor
 - [x] character-level-driven Maxroll skill/gem stage activation
 - [x] canonicalize Maxroll gem IDs/names through bundled PoE game data
-- [x] preserve Twink equipment slot/item/base/unique references for future Gear Coach resolution
+- [x] preserve Twink equipment slot/item/base/unique references for future item-data resolution
+- [x] stage-aware LOOK FOR gear hints in manager and overlay
+
+### Gear Coach
+
+- [x] parse manually copied Path of Exile item text locally
+- [x] recognize common single/combined life, resistance, attribute, movement, defense and offense signals
+- [x] derive sockets and maximum linked group from copied item text
+- [x] compare copied items against current PoB stage equipment/base targets
+- [x] use active skill link requirements as build-stage evidence
+- [x] account for detected character-level requirements
+- [x] produce conservative 0–100 equip/situational/skip guidance with positive and negative reasons
+- [x] provide safe campaign bench-repair suggestions without claiming hidden affix knowledge
+- [x] explicit clipboard analysis action; no continuous clipboard monitoring or automatic gameplay actions
+- [x] dedicated Windows Gear Coach renderer/overflow visual smoke gate
+
+### Build-aware loot + crafting
+
+- [x] build-specific vendor/gem reminders at campaign steps
+- [x] active-stage link-count targets plus optional 3.29 socket-colour quality bonuses
+- [x] concise LOOK FOR target-base hints beyond links/recipes
+- [x] stage-specific base/unique names feed narrow leveling-filter rules when safely representable
+- [x] leveling loot-filter generator safely wraps an existing local filter
+- [x] campaign crafting intelligence for current bench recipes, Act 2+ town benches and Kitava resistance preparation
+- [ ] build-specific vendor regex/search reminders
+- [ ] richer `/passives` reconciliation workflow
+- [ ] versioned layout images/diagrams where they beat text
+- [ ] deeper personal route analytics without gameplay automation
+- [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
 
 ### Data quality
 
@@ -138,28 +166,28 @@ PR #9 ships the original checked stage-persistence, manager import, bundled gem-
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md` for the current build-aware planner, passive, crafting and loot-filter behavior.
+See `BUILD_INTELLIGENCE.md` for the build-aware planner, passive, crafting and loot-filter behavior.
 
-## 0.3 — build-aware campaign + loot intelligence
+## 0.3 — deeper route + endgame intelligence
 
-- [x] build-specific vendor/gem reminders at campaign steps
-- [x] active-stage link-count targets plus optional 3.29 socket-colour quality bonuses
-- [ ] concise LOOK FOR gear hints beyond links/recipes
+- [ ] current-patch real-world PoB corpus validation and heuristics hardening
+- [ ] character-linked build profiles when a reliable identity source is available
 - [ ] build-specific vendor regex/search reminders
-- [x] leveling loot-filter generator that safely wraps an existing local filter
-- [x] campaign crafting intelligence for current bench recipes, Act 2+ town benches and Kitava resistance preparation
 - [ ] richer `/passives` reconciliation workflow
-- [ ] versioned layout images/diagrams where they beat text
+- [ ] more reviewed high-confidence layout and routing hints
 - [ ] deeper personal route analytics without gameplay automation
 - [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
 
-## 0.4 — Gear Coach
+## 0.4 — Advanced Gear Coach
 
-- [ ] manually copied item parser
-- [ ] resistance/attribute/life gap analysis
-- [ ] gear-slot match score against build stage
-- [ ] cheap campaign and early-map upgrade recommendations
-- [ ] crafting-bench repair suggestions
+- [x] manually copied item parser foundation
+- [x] visible resistance/attribute/life analysis
+- [x] gear-slot/build-stage match score
+- [x] cheap campaign repair suggestions
+- [ ] compare candidate against an explicitly copied currently equipped item
+- [ ] richer weapon-specific build weighting from local modifier/base data
+- [ ] exact unique/base resolution for Maxroll internal item metadata
+- [ ] early-map and endgame upgrade recommendations
 
 ## 0.5 — Crafting Coach
 
@@ -176,7 +204,7 @@ See `BUILD_INTELLIGENCE.md` for the current build-aware planner, passive, crafti
 
 - typecheck, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
 - generated gem and passive snapshots validate before packaging;
-- Windows manager responsive matrix, overlay visual matrix and lifecycle soak pass;
+- Windows manager responsive matrix, Gear Coach visual smoke, overlay visual matrix and lifecycle soak pass;
 - Windows NSIS installer builds successfully;
 - when a previous stable release exists, CI installs that release and proves the real updater can move it to the candidate build;
 - the relaunched ExileQuesting process must actually be observed after update, not merely requested;

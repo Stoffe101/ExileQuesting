@@ -4,6 +4,7 @@ import type { BuildPlannerSnapshot } from '../src/core/build-planner';
 import type { GemAcquisitionPlan } from '../src/core/gem-acquisition';
 import type { CampaignSimulationReport } from '../src/core/simulator';
 import type { BuildCoachSnapshot } from '../src/core/build-coach';
+import type { GearCoachAnalysis } from '../src/core/gear-coach';
 import type { LootFilterStatus } from '../src/core/loot-filter';
 import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
 
@@ -33,6 +34,7 @@ export interface BuildWorkspaceResult {
   passiveData: { status: 'ready' | 'missing' | 'invalid'; message: string; gameVersion?: string; sha256?: string };
   plan?: GemAcquisitionPlan;
   coach?: BuildCoachSnapshot;
+  characterLevel?: number;
   lootFilter: LootFilterStatus;
   campaign: { resolved: number; unresolved: number; actionSteps: number };
 }
@@ -71,10 +73,13 @@ const api = {
   listBuildProfiles: (): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:list'),
   getBuildWorkspace: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:workspace'),
   importBuildProfile: (input: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:import', input),
+  selectPobXmlFile: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:select-xml'),
   activateBuildProfile: (id: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-profile', id),
   activateBuildStage: (profileId: string, stageId: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-stage', profileId, stageId),
   stepBuildPassive: (profileId: string, delta: number): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('build:passive-step', profileId, delta),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
+  analyzeGearItem: (input: string): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze', input),
+  analyzeClipboardGearItem: (): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze-clipboard'),
   selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
   regenerateLootFilter: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:regenerate'),
   markLootFilterReloaded: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:reloaded'),

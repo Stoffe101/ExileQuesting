@@ -38,6 +38,8 @@ jobs:
       - run: npm audit --omit=dev
       - run: npm run typecheck
       - run: npm test
+      - run: npm run validate:gems
+      - run: npm run validate:passives
       - run: npm run audit:campaign
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
@@ -45,6 +47,8 @@ jobs:
         run: npm run smoke:lab
       - name: Render release manager responsive matrix
         run: npm run visual:manager
+      - name: Render release Gear Coach visual smoke
+        run: npm run visual:gear
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -158,6 +162,13 @@ jobs:
           $checksum = Get-Item "release/$($setup.Name).sha256"
           $notes = @"
           ExileQuesting $env:RELEASE_TAG
+
+          v0.2.0 turns ExileQuesting into a broader player coach:
+          - Maxroll normal and Twink leveling-guide support with exact passive progression.
+          - Gear Coach for copied Path of Exile items with build-stage-aware scoring and explanations.
+          - PoB stage-specific equipment targets and local XML import.
+          - Build-aware LOOK FOR gear hints and target-base loot-filter rules.
+          - Stronger gem, passive, campaign, crafting and leveling guidance.
 
           Windows installer published from the verified ExileQuesting release pipeline.
           Source build: ${{ github.sha }}
