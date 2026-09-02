@@ -128,6 +128,7 @@ async function main() {
     const id = Number(node.skill ?? key);
     const name = typeof node.name === 'string' ? node.name.trim() : '';
     if (!Number.isSafeInteger(id) || id <= 0 || !name) continue;
+    const kind = nodeKind(node);
     const position = nodePosition(node, groups, skillsPerOrbit, orbitRadii);
     const group = Number(node.group);
     const orbit = Number(node.orbit);
@@ -138,7 +139,7 @@ async function main() {
     nodes.push({
       id,
       name,
-      kind: nodeKind(node),
+      kind,
       ...(position ?? {}),
       ...(Number.isSafeInteger(group) ? { group } : {}),
       ...(Number.isSafeInteger(orbit) ? { orbit } : {}),
@@ -150,8 +151,9 @@ async function main() {
   }
   nodes.sort((left, right) => left.id - right.id);
   if (nodes.length < 1000) throw new Error(`Only ${nodes.length} passive nodes were extracted.`);
-  const geometryCount = nodes.filter((node) => node.x !== undefined && node.y !== undefined).length;
-  if (geometryCount < Math.floor(nodes.length * 0.9)) throw new Error(`Only ${geometryCount}/${nodes.length} passive nodes had geometry.`);
+  const mainTree = nodes.filter((node) => node.kind !== 'ascendancy');
+  const mainTreeGeometry = mainTree.filter((node) => node.x !== undefined && node.y !== undefined);
+  if (mainTreeGeometry.length < Math.floor(mainTree.length * 0.98)) throw new Error(`Only ${mainTreeGeometry.length}/${mainTree.length} main-tree passive nodes had geometry.`);
 
   const normalizedPayload = JSON.stringify(nodes);
   const sha256 = createHash('sha256').update(normalizedPayload).digest('hex');
@@ -167,7 +169,7 @@ async function main() {
   };
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
   await fs.writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes, ${geometryCount} positioned (${sha256.slice(0, 12)}).`);
+  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${mainTreeGeometry.length}/${mainTree.length} main-tree nodes positioned (${sha256.slice(0, 12)}).`);
 }
 
 await main();
