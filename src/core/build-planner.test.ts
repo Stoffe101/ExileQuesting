@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { BuildProfile } from './build-profiles';
-import { activateBuildProfile, activateBuildStage, buildPlannerSnapshot, defaultActiveStageId, normalizeBuildPlannerState } from './build-planner';
+import {
+  activateBuildProfile,
+  activateBuildStage,
+  activateMaxrollStageForLevel,
+  buildPlannerSnapshot,
+  defaultActiveStageId,
+  normalizeBuildPlannerState,
+  setBuildPassiveCursor,
+  stepBuildPassiveCursor,
+} from './build-planner';
 import type { PobBuildSummary } from './pob';
 
 function build(): PobBuildSummary {
@@ -31,22 +40,61 @@ function profile(id: string, importedAt = '2026-09-02T01:00:00.000Z'): BuildProf
   return { id, name: id, importedAt, sourceKind: 'xml', build: build() };
 }
 
+function maxrollProfile(): BuildProfile {
+  const buildSummary: PobBuildSummary = {
+    root: 'PathOfBuilding',
+    className: 'Ranger',
+    skillStages: [
+      { id: 'skills:1', title: 'Level 2', kind: 'skills', active: true, ordinal: 1, skillGroups: [] },
+      { id: 'skills:2', title: 'Hollow Palm Swap (Level 12)', kind: 'skills', active: false, ordinal: 2, skillGroups: [] },
+      { id: 'skills:3', title: 'Level 18', kind: 'skills', active: false, ordinal: 3, skillGroups: [] },
+    ],
+    treeStages: [], itemStages: [], configStages: [], activeSkillGroups: [], warnings: [],
+  };
+  return {
+    id: 'maxroll-twink',
+    name: 'Leveling Twink Ranger',
+    importedAt: '2026-09-02T03:00:00.000Z',
+    sourceKind: 'maxroll',
+    source: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
+    maxroll: {
+      guideUrl: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
+      guideTitle: 'Leveling Twink Ranger',
+      guideSlug: 'leveling-twink-ranger',
+      mode: 'twink',
+      compatibility: 'compatible-ids',
+      compatibilityMessage: 'fixture',
+      passiveOperations: [
+        { type: 'allocate', nodeId: 10, checkpoint: 1 },
+        { type: 'allocate', nodeId: 20, checkpoint: 2 },
+        { type: 'refund', nodeId: 10, checkpoint: 3 },
+      ],
+      skillMilestones: ['Level 2', 'Hollow Palm Swap (Level 12)', 'Level 18'],
+      equipmentMilestones: [],
+      alternateSkillPaths: [],
+    },
+    build: buildSummary,
+  };
+}
+
 describe('build planner state', () => {
   it('defaults to PoB-selected stage members rather than the first stage', () => {
     const selected = defaultActiveStageId(profile('one'));
     expect(selected).toContain('level-28');
   });
 
-  it('migrates missing or stale state to valid profile and stage selections', () => {
+  it('migrates missing or stale state to valid profile, stage, and passive selections', () => {
     const profiles = [profile('new', '2026-09-02T02:00:00.000Z'), profile('old')];
     const normalized = normalizeBuildPlannerState({
       activeProfileId: 'missing',
       activeStageByProfile: { new: 'also-missing', old: 'garbage' },
+      passiveCursorByProfile: { new: 999 },
     }, profiles);
     expect(normalized.schemaVersion).toBe(1);
     expect(normalized.activeProfileId).toBe('new');
     expect(normalized.activeStageByProfile.new).toContain('level-28');
     expect(normalized.activeStageByProfile.old).toContain('level-28');
+    expect(normalized.passiveCursorByProfile).toEqual({ new: 0, old: 0 });
   });
 
   it('activates a profile and a validated aligned stage without trusting arbitrary ids', () => {
@@ -63,5 +111,40 @@ describe('build planner state', () => {
 
     const protectedState = activateBuildStage(state, profiles, 'one', 'not-a-real-stage');
     expect(protectedState.activeStageByProfile.one).toBe(firstStage.id);
+  });
+
+  it('keeps Maxroll passive acknowledgements explicit and clamps the cursor', () => {
+    const twink = maxrollProfile();
+    const profiles = [twink];
+    let state = normalizeBuildPlannerState(undefined, profiles);
+    expect(state.passiveCursorByProfile[twink.id]).toBe(0);
+    state = stepBuildPassiveCursor(state, profiles, twink.id, 1);
+    expect(state.passiveCursorByProfile[twink.id]).toBe(1);
+    state = setBuildPassiveCursor(state, profiles, twink.id, 99);
+    expect(state.passiveCursorByProfile[twink.id]).toBe(3);
+    state = stepBuildPassiveCursor(state, profiles, twink.id, -99);
+    expect(state.passiveCursorByProfile[twink.id]).toBe(0);
+  });
+
+  it('auto-selects Maxroll gem stages by character level without changing passive progress', () => {
+    const twink = maxrollProfile();
+    const profiles = [twink];
+    let state = normalizeBuildPlannerState(undefined, profiles);
+    state = setBuildPassiveCursor(state, profiles, twink.id, 2);
+
+    state = activateMaxrollStageForLevel(state, profiles, twink.id, 4);
+    let snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Level 2');
+    expect(snapshot.passiveCursor).toBe(2);
+
+    state = activateMaxrollStageForLevel(state, profiles, twink.id, 12);
+    snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Hollow Palm Swap (Level 12)');
+    expect(snapshot.passiveCursor).toBe(2);
+
+    state = activateMaxrollStageForLevel(state, profiles, twink.id, 19);
+    snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Level 18');
+    expect(snapshot.passiveCursor).toBe(2);
   });
 });
