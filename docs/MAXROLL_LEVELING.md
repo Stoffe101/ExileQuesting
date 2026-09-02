@@ -25,7 +25,7 @@ Current Maxroll PoE1 planners can expose several useful structured families:
 - alternate skill paths when the planner contains them;
 - equipment sets when the planner contains them.
 
-The normal Explosive Concoction Deadeye guide used while implementing this adapter exposes six skill ranges from `Level 1 - 12` through `Level 38+` and an ordered passive history with both additions and refunds.
+The Explosive Concoction Deadeye guide used while implementing this adapter currently exposes six skill ranges from `Level 1 - 12` through `Level 38+` and an ordered passive history with both additions and refunds.
 
 ## Twink leveling guides
 
@@ -39,6 +39,37 @@ The Ranger Twink guide used while implementing this adapter exposes:
 - several equipment sets, including an Act 1 setup.
 
 Maxroll uses a different passive-history shape for this Twink planner than for the normal guide. The adapter normalizes both forms into the same ExileQuesting passive-operation stream.
+
+## Canonical gem identities
+
+Maxroll planner data sometimes exposes a metadata-derived label such as `Support Volley` rather than the game-facing name `Volley Support`. ExileQuesting must not propagate those implementation labels into the player experience.
+
+After parsing a Maxroll planner, every gem is resolved against the bundled, version-pinned PoE gem snapshot. When a unique match exists, ExileQuesting replaces the planner label and abbreviated skill ID with the canonical current gem name and full metadata ID.
+
+That normalized build is then used by all downstream systems:
+
+- active skill/gem stage display;
+- quest and vendor acquisition planning;
+- Siosa/Lilly fallback logic;
+- link and loot-filter targets;
+- manager Build Intelligence;
+- the BUILD overlay.
+
+If a gem cannot be resolved uniquely, the original Maxroll value is retained and the normal unknown-gem safeguards remain active rather than guessing.
+
+## Twink equipment provenance
+
+Maxroll does not consistently expose a friendly display name for every item in its Twink equipment sets. It does, however, expose stable structured references for each slot.
+
+ExileQuesting therefore persists, when available:
+
+- equipment slot;
+- Maxroll planner item ID;
+- friendly item name;
+- PoE base metadata ID;
+- Maxroll/PoE unique metadata ID.
+
+An internal identifier is never presented as though it were the item's real player-facing name. This preserves enough provenance for the future Gear Coach item dataset to resolve the equipment exactly without another scraping layer.
 
 ## Two progression clocks
 
@@ -71,7 +102,7 @@ Field Medicine
 [Refunded ✓]
 ```
 
-The cursor advances only when the player acknowledges the operation. The manager also provides a Back control for correction.
+The cursor advances only when the player acknowledges the operation. The manager also provides a Back control for correction. Both the Maxroll profile and the passive cursor are persisted, so restarting ExileQuesting does not reset progression.
 
 ## Passive-tree compatibility
 
@@ -99,7 +130,7 @@ Maxroll is an external source whose page/planner schema can change independently
 - persisted Maxroll metadata is normalized on load;
 - a Maxroll failure must not corrupt existing PoB profiles or campaign data.
 
-External live-contract probes are useful during development, but permanent release CI should rely primarily on deterministic local fixtures so a Maxroll outage cannot block an otherwise valid ExileQuesting release.
+External live-contract probes are useful during development, but permanent release CI relies on deterministic local fixtures so a Maxroll outage cannot block an otherwise valid ExileQuesting release.
 
 ## Policy boundary
 
