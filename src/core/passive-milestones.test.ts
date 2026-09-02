@@ -17,12 +17,12 @@ const passiveData: PassiveTreeSnapshot = {
   ],
 };
 
-function profile(): BuildProfile {
+function profile(targetVersion = '3_29'): BuildProfile {
   const build: PobBuildSummary = {
-    root: 'PathOfBuilding', className: 'Witch',
+    root: 'PathOfBuilding', className: 'Witch', targetVersion,
     treeStages: [
-      { id: 'tree:1', title: 'Act 1', kind: 'tree', active: true, ordinal: 1, nodeIds: [10000] },
-      { id: 'tree:2', title: 'Act 2', kind: 'tree', active: false, ordinal: 2, nodeIds: [10000, 20001, 20002, 10001] },
+      { id: 'tree:1', title: 'Act 1', kind: 'tree', active: true, ordinal: 1, treeVersion: targetVersion, nodeIds: [10000] },
+      { id: 'tree:2', title: 'Act 2', kind: 'tree', active: false, ordinal: 2, treeVersion: targetVersion, nodeIds: [10000, 20001, 20002, 10001] },
     ],
     skillStages: [], itemStages: [], configStages: [], activeSkillGroups: [], warnings: [],
   };
@@ -30,12 +30,22 @@ function profile(): BuildProfile {
 }
 
 describe('passive milestone intelligence', () => {
-  it('turns raw passive IDs into named notable/keystone targets', () => {
+  it('turns current-tree passive IDs into named notable/keystone targets', () => {
     const value = profile();
     const stages = alignPobStages(value.build);
     expect(stages).toHaveLength(2);
     const milestone = nextPassiveMilestone(value, stages[0].id, passiveData);
     expect(milestone?.totalAllocations).toBe(3);
+    expect(milestone?.namesVerified).toBe(true);
     expect(milestone?.namedTargets.map((target) => target.name)).toEqual(['Elemental Overload', 'Heart of Flame', 'Node 1']);
+  });
+
+  it('keeps allocation counts but refuses to apply 3.29 names to an older PoB tree', () => {
+    const value = profile('3_28');
+    const stages = alignPobStages(value.build);
+    const milestone = nextPassiveMilestone(value, stages[0].id, passiveData);
+    expect(milestone?.totalAllocations).toBe(3);
+    expect(milestone?.namesVerified).toBe(false);
+    expect(milestone?.namedTargets).toEqual([]);
   });
 });
