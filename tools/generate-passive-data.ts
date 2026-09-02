@@ -39,7 +39,7 @@ function record(value: unknown): Record<string, unknown> {
 
 function nodeKind(node: Record<string, unknown>): PassiveNodeKind {
   if (node.isAscendancyStart || typeof node.ascendancyName === 'string') return 'ascendancy';
-  if (node.classStartIndex !== undefined || node.isMultipleChoiceOption === false && node.isProxy === false && node.group === 0) return 'class-start';
+  if (node.classStartIndex !== undefined) return 'class-start';
   if (node.isKeystone) return 'keystone';
   if (node.isNotable) return 'notable';
   if (node.isMastery) return 'mastery';
