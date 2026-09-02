@@ -52,9 +52,9 @@ Duplicate gem names are removed before packing.
 
 Path of Exile vendor search has a 250-character limit. ExileQuesting enforces that limit before presenting a search.
 
-Build-derived names are escaped as literal regex text before being joined with `|`. The planner packs higher-priority alternatives first and reports when lower-priority entries were omitted because the complete expression would exceed 250 characters.
+Build-derived names are escaped as literal regex text before being joined with `|`. When the final expression contains spaces, ExileQuesting wraps the complete regex in one pair of quotation marks so Path of Exile treats it as a single regex search rather than separate search terms. Those quotation marks count toward the 250-character limit.
 
-The UI always shows the final character count, for example `143/250`.
+The planner packs higher-priority alternatives first and reports when lower-priority entries were omitted because the complete expression would exceed 250 characters. The UI always shows the final character count, for example `143/250`.
 
 ## What the search means
 
@@ -88,4 +88,4 @@ The feature is deliberately a stage-aware planning layer built from ExileQuestin
 
 ## Live-play validation
 
-The expression planner is regression-tested for packing, escaping, task selection, deduplication and the 250-character ceiling. The first live campaign playtest should additionally verify the rendered vendor-search behavior against the current Path of Exile client UI and capture any tooltip/search-language changes as versioned regression cases.
+The expression planner is regression-tested for packing, escaping, quoted-search formatting, task selection, deduplication and the 250-character ceiling. The first live campaign playtest should additionally verify the rendered vendor-search behavior against the current Path of Exile client UI and capture any tooltip/search-language changes as versioned regression cases.
