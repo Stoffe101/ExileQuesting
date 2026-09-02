@@ -59,11 +59,10 @@ function normalizedSplits(splits: ActSplit[]): ActSplit[] {
     .filter((split, index, all) => all.findIndex((candidate) => candidate.act === split.act) === index);
 }
 
-function timingsFromSplits(splits: ActSplit[], currentAct?: number, currentElapsedMs?: number, finished = true): ActTiming[] {
-  const normalized = normalizedSplits(splits);
+function baseTimings(splits: ActSplit[]): ActTiming[] {
   const timings: ActTiming[] = [];
   let previousCumulative = 0;
-  for (const split of normalized) {
+  for (const split of normalizedSplits(splits)) {
     const cumulativeMs = Math.max(previousCumulative, split.elapsedMs);
     timings.push({
       act: split.act,
@@ -73,9 +72,23 @@ function timingsFromSplits(splits: ActSplit[], currentAct?: number, currentElaps
     });
     previousCumulative = cumulativeMs;
   }
+  return timings;
+}
 
-  if (!finished && currentAct && currentAct >= 1 && currentAct <= 10 && !timings.some((timing) => timing.act === currentAct)) {
-    const cumulativeMs = Math.max(previousCumulative, currentElapsedMs ?? previousCumulative);
+function sessionTimings(session: RunSession, now: number): ActTiming[] {
+  const timings = baseTimings(session.splits);
+  const currentAct = session.currentAct;
+  if (!currentAct || currentAct < 1 || currentAct > 10) return timings;
+
+  // A split for an Act is comparison-safe only after the run has transitioned
+  // into a later Act. finishRun() also writes the current Act as a final split,
+  // but the user can press Finish mid-Act, so that last segment is not proof of
+  // Act completion and must stay non-comparable.
+  for (const timing of timings) timing.complete = timing.act < currentAct;
+
+  if (!timings.some((timing) => timing.act === currentAct)) {
+    const previousCumulative = timings.at(-1)?.cumulativeMs ?? 0;
+    const cumulativeMs = Math.max(previousCumulative, elapsedRunMs(session, now));
     timings.push({
       act: currentAct,
       elapsedMs: Math.max(0, cumulativeMs - previousCumulative),
@@ -88,10 +101,10 @@ function timingsFromSplits(splits: ActSplit[], currentAct?: number, currentElaps
 
 function historyTimings(entry?: RunHistoryEntry): Map<number, ActTiming> {
   if (!entry) return new Map();
-  return new Map(timingsFromSplits(entry.splits, undefined, undefined, true).map((timing) => [timing.act, timing]));
+  return new Map(baseTimings(entry.splits).map((timing) => [timing.act, timing]));
 }
 
-function buildInsights(acts: RunActPace[], finished: boolean): RunActPaceInsight[] {
+function buildInsights(acts: RunActPace[], active: boolean): RunActPaceInsight[] {
   const comparable = acts.filter((act) => act.complete && act.deltaVsPreviousMs !== undefined);
   const biggestRegression = [...comparable].sort((left, right) => (right.deltaVsPreviousMs ?? 0) - (left.deltaVsPreviousMs ?? 0))[0];
   const biggestGain = [...comparable].sort((left, right) => (left.deltaVsPreviousMs ?? 0) - (right.deltaVsPreviousMs ?? 0))[0];
@@ -120,7 +133,7 @@ function buildInsights(acts: RunActPace[], finished: boolean): RunActPaceInsight
     });
   }
 
-  if (!finished && latest?.cumulativeDeltaVsPreviousMs !== undefined) {
+  if (active && latest?.cumulativeDeltaVsPreviousMs !== undefined) {
     const delta = latest.cumulativeDeltaVsPreviousMs;
     insights.push({
       kind: 'pace',
@@ -128,7 +141,7 @@ function buildInsights(acts: RunActPace[], finished: boolean): RunActPaceInsight
       title: `Through Act ${latest.act}: ${signedDuration(delta)}`,
       detail: delta <= 0
         ? 'Your completed-Act pace is ahead of your previous run.'
-        : 'Your completed-Act pace is behind your previous run. The current Act is not compared until it is complete.',
+        : 'Your completed-Act pace is behind your previous run. The current Act is not compared until a later Act transition confirms completion.',
       act: latest.act,
       deltaMs: delta,
     });
@@ -143,8 +156,7 @@ export function buildRunActAnalytics(
   personalBestReference?: RunHistoryEntry,
   now = Date.now(),
 ): RunActAnalytics {
-  const finished = session.state === 'finished';
-  const current = timingsFromSplits(session.splits, session.currentAct, elapsedRunMs(session, now), finished);
+  const current = sessionTimings(session, now);
   const previousActs = historyTimings(previous);
   const pbActs = historyTimings(personalBestReference);
 
@@ -167,6 +179,7 @@ export function buildRunActAnalytics(
   const comparable = completed.filter((act) => act.deltaVsPreviousMs !== undefined);
   const biggestRegression = [...comparable].sort((left, right) => (right.deltaVsPreviousMs ?? 0) - (left.deltaVsPreviousMs ?? 0))[0];
   const biggestGain = [...comparable].sort((left, right) => (left.deltaVsPreviousMs ?? 0) - (right.deltaVsPreviousMs ?? 0))[0];
+  const active = session.state === 'running' || session.state === 'paused';
 
   return {
     acts,
@@ -175,6 +188,6 @@ export function buildRunActAnalytics(
     biggestRegression: biggestRegression && (biggestRegression.deltaVsPreviousMs ?? 0) > 0 ? biggestRegression : undefined,
     biggestGain: biggestGain && (biggestGain.deltaVsPreviousMs ?? 0) < 0 ? biggestGain : undefined,
     latestCompleted: completed.at(-1),
-    insights: buildInsights(acts, finished),
+    insights: buildInsights(acts, active),
   };
 }
