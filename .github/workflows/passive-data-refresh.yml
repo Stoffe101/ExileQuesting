@@ -1,11 +1,6 @@
 name: Refresh pinned passive data
 
 on:
-  push:
-    branches: [feature/game-data-provenance]
-    paths:
-      - tools/generate-passive-data.ts
-      - .github/workflows/passive-data-refresh.yml
   workflow_dispatch:
 
 permissions:
