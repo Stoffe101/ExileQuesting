@@ -130,6 +130,16 @@ async function main() {
     if (!Number.isSafeInteger(id) || id <= 0 || !name) continue;
     const kind = nodeKind(node);
     const position = nodePosition(node, groups, skillsPerOrbit, orbitRadii);
+    const rawGroupPresent = node.group !== undefined;
+    const rawOrbitPresent = node.orbit !== undefined;
+    const rawOrbitIndexPresent = node.orbitIndex !== undefined;
+    const hasNoPlacementFields = !rawGroupPresent && !rawOrbitPresent && !rawOrbitIndexPresent;
+    const dynamic = kind !== 'ascendancy' && !position && hasNoPlacementFields;
+    // A partly populated static placement is an upstream schema problem, not a
+    // Cluster Jewel/mastery definition. Fail rather than silently declaring it dynamic.
+    if (kind !== 'ascendancy' && !position && !dynamic) {
+      throw new Error(`Static passive ${id} (${name}) had incomplete or invalid group/orbit geometry.`);
+    }
     const group = Number(node.group);
     const orbit = Number(node.orbit);
     const orbitIndex = Number(node.orbitIndex);
@@ -140,6 +150,7 @@ async function main() {
       id,
       name,
       kind,
+      ...(dynamic ? { dynamic: true } : {}),
       ...(position ?? {}),
       ...(Number.isSafeInteger(group) ? { group } : {}),
       ...(Number.isSafeInteger(orbit) ? { orbit } : {}),
@@ -151,9 +162,10 @@ async function main() {
   }
   nodes.sort((left, right) => left.id - right.id);
   if (nodes.length < 1000) throw new Error(`Only ${nodes.length} passive nodes were extracted.`);
-  const mainTree = nodes.filter((node) => node.kind !== 'ascendancy');
-  const mainTreeGeometry = mainTree.filter((node) => node.x !== undefined && node.y !== undefined);
-  if (mainTreeGeometry.length < Math.floor(mainTree.length * 0.98)) throw new Error(`Only ${mainTreeGeometry.length}/${mainTree.length} main-tree passive nodes had geometry.`);
+  const staticMainTree = nodes.filter((node) => node.kind !== 'ascendancy' && !node.dynamic);
+  const staticMainTreeGeometry = staticMainTree.filter((node) => node.x !== undefined && node.y !== undefined);
+  if (staticMainTreeGeometry.length !== staticMainTree.length) throw new Error(`Only ${staticMainTreeGeometry.length}/${staticMainTree.length} static main-tree passive nodes had geometry.`);
+  const dynamicCount = nodes.filter((node) => node.dynamic).length;
 
   const normalizedPayload = JSON.stringify(nodes);
   const sha256 = createHash('sha256').update(normalizedPayload).digest('hex');
@@ -169,7 +181,7 @@ async function main() {
   };
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
   await fs.writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${mainTreeGeometry.length}/${mainTree.length} main-tree nodes positioned (${sha256.slice(0, 12)}).`);
+  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions (${sha256.slice(0, 12)}).`);
 }
 
 await main();
