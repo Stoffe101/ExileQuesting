@@ -40,6 +40,24 @@ function profile(id: string, importedAt = '2026-09-02T01:00:00.000Z'): BuildProf
   return { id, name: id, importedAt, sourceKind: 'xml', build: build() };
 }
 
+function maxrollMetadata() {
+  return {
+    guideUrl: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
+    guideTitle: 'Leveling Twink Ranger',
+    guideSlug: 'leveling-twink-ranger',
+    mode: 'twink' as const,
+    compatibility: 'compatible-ids' as const,
+    compatibilityMessage: 'fixture',
+    passiveOperations: [
+      { type: 'allocate' as const, nodeId: 10, checkpoint: 1 },
+      { type: 'allocate' as const, nodeId: 20, checkpoint: 2 },
+      { type: 'refund' as const, nodeId: 10, checkpoint: 3 },
+    ],
+    equipmentMilestones: [],
+    alternateSkillPaths: [],
+  };
+}
+
 function maxrollProfile(): BuildProfile {
   const buildSummary: PobBuildSummary = {
     root: 'PathOfBuilding',
@@ -57,23 +75,26 @@ function maxrollProfile(): BuildProfile {
     importedAt: '2026-09-02T03:00:00.000Z',
     sourceKind: 'maxroll',
     source: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
-    maxroll: {
-      guideUrl: 'https://maxroll.gg/poe/build-guides/leveling-twink-ranger',
-      guideTitle: 'Leveling Twink Ranger',
-      guideSlug: 'leveling-twink-ranger',
-      mode: 'twink',
-      compatibility: 'compatible-ids',
-      compatibilityMessage: 'fixture',
-      passiveOperations: [
-        { type: 'allocate', nodeId: 10, checkpoint: 1 },
-        { type: 'allocate', nodeId: 20, checkpoint: 2 },
-        { type: 'refund', nodeId: 10, checkpoint: 3 },
-      ],
-      skillMilestones: ['Level 2', 'Hollow Palm Swap (Level 12)', 'Level 18'],
-      equipmentMilestones: [],
-      alternateSkillPaths: [],
-    },
+    maxroll: { ...maxrollMetadata(), skillMilestones: ['Level 2', 'Hollow Palm Swap (Level 12)', 'Level 18'] },
     build: buildSummary,
+  };
+}
+
+function rangeMaxrollProfile(): BuildProfile {
+  const titles = ['Lvl 12-55', 'Lvl 56 (Minor Respec)', 'Lvl 56-67', 'Level 68'];
+  return {
+    id: 'maxroll-ranges',
+    name: 'Range progression fixture',
+    importedAt: '2026-09-02T04:00:00.000Z',
+    sourceKind: 'maxroll',
+    source: 'https://maxroll.gg/poe/build-guides/range-fixture',
+    maxroll: { ...maxrollMetadata(), guideUrl: 'https://maxroll.gg/poe/build-guides/range-fixture', guideTitle: 'Range progression fixture', guideSlug: 'range-fixture', skillMilestones: titles },
+    build: {
+      root: 'PathOfBuilding',
+      className: 'Ranger',
+      treeStages: [], itemStages: [], configStages: [], activeSkillGroups: [], warnings: [],
+      skillStages: titles.map((title, index) => ({ id: `skills:${index + 1}`, title, kind: 'skills' as const, active: index === 0, ordinal: index + 1, skillGroups: [] })),
+    },
   };
 }
 
@@ -146,5 +167,35 @@ describe('build planner state', () => {
     snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
     expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Level 18');
     expect(snapshot.passiveCursor).toBe(2);
+  });
+
+  it('uses the earliest future stage when character level is below every known milestone', () => {
+    const ranged = rangeMaxrollProfile();
+    const profiles = [ranged];
+    const state = activateMaxrollStageForLevel(normalizeBuildPlannerState(undefined, profiles), profiles, ranged.id, 5);
+    const snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Lvl 12-55');
+  });
+
+  it('shows an exact same-level respec transition before the following range takes over', () => {
+    const ranged = rangeMaxrollProfile();
+    const profiles = [ranged];
+    let state = normalizeBuildPlannerState(undefined, profiles);
+
+    state = activateMaxrollStageForLevel(state, profiles, ranged.id, 55);
+    let snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Lvl 12-55');
+
+    state = activateMaxrollStageForLevel(state, profiles, ranged.id, 56);
+    snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Lvl 56 (Minor Respec)');
+
+    state = activateMaxrollStageForLevel(state, profiles, ranged.id, 57);
+    snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Lvl 56-67');
+
+    state = activateMaxrollStageForLevel(state, profiles, ranged.id, 68);
+    snapshot = buildPlannerSnapshot(profiles, state).profiles[0];
+    expect(snapshot.stages.find((stage) => stage.id === snapshot.activeStageId)?.title).toBe('Level 68');
   });
 });
