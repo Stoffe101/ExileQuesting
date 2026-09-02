@@ -26,6 +26,7 @@ export default function BuildWorkspace() {
 
   const active = workspace?.planner.profiles.find((entry) => entry.profile.id === workspace.planner.activeProfileId);
   const activeStage = active?.stages.find((stage) => stage.id === active.activeStageId);
+  const ambiguousStages = active?.stages.filter((stage) => stage.confidence === 'ambiguous') ?? [];
   const needs = workspace?.plan?.needs ?? [];
 
   const importBuild = async () => {
@@ -112,12 +113,13 @@ export default function BuildWorkspace() {
             {workspace?.planner.profiles.length ? workspace.planner.profiles.map((entry) => {
               const selected = entry.profile.id === workspace.planner.activeProfileId;
               const maxroll = entry.profile.maxroll;
+              const ambiguous = entry.stages.filter((stage) => stage.confidence === 'ambiguous').length;
               return (
                 <div className={`build-profile-row ${selected ? 'active' : ''}`} key={entry.profile.id}>
                   <button onClick={() => void window.exileQuesting.activateBuildProfile(entry.profile.id).then(setWorkspace)}>
                     <strong>{entry.profile.name}</strong>
                     <small>
-                      {maxroll ? `Maxroll ${maxroll.mode === 'twink' ? 'Twink' : 'leveling'} · ${maxroll.passiveOperations.length} passive operations` : `${entry.profile.build.level ? `Level ${entry.profile.build.level}` : 'Level not specified'} · ${entry.stages.length} aligned stage${entry.stages.length === 1 ? '' : 's'}`}
+                      {maxroll ? `Maxroll ${maxroll.mode === 'twink' ? 'Twink' : 'leveling'} · ${maxroll.passiveOperations.length} passive operations` : `${entry.profile.build.level ? `Level ${entry.profile.build.level}` : 'Level not specified'} · ${entry.stages.length} aligned stage${entry.stages.length === 1 ? '' : 's'}${ambiguous ? ` · ${ambiguous} need review` : ''}`}
                     </small>
                     <small className="build-profile-source">{sourceLabel(entry.profile.sourceKind, entry.profile.source)}</small>
                   </button>
@@ -129,24 +131,46 @@ export default function BuildWorkspace() {
         </section>
 
         <section className="panel build-stage-panel">
-          <div className="section-title"><h2>{active?.profile.maxroll ? 'Leveling stage' : 'Active stage'}</h2><span>{active?.profile.maxroll ? 'auto by level' : activeStage?.confidence ?? 'none'}</span></div>
+          <div className="section-title">
+            <h2>{active?.profile.maxroll ? 'Leveling stage' : 'Active stage'}</h2>
+            <span>{active?.profile.maxroll ? 'level-aware' : ambiguousStages.length ? `${ambiguousStages.length} need review` : activeStage?.confidence ?? 'none'}</span>
+          </div>
           {active ? (
             <>
+              {!active.profile.maxroll && ambiguousStages.length > 0 && (
+                <div className="inline-alert">
+                  <strong>Stage alignment needs review</strong>
+                  {ambiguousStages.length} PoB set{ambiguousStages.length === 1 ? '' : 's'} could not be paired safely. ExileQuesting keeps them separate instead of guessing, so inspect the affected stage before trusting build-specific gear, gems, loot, or passive guidance.
+                </div>
+              )}
               <div className="build-stage-list custom-scrollbar">
-                {active.stages.map((stage) => (
-                  <button className={stage.id === active.activeStageId ? 'active' : ''} key={stage.id} onClick={() => void window.exileQuesting.activateBuildStage(active.profile.id, stage.id).then(setWorkspace)}>
-                    <strong>{stage.title}</strong>
-                    <small>{active.profile.maxroll ? `${stage.milestone.label ?? 'Leveling milestone'} · auto-selects when Client.txt reports the level` : `${stage.milestone.label ?? 'Unlabelled milestone'} · ${stage.confidence} confidence`}</small>
-                  </button>
-                ))}
+                {active.stages.map((stage) => {
+                  const levelSynced = active.profile.maxroll && stage.milestone.kind === 'level';
+                  return (
+                    <button className={stage.id === active.activeStageId ? 'active' : ''} key={stage.id} onClick={() => void window.exileQuesting.activateBuildStage(active.profile.id, stage.id).then(setWorkspace)}>
+                      <strong>{stage.title}</strong>
+                      <small>{active.profile.maxroll
+                        ? `${stage.milestone.label ?? 'Leveling milestone'} · ${levelSynced ? 'level-synced from Client.txt' : 'manual milestone'}`
+                        : `${stage.milestone.label ?? 'Unlabelled milestone'} · ${stage.confidence === 'ambiguous' ? 'review required' : `${stage.confidence} confidence`}`}</small>
+                    </button>
+                  );
+                })}
               </div>
               {activeStage && (
-                <div className="build-stage-summary">
-                  <span>Selected</span>
-                  <strong>{activeStage.title}</strong>
-                  <small>{active.profile.maxroll ? 'Maxroll skill/gem milestone' : [activeStage.tree && 'tree', activeStage.skills && 'skills', activeStage.items && 'items', activeStage.config && 'config'].filter(Boolean).join(' · ') || 'No stage families'}</small>
-                  {activeStage.items?.equipment?.length ? <small>{activeStage.items.equipment.length} stage-specific gear target{activeStage.items.equipment.length === 1 ? '' : 's'} available to Gear Coach.</small> : null}
-                </div>
+                <>
+                  <div className="build-stage-summary">
+                    <span>Selected</span>
+                    <strong>{activeStage.title}</strong>
+                    <small>{active.profile.maxroll ? 'Maxroll skill/gem milestone' : [activeStage.tree && 'tree', activeStage.skills && 'skills', activeStage.items && 'items', activeStage.config && 'config'].filter(Boolean).join(' · ') || 'No stage families'}</small>
+                    {activeStage.items?.equipment?.length ? <small>{activeStage.items.equipment.length} stage-specific gear target{activeStage.items.equipment.length === 1 ? '' : 's'} available to Gear Coach.</small> : null}
+                  </div>
+                  {!active.profile.maxroll && activeStage.reasons.length > 0 && (
+                    <details className="build-source-details">
+                      <summary>{activeStage.confidence === 'ambiguous' ? 'Why this stage needs review' : 'Why these PoB sets were aligned'}</summary>
+                      {activeStage.reasons.map((reason) => <p key={reason}>{reason}</p>)}
+                    </details>
+                  )}
+                </>
               )}
               {(active.profile.source || active.profile.build.notes) && (
                 <details className="build-source-details">
