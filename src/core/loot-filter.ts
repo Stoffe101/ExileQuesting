@@ -2,6 +2,7 @@ import type { BuildProfile } from './build-profiles';
 import { gemIdentity } from './build-transitions';
 import { indexGemData, resolveGemRequirement, type GemAcquisitionSnapshot } from './gem-data';
 import { alignPobStages } from './pob-stages';
+import type { PoeGearSlot } from './item-text';
 
 export type LootSocketColour = 'R' | 'G' | 'B';
 
@@ -15,6 +16,16 @@ export interface LootLinkTarget {
   gems: string[];
 }
 
+export interface LootBaseTarget {
+  stageId: string;
+  stageTitle: string;
+  slot: PoeGearSlot;
+  slotName: string;
+  baseType: string;
+  name?: string;
+  rarity?: string;
+}
+
 export interface LootFilterPlan {
   profileId: string;
   profileName: string;
@@ -22,6 +33,7 @@ export interface LootFilterPlan {
   stageId?: string;
   stageTitle?: string;
   linkTargets: LootLinkTarget[];
+  baseTargets: LootBaseTarget[];
   showChromaticRecipe: boolean;
   showSixSockets: boolean;
   warnings: string[];
@@ -67,6 +79,16 @@ function dedupeTargets(targets: LootLinkTarget[]): LootLinkTarget[] {
   });
 }
 
+function dedupeBaseTargets(targets: LootBaseTarget[]): LootBaseTarget[] {
+  const seen = new Set<string>();
+  return targets.filter((target) => {
+    const key = `${target.rarity?.toLowerCase() ?? ''}:${target.baseType.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function buildLootFilterPlan(
   profile: BuildProfile,
   activeStageId: string | undefined,
@@ -77,6 +99,7 @@ export function buildLootFilterPlan(
   const index = indexGemData(snapshot);
   const warnings: string[] = [];
   const linkTargets: LootLinkTarget[] = [];
+  const baseTargets: LootBaseTarget[] = [];
 
   for (const group of selected?.skills?.skillGroups ?? []) {
     if (!group.enabled) continue;
@@ -106,6 +129,21 @@ export function buildLootFilterPlan(
     });
   }
 
+  for (const item of selected?.items?.equipment ?? []) {
+    if (['flask', 'jewel', 'unknown'].includes(item.slot)) continue;
+    const baseType = item.baseType?.trim();
+    if (!baseType || baseType === 'Unknown base' || baseType.length > 120) continue;
+    baseTargets.push({
+      stageId: selected!.id,
+      stageTitle: selected!.title,
+      slot: item.slot,
+      slotName: item.slotName,
+      baseType,
+      name: item.rarity?.toLowerCase() === 'unique' ? item.name : undefined,
+      rarity: item.rarity,
+    });
+  }
+
   return {
     profileId: profile.id,
     profileName: profile.name,
@@ -113,6 +151,9 @@ export function buildLootFilterPlan(
     stageId: selected?.id,
     stageTitle: selected?.title,
     linkTargets: dedupeTargets(linkTargets).sort((left, right) => right.links - left.links || left.qualityBonusColours.join('').localeCompare(right.qualityBonusColours.join(''))),
+    baseTargets: dedupeBaseTargets(baseTargets)
+      .sort((left, right) => Number(right.rarity?.toLowerCase() === 'unique') - Number(left.rarity?.toLowerCase() === 'unique') || left.slotName.localeCompare(right.slotName))
+      .slice(0, 10),
     showChromaticRecipe: true,
     showSixSockets: true,
     warnings: [...new Set(warnings)],
@@ -152,6 +193,21 @@ export function renderLootFilter(plan: LootFilterPlan, baseFilterFileName: strin
     '# Generated rules are campaign-scoped and intentionally narrow. Everything else falls through to your selected base filter.',
     '',
   ];
+
+  for (const target of plan.baseTargets) {
+    lines.push('Show');
+    levelingScope(lines);
+    if (target.rarity?.toLowerCase() === 'unique') lines.push('    Rarity Unique');
+    lines.push(
+      `    BaseType "${escapedFilterString(target.baseType)}"`,
+      '    SetFontSize 42',
+      '    SetBorderColor 86 214 173 255',
+      '    SetBackgroundColor 13 36 31 225',
+      target.rarity?.toLowerCase() === 'unique' ? '    PlayEffect Green Temp' : '    MinimapIcon 2 Green Diamond',
+      `    # BUILD GEAR TARGET · ${target.slotName}: ${target.name ?? target.baseType}`,
+      '',
+    );
+  }
 
   for (const target of plan.linkTargets) {
     // Matching non-white colours are a quality optimisation in 3.29, not a requirement to use the links.
