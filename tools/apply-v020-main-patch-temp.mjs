@@ -1,4 +1,5 @@
 // Temporary release-prep helper. Delete before opening the v0.2 pull request.
+// Final rerun after item-parser fixes.
 import fs from 'node:fs';
 
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
