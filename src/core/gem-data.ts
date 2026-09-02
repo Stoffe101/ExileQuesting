@@ -113,6 +113,24 @@ export function validateGemAcquisitionSnapshot(value: unknown): GemAcquisitionSn
     startingGems[className] = value.filter((entry): entry is string => typeof entry === 'string' && entry.length <= 300).slice(0, 10);
   }
 
+  // Schema-valid is not enough for bundled runtime data. Enforce referential integrity here so
+  // development, CI and packaged builds all reject polluted/corrupt snapshots the same way.
+  const gemIds = new Set<string>();
+  for (const gem of gems) {
+    if (gemIds.has(gem.id)) return null;
+    gemIds.add(gem.id);
+  }
+  const offerKeys = new Set<string>();
+  for (const offer of offers) {
+    if (!gemIds.has(offer.gemId)) return null;
+    const key = [offer.gemId, offer.kind, offer.questId, offer.rewardOfferId, offer.npc, [...offer.classes].sort().join(',')].join('|');
+    if (offerKeys.has(key)) return null;
+    offerKeys.add(key);
+  }
+  for (const gemIdsForClass of Object.values(startingGems)) {
+    if (gemIdsForClass.some((gemId) => !gemIds.has(gemId))) return null;
+  }
+
   return {
     schemaVersion: 1,
     gameVersion,

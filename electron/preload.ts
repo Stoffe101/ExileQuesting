@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { BuildProfile } from '../src/core/build-profiles';
+import type { BuildPlannerSnapshot } from '../src/core/build-planner';
+import type { GemAcquisitionPlan } from '../src/core/gem-acquisition';
 import type { CampaignSimulationReport } from '../src/core/simulator';
 import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
 
@@ -21,6 +23,13 @@ export interface ReplayResult {
 export interface SimulationResult {
   name: string;
   report: CampaignSimulationReport;
+}
+
+export interface BuildWorkspaceResult {
+  planner: BuildPlannerSnapshot;
+  gemData: { status: 'ready' | 'missing' | 'invalid'; message: string; gameVersion?: string; sourceCommit?: string };
+  plan?: GemAcquisitionPlan;
+  campaign: { resolved: number; unresolved: number; actionSteps: number };
 }
 
 const api = {
@@ -55,7 +64,10 @@ const api = {
   replayDiagnostics: (): Promise<ReplayResult | null> => ipcRenderer.invoke('diagnostics:replay'),
   exportReplayBundle: (): Promise<boolean> => ipcRenderer.invoke('diagnostics:replay-export'),
   listBuildProfiles: (): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:list'),
+  getBuildWorkspace: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:workspace'),
   importBuildProfile: (input: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:import', input),
+  activateBuildProfile: (id: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-profile', id),
+  activateBuildStage: (profileId: string, stageId: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-stage', profileId, stageId),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
   onState: (callback: (state: RuntimeState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);

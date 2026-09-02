@@ -20,6 +20,14 @@ export function buildGemAcquisitionSnapshot(
   upstreamCharacters: unknown,
   metadata: GemSnapshotMetadata,
 ): GemAcquisitionSnapshot {
+  // Reward offers can contain armour, weapons and other quest items next to gems. The upstream
+  // gems table is the authoritative allowlist: only IDs present there may enter acquisition data.
+  const upstreamGemIds = new Set(
+    Object.values(object(upstreamGems)).flatMap((candidate) => {
+      const gem = object(candidate);
+      return typeof gem.id === 'string' ? [gem.id] : [];
+    }),
+  );
   const offers: GemAcquisitionSnapshot['offers'] = [];
   for (const candidate of Object.values(object(upstreamQuests))) {
     const quest = object(candidate);
@@ -31,6 +39,7 @@ export function buildGemAcquisitionSnapshot(
       const questNpc = typeof offer.quest_npc === 'string' ? offer.quest_npc : '';
       if (!questNpc) continue;
       for (const [gemId, rawReward] of Object.entries(object(offer.quest))) {
+        if (!upstreamGemIds.has(gemId)) continue;
         const reward = object(rawReward);
         offers.push({
           gemId,
@@ -45,6 +54,7 @@ export function buildGemAcquisitionSnapshot(
         });
       }
       for (const [gemId, rawReward] of Object.entries(object(offer.vendor))) {
+        if (!upstreamGemIds.has(gemId)) continue;
         const reward = object(rawReward);
         const npc = typeof reward.npc === 'string' && reward.npc ? reward.npc : questNpc;
         offers.push({
@@ -65,7 +75,7 @@ export function buildGemAcquisitionSnapshot(
   const startingGems: Record<string, string[]> = {};
   for (const [className, rawCharacter] of Object.entries(object(upstreamCharacters))) {
     const character = object(rawCharacter);
-    const ids = [character.start_gem_id, character.chest_gem_id].filter((value): value is string => typeof value === 'string' && Boolean(value));
+    const ids = [character.start_gem_id, character.chest_gem_id].filter((value): value is string => typeof value === 'string' && Boolean(value) && upstreamGemIds.has(value));
     if (ids.length) startingGems[className] = [...new Set(ids)];
   }
 

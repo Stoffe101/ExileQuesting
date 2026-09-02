@@ -356,3 +356,36 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @keyframes pulse { 50% { opacity: .35; } }
 @media (max-width: 1100px) { .page { padding: 30px; } .knowledge-grid { grid-template-columns: repeat(2, 1fr); } .settings-grid { grid-template-columns: 1fr; } .wide-section { grid-column: auto; } }
 @media (max-width: 920px) { .app-shell { grid-template-columns: 190px minmax(0,1fr); } .metric-grid, .dashboard-grid, .diagnostic-grid { grid-template-columns: 1fr; } .wide-diagnostic { grid-column: auto; } .position-grid { grid-template-columns: repeat(2,1fr); } }
+
+/* PR #9: PoB to Play workspace */
+.build-grid { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(340px, 1.2fr); gap: 13px; align-items: start; }
+.build-grid > .panel { padding: 20px; min-width: 0; }
+.build-import-textarea { width: 100%; min-height: 150px; margin: 14px 0 10px; resize: vertical; border: 1px solid var(--line); border-radius: 9px; padding: 12px; background: #0d1016; color: #e7eaf0; line-height: 1.45; }
+.build-import-textarea:focus { outline: 2px solid #f0ad55; outline-offset: 2px; }
+.build-import-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.build-import-actions small, .build-empty, .build-stage-summary small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.build-profile-list, .build-stage-list, .build-needs { display: flex; flex-direction: column; gap: 7px; max-height: 360px; margin-top: 13px; overflow: auto; }
+.build-profile-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; border: 1px solid var(--line-soft); border-radius: 9px; overflow: hidden; background: #131720; }
+.build-profile-row.active { border-color: #66502f; background: rgba(239,169,78,.08); }
+.build-profile-row > button:first-child, .build-stage-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 11px 12px; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.build-profile-row small, .build-stage-list small, .build-needs small { color: var(--muted); font-size: 9px; }
+.build-delete { border: 0; border-left: 1px solid var(--line-soft); background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
+.build-stage-list button { border: 1px solid var(--line-soft); border-radius: 9px; color: #cfd4dd; background: #131720; }
+.build-stage-list button.active { border-color: #66502f; background: rgba(239,169,78,.09); color: #f4cf91; }
+.build-stage-summary { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 9px; background: #0f1219; }
+.build-stage-summary > span, .build-source > span { color: var(--accent); font-size: 8px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.build-plan-panel { grid-column: 1 / -1; }
+.build-plan-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 13px 0; }
+.build-plan-metrics > div { padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 8px; background: #0f1219; }
+.build-plan-metrics strong { display: block; font-size: 20px; }
+.build-plan-metrics span { color: var(--muted); font-size: 9px; }
+.build-needs { max-height: 430px; }
+.build-needs article { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .65fr); gap: 16px; align-items: center; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 9px; background: #11151d; }
+.build-needs article.active { border-color: #66502f; background: rgba(239,169,78,.07); }
+.build-needs article > div:first-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.build-source { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.build-warnings { margin-top: 12px; color: var(--muted); font-size: 10px; }
+.build-warnings summary { color: #f1c57f; cursor: pointer; }
+.build-warnings p { margin: 8px 0 0; line-height: 1.45; }
+@media (max-width: 1080px) { .build-grid { grid-template-columns: 1fr; } .build-plan-panel { grid-column: auto; } }
+@media (max-width: 760px) { .build-needs article { grid-template-columns: 1fr; } .build-plan-metrics { grid-template-columns: 1fr; } .build-import-actions { align-items: stretch; flex-direction: column; } }

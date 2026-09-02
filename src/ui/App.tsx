@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import BuildWorkspace from './BuildWorkspace';
 import { focusHint } from '../core/layouts';
 import { isStepEnabled } from '../core/campaign';
 import { summarizeActions } from '../core/actions';
@@ -23,11 +24,12 @@ import type {
   RuntimeState,
 } from '../core/types';
 
-type Tab = 'overview' | 'guide' | 'knowledge' | 'settings' | 'diagnostics';
+type Tab = 'overview' | 'guide' | 'build' | 'knowledge' | 'settings' | 'diagnostics';
 
 const NAV_ITEMS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'overview', label: 'Overview', icon: '⌂' },
   { id: 'guide', label: 'Campaign', icon: '◇' },
+  { id: 'build', label: 'Build', icon: '⬡' },
   { id: 'knowledge', label: 'Knowledge', icon: '✦' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
   { id: 'diagnostics', label: 'Diagnostics', icon: '◌' },
@@ -317,7 +319,7 @@ function Overview({ state, setState, onNavigate }: { state: RuntimeState; setSta
         <aside className="side-stack">
           <article className="panel compact-panel"><span className="eyebrow">PERMANENT REWARDS</span><div className="reward-stats"><div><strong>{state.rewardAudit.passive.confirmed}/{state.rewardAudit.passive.knownTotal}</strong><span>Passives confirmed</span></div><div><strong>{state.rewardAudit.trials.confirmed}/{state.rewardAudit.trials.knownTotal}</strong><span>Trials confirmed</span></div></div><small className="panel-copy">Route-passed is tracked separately until you explicitly confirm it.</small></article>
           <article className="panel compact-panel"><span className="eyebrow">LIVE TRACKING</span><div className="connection-row"><i className={state.logConnected ? 'online' : ''} /><div><strong>{state.logConnected ? 'Client.txt connected' : 'Manual mode'}</strong><small>{state.currentAreaId ? `Internal area ${state.currentAreaId}` : state.settings.logPath || 'Choose the game log in Settings'}</small></div></div></article>
-          <article className="panel compact-panel"><span className="eyebrow">BUILD</span><h3 className="placeholder-title">No build imported yet</h3><p className="panel-copy">PoB-aware gem, tree and gear milestones arrive in the next major milestone.</p></article>
+          <article className="panel compact-panel"><span className="eyebrow">BUILD</span><h3 className="placeholder-title">PoB to Play</h3><p className="panel-copy">Import a Path of Building build, choose its leveling stage, and surface class-valid gem pickups directly in the campaign.</p><button className="ghost-button" onClick={() => onNavigate('build')}>Open build planner</button></article>
         </aside>
       </section>
       <div className="overview-secondary-grid"><RunDashboard state={state} setState={setState} /><RewardAuditPanel state={state} setState={setState} compact /></div>
@@ -505,6 +507,7 @@ function Manager({ state, setState }: { state: RuntimeState; setState: (state: R
         <header className="topbar"><div><i className={`live-dot ${state.logConnected ? 'online' : ''}`} /><span>{state.logConnected ? `Tracking ${state.currentZone ?? 'zone changes'}` : 'Manual campaign tracking'}</span></div><div>{updateReady && <button className="topbar-update" onClick={() => setTab('settings')}>Update {state.appUpdate.latestVersion}</button>}<span>Act {step.act}</span><span>v{state.appVersion}</span><button className="topbar-button" onClick={() => void window.exileQuesting.showOverlay()}>Overlay ↗</button></div></header>
         {tab === 'overview' && <Overview state={state} setState={setState} onNavigate={setTab} />}
         {tab === 'guide' && <CampaignGuide state={state} setState={setState} />}
+        {tab === 'build' && <BuildWorkspace />}
         {tab === 'knowledge' && <Knowledge />}
         {tab === 'settings' && <Settings state={state} setState={setState} />}
         {tab === 'diagnostics' && <Diagnostics state={state} setState={setState} />}

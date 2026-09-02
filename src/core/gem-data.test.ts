@@ -23,8 +23,14 @@ const quests = {
     id: 'a1q4', name: 'Breaking Some Eggs', act: '1', reward_offers: {
       a1q4: {
         quest_npc: 'Nessa',
-        quest: { 'Metadata/Items/Gems/SkillGemArc': { classes: ['Witch'] } },
-        vendor: { 'Metadata/Items/Gems/SkillGemFireball': { classes: [], npc: 'Nessa' } },
+        quest: {
+          'Metadata/Items/Gems/SkillGemArc': { classes: ['Witch'] },
+          'Metadata/Items/Armours/BodyArmours/BodyDex1': { classes: ['Ranger'] },
+        },
+        vendor: {
+          'Metadata/Items/Gems/SkillGemFireball': { classes: [], npc: 'Nessa' },
+          'Metadata/Items/Weapons/OneHandWeapons/OneHandSwords/OneHandSword1': { classes: [], npc: 'Nessa' },
+        },
       },
     },
   },
@@ -41,6 +47,8 @@ describe('gem data snapshot', () => {
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemArc', kind: 'quest', questId: 'a1q4', npc: 'Nessa', classes: ['Witch'] }),
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemFireball', kind: 'vendor', npc: 'Nessa', classes: [] }),
     ]));
+    expect(snapshot.offers.every((offer) => offer.gemId.startsWith('Metadata/Items/Gems/'))).toBe(true);
+    expect(snapshot.offers).toHaveLength(2);
     expect(snapshot.startingGems.Witch).toEqual(['Metadata/Items/Gems/SkillGemFireball', 'Metadata/Items/Gems/SupportGemArcaneSurge']);
     expect(snapshot.source.commit).toBe(source.commit);
   });
@@ -54,5 +62,11 @@ describe('gem data snapshot', () => {
 
   it('rejects malformed snapshots instead of partially trusting them', () => {
     expect(validateGemAcquisitionSnapshot({ schemaVersion: 1, gameVersion: '3.29' })).toBeNull();
+  });
+
+  it('rejects structurally valid snapshots with broken gem references', () => {
+    const snapshot = buildGemAcquisitionSnapshot(gems, quests, characters, { gameVersion: '3.29', generatedAt: '2026-09-02T01:00:00.000Z', source });
+    const broken = { ...snapshot, offers: [{ ...snapshot.offers[0], gemId: 'Metadata/Items/Armours/BodyArmours/BodyDex1' }] };
+    expect(validateGemAcquisitionSnapshot(broken)).toBeNull();
   });
 });
