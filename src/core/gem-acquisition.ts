@@ -61,15 +61,19 @@ function sourceFromOffer(stage: PobAlignedStage, offer: GemAcquisitionOffer): Ge
   };
 }
 
-function sourceRank(source: GemAcquisitionSource): [number, number, string] {
+function sourceRank(source: GemAcquisitionSource): [number, number, number, string] {
+  // For Act-labelled PoB stages, never prefer a later quest reward over a source that is already
+  // available by the requested Act. Within the same timing confidence, keep the player-friendly
+  // preference of starting gem -> free quest reward -> vendor purchase.
+  const timing = source.timingVerified ? 0 : 1;
   const kind = source.kind === 'starting' ? 0 : source.kind === 'quest' ? 1 : 2;
-  return [kind, source.act ?? 0, source.questId ?? ''];
+  return [timing, kind, source.act ?? 0, source.questId ?? ''];
 }
 
 function compareSources(left: GemAcquisitionSource, right: GemAcquisitionSource): number {
   const a = sourceRank(left);
   const b = sourceRank(right);
-  return a[0] - b[0] || a[1] - b[1] || a[2].localeCompare(b[2]);
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3].localeCompare(b[3]);
 }
 
 export function acquisitionSourcesForRequirement(
