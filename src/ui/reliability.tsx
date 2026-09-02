@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildRunAnalytics } from '../core/run-analytics';
 import { elapsedRunMs, formatDuration, liveTownTimeMs } from '../core/run';
 import type { AppSettings, RunZoneSummary, RuntimeState } from '../core/types';
 import PassivesAuditPanel from './PassivesAuditPanel';
@@ -47,7 +48,10 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
   const town = liveTownTimeMs(session, now);
   const previous = state.runStats.previous;
   const pb = state.runStats.personalBest;
-  const analytics = state.runStats.analytics;
+  const analytics = useMemo(
+    () => active ? buildRunAnalytics(session, previous, pb, now) : state.runStats.analytics,
+    [active, now, pb, previous, session, state.runStats.analytics],
+  );
   const areaNames = useMemo(() => new Map(state.dataset.areas.map((area) => [area.id, area.name])), [state.dataset.areas]);
   const zoneName = (zone: RunZoneSummary) => zone.areaName ?? areaNames.get(zone.areaId) ?? zone.areaId;
 
