@@ -144,6 +144,36 @@ function socketInfo(socketText?: string): { sockets: number; maxLinks: number } 
   return { sockets, maxLinks };
 }
 
+function addCombinedResistances(stats: PoeItemStats, line: string): void {
+  const pair = line.match(/\+(-?\d+)% to (Fire|Cold|Lightning) and (Fire|Cold|Lightning) Resistances/i);
+  if (pair) {
+    const amount = integer(pair[1]) ?? 0;
+    const first = pair[2].toLowerCase();
+    const second = pair[3].toLowerCase();
+    if (first === 'fire' || second === 'fire') stats.fireResistance += amount;
+    if (first === 'cold' || second === 'cold') stats.coldResistance += amount;
+    if (first === 'lightning' || second === 'lightning') stats.lightningResistance += amount;
+  }
+
+  const triple = line.match(/\+(-?\d+)% to Fire, Cold and Lightning Resistances/i);
+  if (triple) {
+    const amount = integer(triple[1]) ?? 0;
+    stats.fireResistance += amount;
+    stats.coldResistance += amount;
+    stats.lightningResistance += amount;
+  }
+}
+
+function addCombinedAttributes(stats: PoeItemStats, line: string): void {
+  const pair = line.match(/\+(\d+) to (Strength|Dexterity|Intelligence) and (Strength|Dexterity|Intelligence)/i);
+  if (!pair) return;
+  const amount = integer(pair[1]) ?? 0;
+  const attributes = new Set([pair[2].toLowerCase(), pair[3].toLowerCase()]);
+  if (attributes.has('strength')) stats.strength += amount;
+  if (attributes.has('dexterity')) stats.dexterity += amount;
+  if (attributes.has('intelligence')) stats.intelligence += amount;
+}
+
 function statsFor(lines: string[]): PoeItemStats {
   const stats: PoeItemStats = {
     maximumLife: 0,
@@ -171,15 +201,17 @@ function statsFor(lines: string[]): PoeItemStats {
   for (const line of lines) {
     stats.maximumLife += firstInteger(line, /\+(\d+) to maximum Life/i);
     stats.maximumMana += firstInteger(line, /\+(\d+) to maximum Mana/i);
-    stats.fireResistance += firstInteger(line, /\+(-?\d+)% to Fire Resistance/i);
-    stats.coldResistance += firstInteger(line, /\+(-?\d+)% to Cold Resistance/i);
-    stats.lightningResistance += firstInteger(line, /\+(-?\d+)% to Lightning Resistance/i);
-    stats.chaosResistance += firstInteger(line, /\+(-?\d+)% to Chaos Resistance/i);
+    stats.fireResistance += firstInteger(line, /\+(-?\d+)% to Fire Resistance(?:\s|$)/i);
+    stats.coldResistance += firstInteger(line, /\+(-?\d+)% to Cold Resistance(?:\s|$)/i);
+    stats.lightningResistance += firstInteger(line, /\+(-?\d+)% to Lightning Resistance(?:\s|$)/i);
+    stats.chaosResistance += firstInteger(line, /\+(-?\d+)% to Chaos Resistance(?:\s|$)/i);
     stats.allElementalResistance += firstInteger(line, /\+(-?\d+)% to all Elemental Resistances/i);
-    stats.strength += firstInteger(line, /\+(\d+) to Strength/i);
-    stats.dexterity += firstInteger(line, /\+(\d+) to Dexterity/i);
-    stats.intelligence += firstInteger(line, /\+(\d+) to Intelligence/i);
+    addCombinedResistances(stats, line);
+    stats.strength += firstInteger(line, /\+(\d+) to Strength(?:\s|$)/i);
+    stats.dexterity += firstInteger(line, /\+(\d+) to Dexterity(?:\s|$)/i);
+    stats.intelligence += firstInteger(line, /\+(\d+) to Intelligence(?:\s|$)/i);
     stats.allAttributes += firstInteger(line, /\+(\d+) to all Attributes/i);
+    addCombinedAttributes(stats, line);
     stats.movementSpeed = Math.max(stats.movementSpeed, firstInteger(line, /(\d+)% increased Movement Speed/i));
     stats.attackSpeed += firstInteger(line, /(\d+)% increased Attack Speed/i);
     stats.castSpeed += firstInteger(line, /(\d+)% increased Cast Speed/i);
