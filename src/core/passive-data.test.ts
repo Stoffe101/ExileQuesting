@@ -1,23 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { hasPassiveTreeGeometry, validatePassiveTreeSnapshot } from './passive-data';
+import { hasPassiveTreeGeometry, POE_BASE_CLASSES, validatePassiveTreeSnapshot } from './passive-data';
 
 function identityNodes(count = 1001) {
   return Array.from({ length: count }, (_, index) => ({ id: index + 1, name: `Node ${index + 1}`, kind: 'normal' as const }));
 }
 
 function geometryNodes(count = 1001) {
-  return Array.from({ length: count }, (_, index) => ({
-    id: index + 1,
-    name: `Node ${index + 1}`,
-    kind: index === 0 ? 'class-start' as const : 'normal' as const,
-    x: (index % 50) * 180 - 4500,
-    y: Math.floor(index / 50) * 180 - 1800,
-    group: index,
-    orbit: 0,
-    orbitIndex: 0,
-    ...(index < count - 1 ? { out: [index + 2] } : {}),
-    ...(index === 0 ? { classStartIndex: 2 } : {}),
-  }));
+  return Array.from({ length: count }, (_, index) => {
+    const className = index < POE_BASE_CLASSES.length ? POE_BASE_CLASSES[index] : undefined;
+    return {
+      id: index + 1,
+      name: className ?? `Node ${index + 1}`,
+      kind: className ? 'class-start' as const : 'normal' as const,
+      x: (index % 50) * 180 - 4500,
+      y: Math.floor(index / 50) * 180 - 1800,
+      group: index,
+      orbit: 0,
+      orbitIndex: 0,
+      ...(index < count - 1 ? { out: [index + 2] } : {}),
+      ...(className ? { classStartIndex: index } : {}),
+    };
+  });
 }
 
 function baseSnapshot(nodes: unknown[], schemaVersion: 1 | 2) {
@@ -43,10 +46,11 @@ describe('passive tree snapshot validation', () => {
     expect(hasPassiveTreeGeometry(snapshot ?? undefined)).toBe(false);
   });
 
-  it('accepts schema v2 when every static main-tree node has geometry', () => {
+  it('accepts schema v2 when every static main-tree node and all seven class starts have geometry', () => {
     const snapshot = validatePassiveTreeSnapshot(baseSnapshot(geometryNodes(), 2));
     expect(snapshot?.schemaVersion).toBe(2);
     expect(snapshot?.nodes[0].x).toBeTypeOf('number');
+    expect(snapshot?.nodes.filter((node) => node.kind === 'class-start')).toHaveLength(7);
     expect(hasPassiveTreeGeometry(snapshot ?? undefined)).toBe(true);
   });
 
