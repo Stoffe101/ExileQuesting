@@ -34,20 +34,12 @@ async function gemEntry(existing: GameDataManifest | undefined): Promise<GameDat
   if (!snapshot) throw new Error('Cannot generate manifest: bundled gem acquisition data is invalid.');
   const checksum = sha256(raw);
   return {
-    id: 'gem-acquisition',
-    datasetRevision: nextRevision(existing, 'gem-acquisition', checksum),
-    file: GEM_FILE,
-    schemaVersion: snapshot.schemaVersion,
-    gameVersion: snapshot.gameVersion,
-    generatedAt: snapshot.generatedAt,
-    sizeBytes: Buffer.byteLength(raw, 'utf8'),
-    checksum: { algorithm: 'sha256', scope: 'file', value: checksum },
+    id: 'gem-acquisition', datasetRevision: nextRevision(existing, 'gem-acquisition', checksum), file: GEM_FILE,
+    schemaVersion: snapshot.schemaVersion, gameVersion: snapshot.gameVersion, generatedAt: snapshot.generatedAt,
+    sizeBytes: Buffer.byteLength(raw, 'utf8'), checksum: { algorithm: 'sha256', scope: 'file', value: checksum },
     source: {
-      kind: 'git',
-      url: `https://github.com/${snapshot.source.repository}`,
-      repository: snapshot.source.repository,
-      revision: snapshot.source.commit,
-      license: snapshot.source.license,
+      kind: 'git', url: `https://github.com/${snapshot.source.repository}`, repository: snapshot.source.repository,
+      revision: snapshot.source.commit, license: snapshot.source.license,
       paths: [snapshot.source.gemsPath, snapshot.source.questsPath, snapshot.source.charactersPath],
     },
   };
@@ -58,31 +50,31 @@ async function passiveEntry(existing: GameDataManifest | undefined): Promise<Gam
   const snapshot = validatePassiveTreeSnapshot(JSON.parse(raw) as unknown);
   if (!snapshot) throw new Error('Cannot generate manifest: bundled passive tree data is invalid.');
   const checksum = sha256(raw);
-  return {
-    id: 'passive-tree',
-    datasetRevision: nextRevision(existing, 'passive-tree', checksum),
-    file: PASSIVE_FILE,
-    schemaVersion: snapshot.schemaVersion,
-    gameVersion: snapshot.gameVersion,
-    generatedAt: snapshot.generatedAt,
-    sizeBytes: Buffer.byteLength(raw, 'utf8'),
-    checksum: { algorithm: 'sha256', scope: 'file', value: checksum },
-    source: {
-      kind: 'url',
+  const source = snapshot.source.repository && snapshot.source.commit && snapshot.source.path
+    ? {
+      kind: 'git' as const,
+      url: `https://github.com/${snapshot.source.repository}`,
+      repository: snapshot.source.repository,
+      revision: snapshot.source.commit,
+      paths: [snapshot.source.path],
+    }
+    : {
+      kind: 'url' as const,
       url: snapshot.source.url,
       revision: snapshot.source.sha256,
       paths: [],
-    },
+    };
+  return {
+    id: 'passive-tree', datasetRevision: nextRevision(existing, 'passive-tree', checksum), file: PASSIVE_FILE,
+    schemaVersion: snapshot.schemaVersion, gameVersion: snapshot.gameVersion, generatedAt: snapshot.generatedAt,
+    sizeBytes: Buffer.byteLength(raw, 'utf8'), checksum: { algorithm: 'sha256', scope: 'file', value: checksum }, source,
   };
 }
 
 async function main(): Promise<void> {
   const checkOnly = process.argv.includes('--check');
   const existing = await existingManifest();
-  const manifest: GameDataManifest = {
-    schemaVersion: 1,
-    datasets: [await gemEntry(existing), await passiveEntry(existing)],
-  };
+  const manifest: GameDataManifest = { schemaVersion: 1, datasets: [await gemEntry(existing), await passiveEntry(existing)] };
   if (!validateGameDataManifest(manifest)) throw new Error('Generated game-data manifest failed its own schema validation.');
   const content = `${JSON.stringify(manifest, null, 2)}\n`;
 
@@ -99,9 +91,7 @@ async function main(): Promise<void> {
 
   await fs.writeFile(MANIFEST_FILE, content, 'utf8');
   console.log(`Wrote ${MANIFEST_FILE}`);
-  for (const entry of manifest.datasets) {
-    console.log(`${entry.id} r${entry.datasetRevision} · PoE ${entry.gameVersion} · ${entry.sizeBytes} bytes · SHA-256 ${entry.checksum.value}`);
-  }
+  for (const entry of manifest.datasets) console.log(`${entry.id} r${entry.datasetRevision} · PoE ${entry.gameVersion} · ${entry.sizeBytes} bytes · SHA-256 ${entry.checksum.value}`);
 }
 
 void main().catch((error) => {
