@@ -12,7 +12,7 @@ export interface PassiveQuestDefinition {
 export interface PassiveQuestAuditItem extends PassiveQuestDefinition {
   expectedPoints: number;
   reportedPoints: number;
-  status: 'earned' | 'missing' | 'not-applicable';
+  status: 'earned' | 'missing' | 'not-applicable' | 'future';
 }
 
 export interface PassivesCommandReport {
@@ -35,6 +35,7 @@ export interface PassivesReconciliation {
   missingPoints: number;
   earnedPoints: number;
   bandit: PassiveAuditBanditChoice;
+  auditedThroughAct: number;
   items: PassiveQuestAuditItem[];
   missing: PassiveQuestAuditItem[];
   report: PassivesCommandReport;
@@ -76,8 +77,6 @@ function normalizeQuestName(value: string): string {
     .trim()
     .toLowerCase();
 }
-
-const QUEST_BY_NAME = new Map(CAMPAIGN_PASSIVE_QUESTS.map((quest) => [normalizeQuestName(quest.name), quest]));
 
 function messagePart(line: string): string {
   const match = line.match(/\]\s*:\s*(.*)$/);
@@ -149,16 +148,27 @@ export function parseLatestPassivesCommand(content: string): PassivesCommandRepo
   };
 }
 
-export function expectedCampaignPassivePoints(bandit: PassiveAuditBanditChoice): number {
-  return CAMPAIGN_PASSIVE_QUESTS.reduce((total, quest) => total + (quest.killAllOnly && bandit !== 'none' ? 0 : quest.points), 0);
+function normalizedThroughAct(value = 10): number {
+  if (!Number.isFinite(value)) return 10;
+  return Math.max(0, Math.min(10, Math.trunc(value)));
 }
 
-export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBanditChoice): PassivesReconciliation {
+export function expectedCampaignPassivePoints(bandit: PassiveAuditBanditChoice, throughAct = 10): number {
+  const maximumAct = normalizedThroughAct(throughAct);
+  return CAMPAIGN_PASSIVE_QUESTS.reduce((total, quest) => {
+    if (quest.act > maximumAct) return total;
+    if (quest.killAllOnly && bandit !== 'none') return total;
+    return total + quest.points;
+  }, 0);
+}
+
+export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBanditChoice, throughAct = 10): PassivesReconciliation {
+  const auditedThroughAct = normalizedThroughAct(throughAct);
   const report = parseLatestPassivesCommand(content);
-  const expectedQuestPoints = expectedCampaignPassivePoints(bandit);
+  const expectedQuestPoints = expectedCampaignPassivePoints(bandit, auditedThroughAct);
   if (!report.found) {
     return {
-      status: 'not-found', expectedQuestPoints, missingPoints: expectedQuestPoints, earnedPoints: 0, bandit,
+      status: 'not-found', expectedQuestPoints, missingPoints: expectedQuestPoints, earnedPoints: 0, bandit, auditedThroughAct,
       items: [], missing: [], report,
       message: 'No /passives report was found in the scanned Client.txt window. Run /passives in Path of Exile, then scan again.',
       warnings: [],
@@ -172,8 +182,9 @@ export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBa
   }
 
   const items = CAMPAIGN_PASSIVE_QUESTS.map((quest): PassiveQuestAuditItem => {
-    const expectedPoints = quest.killAllOnly && bandit !== 'none' ? 0 : quest.points;
     const reportedPoints = reported.get(normalizeQuestName(quest.name)) ?? 0;
+    if (quest.act > auditedThroughAct) return { ...quest, expectedPoints: 0, reportedPoints, status: 'future' };
+    const expectedPoints = quest.killAllOnly && bandit !== 'none' ? 0 : quest.points;
     return {
       ...quest,
       expectedPoints,
@@ -182,8 +193,9 @@ export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBa
     };
   });
   const missing = items.filter((item) => item.status === 'missing');
-  const earnedPoints = items.reduce((total, item) => total + Math.min(item.reportedPoints, item.expectedPoints), 0);
-  const missingPoints = items.reduce((total, item) => total + Math.max(0, item.expectedPoints - item.reportedPoints), 0);
+  const auditedItems = items.filter((item) => item.status !== 'future');
+  const earnedPoints = auditedItems.reduce((total, item) => total + Math.min(item.reportedPoints, item.expectedPoints), 0);
+  const missingPoints = auditedItems.reduce((total, item) => total + Math.max(0, item.expectedPoints - item.reportedPoints), 0);
   const warnings: string[] = [];
 
   if (report.unknownEntries.length) warnings.push(`${report.unknownEntries.length} unrecognized /passives entr${report.unknownEntries.length === 1 ? 'y was' : 'ies were'} ignored. The game or quest naming may have changed.`);
@@ -197,7 +209,7 @@ export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBa
   if (profileMismatch) {
     return {
       status: 'profile-mismatch', expectedQuestPoints, reportedQuestPoints: report.reportedQuestPoints,
-      missingPoints, earnedPoints, bandit, items, missing, report,
+      missingPoints, earnedPoints, bandit, auditedThroughAct, items, missing, report,
       message: 'Your /passives result contains the kill-all Bandit passive point, but ExileQuesting is configured to help a bandit. Update the Bandit setting before trusting route branches or passive totals.',
       warnings,
     };
@@ -207,27 +219,31 @@ export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBa
   if (!hasUsefulEntries && (report.reportedQuestPoints ?? 0) > 2) {
     return {
       status: 'incomplete', expectedQuestPoints, reportedQuestPoints: report.reportedQuestPoints,
-      missingPoints, earnedPoints, bandit, items, missing, report,
+      missingPoints, earnedPoints, bandit, auditedThroughAct, items, missing, report,
       message: 'A /passives header was found, but too few quest lines followed it. The scanned log window may be truncated; run /passives again and rescan.',
       warnings,
     };
   }
 
-  if (missingPoints === 0 && report.reportedQuestPoints === expectedQuestPoints) {
+  const fullCampaignAudit = auditedThroughAct >= 10;
+  const headerMatchesFullCampaign = report.reportedQuestPoints === expectedCampaignPassivePoints(bandit, 10);
+  if (missingPoints === 0 && (!fullCampaignAudit || headerMatchesFullCampaign)) {
     return {
       status: 'complete', expectedQuestPoints, reportedQuestPoints: report.reportedQuestPoints,
-      missingPoints: 0, earnedPoints: expectedQuestPoints, bandit, items, missing: [], report,
-      message: `All ${expectedQuestPoints} expected campaign passive quest points are accounted for.`,
+      missingPoints: 0, earnedPoints: expectedQuestPoints, bandit, auditedThroughAct, items, missing: [], report,
+      message: fullCampaignAudit
+        ? `All ${expectedQuestPoints} expected campaign passive quest points are accounted for.`
+        : `All passive quest rewards expected through Act ${auditedThroughAct} are accounted for. Later-act rewards are intentionally not treated as missing yet.`,
       warnings,
     };
   }
 
   return {
     status: 'missing', expectedQuestPoints, reportedQuestPoints: report.reportedQuestPoints,
-    missingPoints, earnedPoints, bandit, items, missing, report,
+    missingPoints, earnedPoints, bandit, auditedThroughAct, items, missing, report,
     message: missing.length
-      ? `${missingPoints} campaign passive point${missingPoints === 1 ? '' : 's'} appear to be missing across ${missing.length} quest${missing.length === 1 ? '' : 's'}.`
-      : `The mapped quests look complete, but the /passives total does not match the expected ${expectedQuestPoints}. Review the warnings before changing your route.`,
+      ? `${missingPoints} passive point${missingPoints === 1 ? '' : 's'} expected through Act ${auditedThroughAct} appear to be missing across ${missing.length} quest${missing.length === 1 ? '' : 's'}.`
+      : `The mapped quests look complete, but the full /passives total does not match the expected ${expectedCampaignPassivePoints(bandit, 10)}. Review the warnings before changing your route.`,
     warnings,
   };
 }
