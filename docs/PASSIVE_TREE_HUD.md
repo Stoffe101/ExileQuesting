@@ -28,7 +28,7 @@ This is important because raw GGG class-start node labels are not reliable frien
 
 ### Ascendancy trees
 
-Ascendancy visual guidance is also supported. GGG's current 3.29 public tree data exposes fixed local group/orbit geometry for every published Ascendancy subtree. The generation-time contract currently resolves:
+Ascendancy visual guidance is supported through local scope registration. GGG's current 3.29 public tree data exposes fixed local group/orbit geometry for every published Ascendancy subtree. The generation-time contract currently resolves:
 
 - 558 fixed Ascendancy nodes;
 - 37 independently named GGG Ascendancy/subtree scopes;
@@ -258,4 +258,8 @@ Permanent automated coverage includes:
 - NSIS installer creation/verification;
 - real previous-stable -> candidate updater handoff, relaunch and uninstall.
 
-The final thing automation cannot manufacture is the player's real Path of Exile pixels. The geometry, rejection behavior, packaged Electron window and synthetic visual states can be release-gated, but the detector thresholds still need an in-game playtest against the live client. If the current GGG rendering differs from the synthetic/radial detector assumptions, the system is designed to stay hidden rather than put a marker on an unproven node; diagnostics then give us a controlled calibration target.
+## Real-client calibration boundary
+
+The feature is release-gated against current GGG geometry, synthetic registration, the packaged Electron renderer, DPI/resolution matrices and installer/updater behavior. Automation cannot reproduce the exact pixels rendered by the player's current Path of Exile client and graphics/UI configuration.
+
+The first v0.2.1 in-game run is therefore also a detector-calibration test. The expected behavior is fail-closed: if the live radial-node rendering does not satisfy the current detector thresholds, the HUD should stay hidden/searching rather than display an unproven marker. Diagnostics can then be used to tune the detector from real captures without changing the underlying node/path geometry.
