@@ -1,4 +1,5 @@
 export type PassiveNodeKind = 'normal' | 'notable' | 'keystone' | 'mastery' | 'socket' | 'class-start' | 'ascendancy';
+export type PassiveTreeScopeKey = 'base' | `ascendancy:${string}`;
 
 export interface PassiveNodeRecord {
   id: number;
@@ -18,6 +19,10 @@ export interface PassiveNodeRecord {
   orbitIndex?: number;
   out?: number[];
   classStartIndex?: number;
+  /** Present for GGG-published Ascendancy sub-tree nodes. */
+  ascendancyName?: string;
+  /** True for the single root node of an Ascendancy sub-tree. */
+  ascendancyStart?: boolean;
   icon?: string;
 }
 
@@ -133,12 +138,26 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
       || (node.classStartIndex !== undefined && classStartIndex === undefined)) return null;
     const out = node.out === undefined ? undefined : boundedIntegerArray(node.out, 64, 1);
     if (node.out !== undefined && out === undefined) return null;
+    const ascendancyName = node.ascendancyName === undefined
+      ? undefined
+      : typeof node.ascendancyName === 'string' && node.ascendancyName.trim().length > 0 && node.ascendancyName.length <= 80
+        ? node.ascendancyName.trim()
+        : undefined;
+    if (node.ascendancyName !== undefined && ascendancyName === undefined) return null;
+    const ascendancyStart = node.ascendancyStart === true;
+    if (node.ascendancyStart !== undefined && typeof node.ascendancyStart !== 'boolean') return null;
     const icon = node.icon === undefined ? undefined : typeof node.icon === 'string' && node.icon.length <= 512 ? node.icon : undefined;
     if (node.icon !== undefined && icon === undefined) return null;
 
-    // A definition declared dynamic must not masquerade as a fixed base-tree
-    // node. Conversely, a static v2 main-tree node must carry complete geometry.
+    // A definition declared dynamic must not masquerade as a fixed tree node.
     if (schemaVersion === 2 && dynamic && (x !== undefined || group !== undefined || orbit !== undefined || orbitIndex !== undefined)) return null;
+    if (ascendancyStart && nodeKind !== 'ascendancy') return null;
+    if (schemaVersion === 2 && nodeKind === 'ascendancy') {
+      // GGG's absolute Ascendancy group locations are not useful as a global
+      // base-tree layout, but each Ascendancy's local group/orbit geometry is
+      // complete and stable enough for scope-local screen registration.
+      if (!ascendancyName || x === undefined || y === undefined || group === undefined || orbit === undefined || orbitIndex === undefined) return null;
+    }
 
     nodes.push({
       id,
@@ -151,6 +170,8 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
       ...(orbitIndex === undefined ? {} : { orbitIndex }),
       ...(out === undefined ? {} : { out }),
       ...(classStartIndex === undefined ? {} : { classStartIndex }),
+      ...(ascendancyName === undefined ? {} : { ascendancyName }),
+      ...(ascendancyStart ? { ascendancyStart: true } : {}),
       ...(icon === undefined ? {} : { icon }),
     });
   }
@@ -167,6 +188,19 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
     const classIndices = new Set(classStarts.map((node) => node.classStartIndex));
     if (classStarts.length !== POE_BASE_CLASSES.length || classIndices.size !== POE_BASE_CLASSES.length
       || POE_BASE_CLASSES.some((name) => !classNames.has(name.toLowerCase()))) return null;
+
+    const ascendancies = new Map<string, { nodes: number; starts: number }>();
+    for (const node of nodes.filter((candidate) => candidate.kind === 'ascendancy')) {
+      const name = node.ascendancyName!;
+      const key = name.toLowerCase();
+      const entry = ascendancies.get(key) ?? { nodes: 0, starts: 0 };
+      entry.nodes += 1;
+      if (node.ascendancyStart) entry.starts += 1;
+      ascendancies.set(key, entry);
+    }
+    // When a v2 snapshot contains Ascendancy data, every exposed sub-tree must
+    // have one unambiguous root. Small synthetic fixtures may omit Ascendancies.
+    if ([...ascendancies.values()].some((entry) => entry.nodes < 2 || entry.starts !== 1)) return null;
   }
 
   return {
@@ -188,6 +222,29 @@ export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, Pa
 export function hasPassiveTreeGeometry(snapshot?: PassiveTreeSnapshot): snapshot is PassiveTreeSnapshot & Required<Pick<PassiveTreeSnapshot, 'bounds' | 'skillsPerOrbit' | 'orbitRadii'>> {
   if (!snapshot || snapshot.schemaVersion !== 2 || !snapshot.bounds || !snapshot.skillsPerOrbit || !snapshot.orbitRadii) return false;
   return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && !node.dynamic && node.x !== undefined && node.y !== undefined);
+}
+
+/** Return the local registration scope for any fixed passive-tree node. */
+export function passiveNodeScopeKey(node?: PassiveNodeRecord): PassiveTreeScopeKey | undefined {
+  if (!node || node.dynamic || node.x === undefined || node.y === undefined) return undefined;
+  if (node.kind !== 'ascendancy') return 'base';
+  const name = node.ascendancyName?.trim().toLowerCase();
+  return name ? `ascendancy:${name}` : undefined;
+}
+
+export function passiveAscendancyNameFromScope(scope?: PassiveTreeScopeKey): string | undefined {
+  return scope?.startsWith('ascendancy:') ? scope.slice('ascendancy:'.length) : undefined;
+}
+
+export function passiveAscendancyStarts(snapshot: PassiveTreeSnapshot): PassiveNodeRecord[] {
+  return snapshot.nodes
+    .filter((node) => node.kind === 'ascendancy' && node.ascendancyStart === true && passiveNodeScopeKey(node)?.startsWith('ascendancy:'))
+    .sort((left, right) => String(left.ascendancyName).localeCompare(String(right.ascendancyName)));
+}
+
+export function passiveAscendancyStart(snapshot: PassiveTreeSnapshot, ascendancyName: string): PassiveNodeRecord | undefined {
+  const normalized = ascendancyName.trim().toLowerCase();
+  return passiveAscendancyStarts(snapshot).find((node) => node.ascendancyName?.toLowerCase() === normalized);
 }
 
 function normalizedClassName(value?: string): string | undefined {
