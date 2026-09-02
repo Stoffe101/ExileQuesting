@@ -115,7 +115,10 @@ jobs:
           if (-not (Test-Path $installedExe)) { throw 'Updater handoff removed the installed executable.' }
 
           Start-Sleep -Seconds 2
-          Get-Process ExileQuesting -ErrorAction SilentlyContinue | Stop-Process -Force
+          $relaunched = @(Get-Process ExileQuesting -ErrorAction SilentlyContinue)
+          if ($relaunched.Count -lt 1) { throw 'Updater reported a relaunch, but no ExileQuesting process was running after the update.' }
+          Write-Host "Verified updater relaunch process: $($relaunched[0].Id)."
+          $relaunched | Stop-Process -Force
           Start-Sleep -Milliseconds 750
           $updatedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
           if ($updatedRun.ExitCode -ne 0) { throw "Updated installed build smoke test failed with exit code $($updatedRun.ExitCode)." }
