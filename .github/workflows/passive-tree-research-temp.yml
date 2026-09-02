@@ -5,7 +5,13 @@ on:
     branches: [feature/passive-tree-hud]
     paths:
       - src/core/passive-data.ts
+      - src/core/passive-tree-hud.ts
+      - src/core/passive-tree-hud.test.ts
+      - src/core/passive-tree-vision.ts
+      - src/core/passive-tree-vision.test.ts
+      - electron/services/passive-tree-hud.ts
       - tools/generate-passive-data.ts
+      - tools/inspect-passive-tree-temp.mjs
       - .github/workflows/passive-tree-research-temp.yml
 
 permissions:
@@ -23,9 +29,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Inspect special passive nodes
+        run: node tools/inspect-passive-tree-temp.mjs
       - run: npm run data:passives
       - run: npm run validate:passives
       - run: npm run typecheck
+      - run: npm test
       - name: Commit generated passive snapshot
         run: |
           git config user.name "Skrra"
