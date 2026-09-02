@@ -34,6 +34,8 @@ jobs:
         run: npm run smoke:lab
       - name: Render manager responsive matrix
         run: npm run visual:manager
+      - name: Render Gear Coach visual smoke
+        run: npm run visual:gear
       - uses: actions/upload-artifact@v4
         if: always()
         with:
