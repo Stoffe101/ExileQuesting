@@ -5,30 +5,18 @@ import {
   projectPassiveTreePoint,
   registerPassiveTreePointCloud,
   selectPassiveHudAnchors,
-  type PassiveOperationLike,
   type ScreenPoint,
 } from '../../src/core/passive-tree-hud';
 import { hasPassiveTreeGeometry, indexPassiveNodes, type PassiveTreeSnapshot } from '../../src/core/passive-data';
+import type { PassiveTreeGuidePlan } from '../../src/core/passive-tree-guide';
 import { passiveTreeHudIdle, type PassiveTreeHudPathPoint, type PassiveTreeHudState } from '../../src/core/passive-tree-hud-state';
 import { detectPassiveTreeNodeCandidates } from '../../src/core/passive-tree-vision';
-
-export interface PassiveTreeHudGuideTarget {
-  nodeId: number;
-  nodeName: string;
-  nodeKind?: 'normal' | 'notable' | 'keystone' | 'mastery' | 'socket' | 'class-start' | 'ascendancy';
-  type: 'allocate' | 'refund';
-  index: number;
-  total: number;
-  checkpoint: number;
-}
 
 export interface PassiveTreeHudContext {
   enabled: boolean;
   pathPreview: boolean;
   snapshot?: PassiveTreeSnapshot;
-  operations: PassiveOperationLike[];
-  cursor: number;
-  target?: PassiveTreeHudGuideTarget;
+  guide?: PassiveTreeGuidePlan;
 }
 
 export interface PassiveTreeHudLogger {
@@ -74,6 +62,8 @@ function stateFingerprint(state: PassiveTreeHudState): string {
   return [
     state.status,
     state.visible,
+    state.mode ?? '',
+    state.className ?? '',
     state.displayId ?? '',
     target?.nodeId ?? '',
     target ? Math.round(target.x) : '',
@@ -82,8 +72,14 @@ function stateFingerprint(state: PassiveTreeHudState): string {
     target?.arrowX === undefined ? '' : Math.round(target.arrowX),
     target?.arrowY === undefined ? '' : Math.round(target.arrowY),
     state.confidence === undefined ? '' : state.confidence.toFixed(2),
-    state.path.map((point) => `${point.nodeId}:${Math.round(point.x)}:${Math.round(point.y)}:${point.state}`).join('|'),
+    state.path.map((point) => `${point.nodeId}:${Math.round(point.x)}:${Math.round(point.y)}:${point.state}:${point.offscreen ? 1 : 0}`).join('|'),
   ].join(';');
+}
+
+function guideTargetIds(guide: PassiveTreeGuidePlan): number[] {
+  return guide.mode === 'exact'
+    ? guide.target ? [guide.target.nodeId] : []
+    : guide.stageTargets.map((target) => target.nodeId);
 }
 
 export class PassiveTreeHudService {
@@ -121,9 +117,7 @@ export class PassiveTreeHudService {
     this.schedule(0);
   }
 
-  snapshot(): PassiveTreeHudState {
-    return this.state;
-  }
+  snapshot(): PassiveTreeHudState { return this.state; }
 
   private emit(next: PassiveTreeHudState): void {
     this.state = next;
@@ -143,14 +137,32 @@ export class PassiveTreeHudService {
 
   private idleState(context: PassiveTreeHudContext): PassiveTreeHudState | undefined {
     if (!context.enabled) return { ...passiveTreeHudIdle(false), status: 'disabled' };
-    if (!context.target || !context.operations.length) {
-      return { ...passiveTreeHudIdle(true), status: 'waiting-build', message: 'Import and activate a Maxroll leveling guide for exact Passive Tree HUD guidance.' };
+    const guide = context.guide;
+    if (!guide || (!guide.target && !guide.stageTargets.length)) {
+      return {
+        ...passiveTreeHudIdle(true),
+        status: 'waiting-build',
+        mode: guide?.mode,
+        sourceLabel: guide?.sourceLabel,
+        className: guide?.className,
+        classStartNodeId: guide?.classStartNodeId,
+        message: guide?.message ?? 'Import and activate a Maxroll or Path of Building profile with passive progression.',
+      };
     }
     if (!hasPassiveTreeGeometry(context.snapshot)) {
       return { ...passiveTreeHudIdle(true), status: 'missing-geometry', message: 'Passive Tree HUD needs the geometry-enabled PoE passive snapshot.' };
     }
-    if (!passiveHudTarget(context.snapshot, context.target.nodeId)) {
-      return { ...passiveTreeHudIdle(true), status: 'unsupported-target', message: `${context.target.nodeName} has no main-tree geometry. Text guidance remains available.` };
+    const fixedTargets = guideTargetIds(guide).filter((nodeId) => passiveHudTarget(context.snapshot, nodeId));
+    if (!fixedTargets.length) {
+      return {
+        ...passiveTreeHudIdle(true),
+        status: 'unsupported-target',
+        mode: guide.mode,
+        sourceLabel: guide.sourceLabel,
+        className: guide.className,
+        classStartNodeId: guide.classStartNodeId,
+        message: 'The active passive target has no fixed base-tree geometry. Text guidance remains available.',
+      };
     }
     return undefined;
   }
@@ -169,9 +181,7 @@ export class PassiveTreeHudService {
     } catch (error) {
       this.options.log?.warn('Passive Tree HUD capture failed.', error);
       this.emit({
-        status: 'capture-error',
-        enabled: true,
-        visible: false,
+        status: 'capture-error', enabled: true, visible: false,
         message: `Passive Tree HUD could not capture the active display: ${String(error)}`,
         path: [],
       });
@@ -181,10 +191,18 @@ export class PassiveTreeHudService {
     }
   }
 
-  private async captureAndRegister(context: PassiveTreeHudContext): Promise<void> {
-    const snapshot = context.snapshot!;
-    const target = context.target!;
-    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  private displaySearchOrder(): Display[] {
+    const displays = screen.getAllDisplays();
+    const lockedId = this.state.status === 'locked' ? this.state.displayId : undefined;
+    if (lockedId !== undefined) {
+      const locked = displays.find((display) => display.id === lockedId);
+      return locked ? [locked] : displays;
+    }
+    const cursorDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    return [cursorDisplay, ...displays.filter((display) => display.id !== cursorDisplay.id)];
+  }
+
+  private async captureDisplay(display: Display): Promise<{ bitmap: Buffer; capture: { width: number; height: number } }> {
     const thumbnailSize = captureThumbnailSize(display, this.options.captureWidth);
     const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize, fetchWindowIcons: false });
     const source = sources.find((candidate) => candidate.display_id && candidate.display_id === String(display.id))
@@ -193,116 +211,126 @@ export class PassiveTreeHudService {
     if (source.thumbnail.isEmpty()) throw new Error('Desktop capture returned an empty thumbnail.');
     const capture = source.thumbnail.getSize();
     if (capture.width < 320 || capture.height < 180) throw new Error(`Desktop capture was unexpectedly small (${capture.width}x${capture.height}).`);
-    const bitmap = source.thumbnail.toBitmap();
+    return { bitmap: source.thumbnail.toBitmap(), capture };
+  }
 
+  private async tryDisplay(context: PassiveTreeHudContext, display: Display): Promise<PassiveTreeHudState | undefined> {
+    const snapshot = context.snapshot!;
+    const guide = context.guide!;
+    const { bitmap, capture } = await this.captureDisplay(display);
     const candidates = detectPassiveTreeNodeCandidates(bitmap, capture.width, capture.height, {
-      radii: [3, 4, 5, 6, 8, 10, 12, 15, 18],
-      stride: 4,
-      angularSamples: 12,
-      minimumContrast: 14,
-      minimumCoverage: 0.54,
-      maximumCandidates: 150,
+      radii: [3, 4, 5, 6, 8, 10, 12, 15, 18], stride: 4, angularSamples: 12,
+      minimumContrast: 14, minimumCoverage: 0.54, maximumCandidates: 150,
     });
-    const anchors = selectPassiveHudAnchors(snapshot, context.operations, context.cursor, {
+    const targetNodeIds = guideTargetIds(guide);
+    const anchors = selectPassiveHudAnchors(snapshot, guide.operations, guide.cursor, {
       recentOperations: 8,
       upcomingOperations: 8,
       neighbourDepth: 2,
-      maxAnchors: 20,
+      maxAnchors: 22,
+      targetNodeIds,
+      className: guide.className,
+      classStartNodeId: guide.classStartNodeId,
     });
-    if (anchors.length < 4 || candidates.length < 4) {
-      this.emit({
-        status: 'searching', enabled: true, visible: false,
-        message: 'Open the Path of Exile passive tree. Looking for enough visible passive nodes to register the HUD…',
-        displayId: display.id, displayBounds: { ...display.bounds }, captureSize: capture, path: [],
-      });
-      return;
-    }
+    if (anchors.length < 4 || candidates.length < 4) return undefined;
 
     const registration = registerPassiveTreePointCloud(anchors, candidates, {
-      minScale: 0.006,
-      maxScale: 0.35,
-      tolerancePx: 10,
+      minScale: 0.006, maxScale: 0.35, tolerancePx: 10,
       minInliers: Math.min(6, Math.max(4, Math.ceil(anchors.length * 0.3))),
-      maxTreePairs: 52,
-      maxScreenCandidates: 120,
-      // Keep the production default non-mirrored. If a future GGG rendering
-      // axis differs, diagnostics/tests can opt in before changing this safely.
-      allowYFlip: false,
+      maxTreePairs: 56, maxScreenCandidates: 120, allowYFlip: false,
     });
-    if (!registration || registration.confidence < 0.68 || registration.rms > 7.5) {
-      this.emit({
-        status: 'searching', enabled: true, visible: false,
-        message: 'Passive tree detected candidates, but alignment confidence is not high enough to place a safe marker yet.',
-        confidence: registration?.confidence,
-        inliers: registration?.inliers,
-        rms: registration?.rms,
-        displayId: display.id,
-        displayBounds: { ...display.bounds },
-        captureSize: capture,
-        path: [],
-      });
-      return;
-    }
+    if (!registration || registration.confidence < 0.68 || registration.rms > 7.5) return undefined;
 
-    const treeTarget = passiveHudTarget(snapshot, target.nodeId)!;
-    const captureTarget = projectPassiveTreePoint(registration.transform, treeTarget);
-    const localTarget = mapCaptureToLocalDisplay(captureTarget, capture, display);
-    const indicator = edgeIndicatorForTarget(localTarget, display.bounds.width, display.bounds.height, 64);
     const candidateRadius = median(registration.matches.map((match) => match.screen.radius).filter((radius): radius is number => Number.isFinite(radius)));
     const radiusScale = display.bounds.width / capture.width;
     const markerRadius = Math.max(15, Math.min(64, (candidateRadius ?? 8) * radiusScale * 1.35));
     const nodes = indexPassiveNodes(snapshot);
     const path: PassiveTreeHudPathPoint[] = [];
-    if (context.pathPreview) {
-      const from = Math.max(0, context.cursor - 3);
-      const to = Math.min(context.operations.length, context.cursor + 5);
+
+    if (guide.mode === 'exact' && context.pathPreview) {
+      const from = Math.max(0, guide.cursor - 3);
+      const to = Math.min(guide.operations.length, guide.cursor + 5);
       const used = new Set<number>();
       for (let index = from; index < to; index += 1) {
-        const operation = context.operations[index];
+        const operation = guide.operations[index];
         if (!operation || used.has(operation.nodeId)) continue;
         const node = nodes.get(operation.nodeId);
         if (!node || node.x === undefined || node.y === undefined) continue;
         used.add(operation.nodeId);
         const capturePoint = projectPassiveTreePoint(registration.transform, { x: node.x, y: node.y });
         const local = mapCaptureToLocalDisplay(capturePoint, capture, display);
-        if (local.x < -80 || local.y < -80 || local.x > display.bounds.width + 80 || local.y > display.bounds.height + 80) continue;
-        path.push({
-          nodeId: node.id,
-          x: local.x,
-          y: local.y,
-          state: index < context.cursor ? 'recent' : index === context.cursor ? 'next' : 'upcoming',
-        });
+        const offscreen = local.x < -80 || local.y < -80 || local.x > display.bounds.width + 80 || local.y > display.bounds.height + 80;
+        path.push({ nodeId: node.id, name: node.name, x: local.x, y: local.y, offscreen, state: index < guide.cursor ? 'recent' : index === guide.cursor ? 'next' : 'upcoming' });
       }
     }
 
-    const now = new Date().toISOString();
+    if (guide.mode === 'stage') {
+      for (const stageTarget of guide.stageTargets) {
+        const node = nodes.get(stageTarget.nodeId);
+        if (!node || node.x === undefined || node.y === undefined) continue;
+        const capturePoint = projectPassiveTreePoint(registration.transform, { x: node.x, y: node.y });
+        const local = mapCaptureToLocalDisplay(capturePoint, capture, display);
+        const offscreen = local.x < -80 || local.y < -80 || local.x > display.bounds.width + 80 || local.y > display.bounds.height + 80;
+        path.push({ nodeId: node.id, name: node.name, x: local.x, y: local.y, offscreen, state: 'stage' });
+      }
+    }
+
+    let targetState: PassiveTreeHudState['target'];
+    if (guide.target) {
+      const treeTarget = passiveHudTarget(snapshot, guide.target.nodeId);
+      if (treeTarget) {
+        const captureTarget = projectPassiveTreePoint(registration.transform, treeTarget);
+        const localTarget = mapCaptureToLocalDisplay(captureTarget, capture, display);
+        const indicator = edgeIndicatorForTarget(localTarget, display.bounds.width, display.bounds.height, 64);
+        targetState = {
+          nodeId: guide.target.nodeId,
+          name: guide.target.nodeName,
+          kind: guide.target.nodeKind,
+          x: localTarget.x,
+          y: localTarget.y,
+          markerRadius,
+          operation: guide.target.type,
+          index: guide.target.index,
+          total: guide.target.total,
+          checkpoint: guide.target.checkpoint,
+          offscreen: indicator.visible,
+          ...(indicator.visible ? { arrowX: indicator.x, arrowY: indicator.y, arrowAngle: indicator.angle } : {}),
+        };
+      }
+    }
+
+    return {
+      status: 'locked', enabled: true, visible: Boolean(targetState || path.some((point) => !point.offscreen)),
+      mode: guide.mode, sourceLabel: guide.sourceLabel, className: guide.className, classStartNodeId: guide.classStartNodeId,
+      message: guide.mode === 'exact'
+        ? `Passive tree aligned with ${registration.inliers} anchors for ${guide.className ?? 'the active build'}.`
+        : `${guide.message} Tree aligned with ${registration.inliers} anchors.`,
+      confidence: registration.confidence, inliers: registration.inliers, rms: registration.rms,
+      displayId: display.id, displayBounds: { ...display.bounds }, captureSize: capture,
+      lastLockedAt: new Date().toISOString(), target: targetState, path,
+    };
+  }
+
+  private async captureAndRegister(context: PassiveTreeHudContext): Promise<void> {
+    const displays = this.displaySearchOrder();
+    let bestMessage = 'Open the Path of Exile passive tree. Looking for enough visible passive nodes to register the HUD…';
+    for (const display of displays) {
+      try {
+        const locked = await this.tryDisplay(context, display);
+        if (locked) {
+          this.emit(locked);
+          return;
+        }
+      } catch (error) {
+        bestMessage = `Display ${display.id} could not be inspected safely: ${String(error)}`;
+        this.options.log?.warn('Passive Tree HUD display probe failed.', { displayId: display.id, error });
+      }
+    }
     this.emit({
-      status: 'locked',
-      enabled: true,
-      visible: true,
-      message: `Passive tree aligned with ${registration.inliers} anchors.`,
-      confidence: registration.confidence,
-      inliers: registration.inliers,
-      rms: registration.rms,
-      displayId: display.id,
-      displayBounds: { ...display.bounds },
-      captureSize: capture,
-      lastLockedAt: now,
-      target: {
-        nodeId: target.nodeId,
-        name: target.nodeName,
-        kind: target.nodeKind,
-        x: localTarget.x,
-        y: localTarget.y,
-        markerRadius,
-        operation: target.type,
-        index: target.index,
-        total: target.total,
-        checkpoint: target.checkpoint,
-        offscreen: indicator.visible,
-        ...(indicator.visible ? { arrowX: indicator.x, arrowY: indicator.y, arrowAngle: indicator.angle } : {}),
-      },
-      path,
+      status: 'searching', enabled: true, visible: false,
+      mode: context.guide?.mode, sourceLabel: context.guide?.sourceLabel, className: context.guide?.className, classStartNodeId: context.guide?.classStartNodeId,
+      message: bestMessage,
+      path: [],
     });
   }
 }
