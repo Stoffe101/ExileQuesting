@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  elapsedRunMs,
   emptyRunSession,
   finishRun,
   pauseRun,
@@ -48,6 +49,17 @@ describe('personal route analytics', () => {
       revisitMs: 120_000,
       visits: 2,
     });
+  });
+
+  it('finishes a paused run without reintroducing the final paused interval', () => {
+    let session = startRun(emptyRunSession(), 1, at('10:00:00'));
+    session = recordRunArea(session, '1_1_2', at('10:00:00'), { areaName: 'The Coast', act: 1 });
+    session = pauseRun(session, at('10:02:00'));
+    const finished = finishRun(session, at('10:12:00'));
+
+    expect(finished.history?.totalMs).toBe(120_000);
+    expect(finished.session.pausedMs).toBe(600_000);
+    expect(elapsedRunMs(finished.session)).toBe(120_000);
   });
 
   it('compares zones with the previous run and surfaces regressions conservatively', () => {
