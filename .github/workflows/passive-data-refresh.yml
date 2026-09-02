@@ -19,16 +19,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Generate pinned PoE passive tree snapshot
+      - name: Generate pinned PoE passive tree snapshot from GGG export
         run: npm run data:passives
+      - name: Generate game-data provenance manifest
+        run: npm run data:manifest
       - name: Validate generated passive tree snapshot
         run: npm run validate:passives
-      - name: Commit generated snapshot when changed
+      - name: Validate game-data provenance manifest
+        run: npm run validate:manifest
+      - name: Commit generated snapshot and manifest when changed
         shell: bash
         run: |
-          git add assets/game-data/passive-tree-3.29.json
+          git add assets/game-data/passive-tree-3.29.json assets/game-data/manifest.json
           if git diff --cached --quiet; then
-            echo "Pinned passive tree snapshot is already current."
+            echo "Pinned passive tree snapshot and manifest are already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
