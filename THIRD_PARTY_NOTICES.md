@@ -1,6 +1,6 @@
 # Third-party notices
 
-ExileQuesting's own code is licensed under PolyForm Noncommercial License 1.0.0. Third-party material listed here remains under its original license and is not relicensed by ExileQuesting.
+ExileQuesting's own code is licensed under PolyForm Noncommercial License 1.0.0. Third-party material listed here remains under its original license or terms and is not relicensed by ExileQuesting.
 
 ## Exile-UI
 
@@ -22,7 +22,29 @@ Exile-UI is distributed under the MIT License:
 
 Repository: <https://github.com/HeartofPhos/exile-leveling>
 
-Exile-UI acknowledges that its default guide and PoB-import concepts were originally derived from exile-leveling. ExileQuesting studied exile-leveling's typed route/fragments model as prior art but does not bundle its implementation.
+Copyright (c) 2025 HeartofPhos.
+
+ExileQuesting bundles a normalized, application-specific gem acquisition snapshot derived from pinned `exile-leveling` gem, quest, and character metadata. The bundled snapshot does not include the `exile-leveling` application implementation. Its exact source revision and source paths are recorded in `assets/game-data/gem-acquisition-3.29.json` and `assets/game-data/manifest.json`.
+
+`exile-leveling` is distributed under the MIT License:
+
+> MIT License
+>
+> Copyright (c) 2025 HeartofPhos
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Grinding Gear Games Passive Skill Tree data export
+
+Official data export repository: <https://github.com/grindinggear/skilltree-export>
+
+Grinding Gear Games' Path of Exile developer documentation identifies this repository as the supported Path of Exile 1 Passive Skill Tree data export. ExileQuesting's passive-tree generator is pinned to a specific repository revision and normalizes only the data required by ExileQuesting's passive guidance and Passive Tree HUD. Source revision, source path, generated snapshot checksum, and bundled-file checksum are recorded through the passive snapshot and `assets/game-data/manifest.json`.
+
+No separate open-source license is asserted for Grinding Gear Games' game data here. Path of Exile, its data, names, and related game content remain property of Grinding Gear Games and are subject to Grinding Gear Games' applicable terms and policies.
 
 ## XileHUD
 

@@ -1,0 +1,3 @@
+# Bundled game-data checksums are SHA-256 hashes of the physical files that ship.
+# Force LF so Git checkout cannot silently change those bytes on Windows.
+/assets/game-data/*.json text eol=lf

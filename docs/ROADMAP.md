@@ -165,14 +165,17 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 
 ### Data quality
 
-- [ ] version every generated game-data snapshot independently from the application
-- [ ] unify game version, schema version, generated-at, source revision/URL and checksum metadata across every generated snapshot
+- [x] version every generated game-data snapshot independently from the application
+- [x] unify game version, schema version, generated-at, source revision/URL and checksum metadata across every generated snapshot
+- [x] verify complete bundled dataset files against a shared SHA-256 manifest before runtime use
+- [x] refresh dataset and provenance manifest atomically in data-generation workflows
+- [x] migrate passive-tree generation to GGG's documented `skilltree-export` instead of scraping the interactive passive-tree page
 - [x] keep runtime operation independent of PoE Wiki availability
 - [x] regression-test known quest/vendor edge cases and class restrictions
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, stage reconciliation, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
+See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, stage reconciliation, data provenance, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
 
 ## 0.3 — deeper route + endgame intelligence
 
@@ -209,7 +212,7 @@ See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `VENDOR_SEARCH.md` and `P
 ## Release requirements for every milestone
 
 - typecheck, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
-- generated gem and passive snapshots validate before packaging;
+- generated game-data snapshots and the shared provenance manifest validate before packaging;
 - Windows manager responsive matrix, Gear Coach visual smoke, overlay visual matrix and lifecycle soak pass;
 - Windows NSIS installer builds successfully;
 - when a previous stable release exists, CI installs that release and proves the real updater can move it to the candidate build;

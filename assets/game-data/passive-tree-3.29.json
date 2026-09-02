@@ -3,8 +3,11 @@
   "gameVersion": "3.29",
   "generatedAt": "2026-09-02T17:31:04.383Z",
   "source": {
-    "url": "https://www.pathofexile.com/passive-skill-tree",
-    "sha256": "16def5b6b331c8330afd480af9606768f6efc13f7d7c9cd1067d43c27640c18d"
+    "url": "https://raw.githubusercontent.com/grindinggear/skilltree-export/8bd138b32ea2631455cac5935bfab089f826094f/data.json",
+    "sha256": "16def5b6b331c8330afd480af9606768f6efc13f7d7c9cd1067d43c27640c18d",
+    "repository": "grindinggear/skilltree-export",
+    "commit": "8bd138b32ea2631455cac5935bfab089f826094f",
+    "path": "data.json"
   },
   "nodes": [
     {

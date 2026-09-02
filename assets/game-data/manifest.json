@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "datasets": [
+    {
+      "id": "gem-acquisition",
+      "datasetRevision": 1,
+      "file": "gem-acquisition-3.29.json",
+      "schemaVersion": 1,
+      "gameVersion": "3.29",
+      "generatedAt": "2026-09-02T00:00:00.000Z",
+      "sizeBytes": 590486,
+      "checksum": {
+        "algorithm": "sha256",
+        "scope": "file",
+        "value": "7960d92313d0788f889bfae212af18e1f8e7569ff4840284572417bd7bde9615"
+      },
+      "source": {
+        "kind": "git",
+        "url": "https://github.com/HeartofPhos/exile-leveling",
+        "repository": "HeartofPhos/exile-leveling",
+        "revision": "b7b2dd0ed62ae25cf55c74085fa64a1f4d7cf4ba",
+        "license": "MIT",
+        "paths": [
+          "common/data/json/gems.json",
+          "common/data/json/quests.json",
+          "common/data/json/characters.json"
+        ]
+      }
+    },
+    {
+      "id": "passive-tree",
+      "datasetRevision": 2,
+      "file": "passive-tree-3.29.json",
+      "schemaVersion": 2,
+      "gameVersion": "3.29",
+      "generatedAt": "2026-09-02T17:31:04.383Z",
+      "sizeBytes": 1002109,
+      "checksum": {
+        "algorithm": "sha256",
+        "scope": "file",
+        "value": "491862d984010bf46a27cdbf618e6a62f388bd0ac0254654135422c3b99da274"
+      },
+      "source": {
+        "kind": "git",
+        "url": "https://github.com/grindinggear/skilltree-export",
+        "repository": "grindinggear/skilltree-export",
+        "revision": "8bd138b32ea2631455cac5935bfab089f826094f",
+        "paths": [
+          "data.json"
+        ]
+      }
+    }
+  ]
+}
