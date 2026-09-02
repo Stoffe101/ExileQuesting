@@ -26,6 +26,7 @@ Item Level: 67
 +31% to Lightning Resistance
 25% increased Movement Speed
 +24 to Dexterity
++16 to Strength and Intelligence
 --------`;
 
 describe('Path of Exile item text parser', () => {
@@ -39,11 +40,14 @@ describe('Path of Exile item text parser', () => {
     expect(item.sockets).toBe(4);
     expect(item.maxLinks).toBe(4);
     expect(item.stats.maximumLife).toBe(78);
-    expect(item.stats.fireResistance).toBe(35);
+    expect(item.stats.fireResistance).toBe(47);
+    expect(item.stats.coldResistance).toBe(12);
     expect(item.stats.lightningResistance).toBe(31);
     expect(item.stats.movementSpeed).toBe(25);
     expect(item.stats.dexterity).toBe(24);
-    expect(elementalResistanceTotal(item)).toBe(66);
+    expect(item.stats.strength).toBe(16);
+    expect(item.stats.intelligence).toBe(16);
+    expect(elementalResistanceTotal(item)).toBe(90);
   });
 
   it('parses normal items without inventing a separate display name', () => {
