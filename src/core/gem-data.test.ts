@@ -30,6 +30,7 @@ const quests = {
         },
         vendor: {
           'Metadata/Items/Gems/SkillGemFireball': { classes: [], npc: 'Nessa' },
+          'Metadata/Items/Gems/SupportGemVolley': { classes: ['Ranger'], npc: 'Nessa' },
           'Metadata/Items/Weapons/OneHandWeapons/OneHandSwords/OneHandSword1': { classes: [], npc: 'Nessa' },
         },
       },
@@ -47,9 +48,10 @@ describe('gem data snapshot', () => {
     expect(snapshot.offers).toEqual(expect.arrayContaining([
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemArc', kind: 'quest', questId: 'a1q4', npc: 'Nessa', classes: ['Witch'] }),
       expect.objectContaining({ gemId: 'Metadata/Items/Gems/SkillGemFireball', kind: 'vendor', npc: 'Nessa', classes: [] }),
+      expect.objectContaining({ gemId: 'Metadata/Items/Gems/SupportGemVolley', kind: 'vendor', npc: 'Nessa', classes: ['Ranger'] }),
     ]));
     expect(snapshot.offers.every((offer) => offer.gemId.startsWith('Metadata/Items/Gems/'))).toBe(true);
-    expect(snapshot.offers).toHaveLength(2);
+    expect(snapshot.offers).toHaveLength(3);
     expect(snapshot.startingGems.Witch).toEqual(['Metadata/Items/Gems/SkillGemFireball', 'Metadata/Items/Gems/SupportGemArcaneSurge']);
     expect(snapshot.source.commit).toBe(source.commit);
   });
