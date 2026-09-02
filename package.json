@@ -69,6 +69,10 @@
       {
         "from": "assets/campaign",
         "to": "campaign"
+      },
+      {
+        "from": "assets/game-data",
+        "to": "game-data"
       }
     ],
     "win": {
