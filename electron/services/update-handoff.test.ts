@@ -5,8 +5,15 @@ describe('Windows update handoff', () => {
   it('waits for ExileQuesting to exit before starting the installer', () => {
     const script = windowsUpdateLauncherScript();
     expect(script).toContain(':wait_parent');
-    expect(script).toContain('tasklist /FI "PID eq %PARENT_PID%"');
+    expect(script).toContain('tasklist /FI "PID eq %PARENT_PID%" /FO CSV /NH');
     expect(script.indexOf(':wait_parent')).toBeLessThan(script.indexOf('start "" /wait "%INSTALLER%" /S'));
+  });
+
+  it('bounds the parent wait and does not use the pipeline that hung on Windows runners', () => {
+    const script = windowsUpdateLauncherScript();
+    expect(script).toContain('WAIT_ATTEMPTS');
+    expect(script).toContain('Parent ExileQuesting process did not exit within 60 seconds.');
+    expect(script).not.toMatch(/tasklist[^\r\n]*\|\s*find/i);
   });
 
   it('runs the verified NSIS installer silently and relaunches the existing installation', () => {
