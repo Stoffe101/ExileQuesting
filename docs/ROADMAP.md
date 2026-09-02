@@ -160,7 +160,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] build-specific vendor regex/search reminders
 - [x] richer `/passives` reconciliation workflow
 - [ ] versioned layout images/diagrams where they beat text
-- [ ] deeper personal route analytics without gameplay automation
+- [x] deeper personal route analytics without gameplay automation
 - [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
 
 ### Data quality
@@ -175,7 +175,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, stage reconciliation, data provenance, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
+See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`, `VENDOR_SEARCH.md`, `PASSIVES_RECONCILIATION.md` and `ROUTE_ANALYTICS.md` for the build-aware planner, stage reconciliation, data provenance, passive, crafting, loot-filter, vendor-search, route analytics and authoritative passive-reward audit behavior.
 
 ## 0.3 — deeper route + endgame intelligence
 
@@ -184,7 +184,7 @@ See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`
 - [x] build-specific vendor regex/search reminders
 - [x] richer `/passives` reconciliation workflow
 - [ ] more reviewed high-confidence layout and routing hints
-- [ ] deeper personal route analytics without gameplay automation
+- [x] deeper personal route analytics without gameplay automation
 - [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
 
 ## 0.4 — Advanced Gear Coach
