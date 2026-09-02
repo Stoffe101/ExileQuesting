@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { elapsedRunMs, formatDuration, isTownAreaId } from '../core/run';
 import type { AppSettings, RuntimeState } from '../core/types';
+import PassivesAuditPanel from './PassivesAuditPanel';
 
 function useNow(enabled = true): number {
   const [now, setNow] = useState(Date.now());
@@ -117,16 +118,17 @@ export function RewardAuditPanel({ state, setState, compact = false }: { state: 
   const visible = compact ? important.slice(0, 5) : audit.items;
   return (
     <article className={`panel reward-audit-panel ${compact ? 'compact-audit' : ''}`}>
-      <div className="section-title"><h2>Permanent rewards audit</h2><span>{audit.passive.confirmed + audit.trials.confirmed}/{audit.passive.knownTotal + audit.trials.knownTotal} confirmed</span></div>
+      <div className="section-title"><h2>Permanent rewards audit</h2><span>{audit.passive.confirmed + audit.trials.confirmed}/{audit.passive.knownTotal + audit.trials.knownTotal} manually confirmed</span></div>
       <div className="audit-summary">
         <div><strong>{audit.passive.confirmed}</strong><span>Passives confirmed</span><small>{audit.passive.routePassed}/{audit.passive.knownTotal} route-passed</small></div>
         <div><strong>{audit.trials.confirmed}</strong><span>Trials confirmed</span><small>{audit.trials.routePassed}/{audit.trials.knownTotal} route-passed</small></div>
       </div>
-      {audit.needsFinalPassivesAudit && <div className="inline-alert"><strong>Final check</strong>Type <b>/passives</b> in Path of Exile before mapping and confirm anything still marked route-passed.</div>}
+      <PassivesAuditPanel state={state} compact={compact} />
+      {!compact && <p className="panel-copy">The route checklist below remains a manual campaign record. The /passives reconciliation above is the authoritative check for passive quest rewards actually credited by Path of Exile.</p>}
       <div className="audit-list">
-        {visible.length ? visible.map((item) => <div className={`audit-item audit-${item.status}`} key={item.stepId}><span>{item.type === 'passive' ? '+1' : '△'}</span><div><strong>{item.label}</strong><small>Act {item.act} · {item.status === 'route-passed' ? 'Route passed, not yet confirmed' : item.status}</small></div><button className={item.status === 'confirmed' ? 'ghost-button tiny' : 'primary-button tiny'} onClick={() => void window.exileQuesting.confirmReward(item.stepId, item.status !== 'confirmed').then(setState)}>{item.status === 'confirmed' ? 'Unconfirm' : 'Confirm'}</button></div>) : <p className="empty-copy">Everything in the current audit is confirmed.</p>}
+        {visible.length ? visible.map((item) => <div className={`audit-item audit-${item.status}`} key={item.stepId}><span>{item.type === 'passive' ? '+1' : '△'}</span><div><strong>{item.label}</strong><small>Act {item.act} · {item.status === 'route-passed' ? 'Route passed, not yet confirmed' : item.status}</small></div><button className={item.status === 'confirmed' ? 'ghost-button tiny' : 'primary-button tiny'} onClick={() => void window.exileQuesting.confirmReward(item.stepId, item.status !== 'confirmed').then(setState)}>{item.status === 'confirmed' ? 'Unconfirm' : 'Confirm'}</button></div>) : <p className="empty-copy">Everything in the current route audit is manually confirmed.</p>}
       </div>
-      {compact && important.length > visible.length && <small className="more-copy">+{important.length - visible.length} more items in Diagnostics/Campaign.</small>}
+      {compact && important.length > visible.length && <small className="more-copy">+{important.length - visible.length} more route-audit items in Diagnostics/Campaign.</small>}
     </article>
   );
 }
