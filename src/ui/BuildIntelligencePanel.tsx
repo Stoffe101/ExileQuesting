@@ -34,6 +34,7 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
   const [vendorCopyError, setVendorCopyError] = useState('');
   const coach = workspace.coach;
   const maxroll = coach?.maxroll;
+  const stageNeedsReview = !maxroll && coach?.stageConfidence === 'ambiguous';
   const vendorSearch = coach?.vendorSearch;
   const loot = workspace.lootFilter;
   const chooseBase = async () => onWorkspace(await window.exileQuesting.selectLootFilterBase());
@@ -56,6 +57,13 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
   return (
     <section className="panel build-intelligence-panel">
       <div className="section-title"><h2>Build intelligence</h2><span>{workspace.passiveData.status === 'ready' ? `PoE ${workspace.passiveData.gameVersion} tree` : 'Passive names unavailable'}</span></div>
+
+      {stageNeedsReview && (
+        <div className="inline-alert">
+          <strong>Selected PoB stage needs review</strong>
+          ExileQuesting could not safely reconcile this set with the other PoB families. Guidance below uses only the data actually present in the selected set; inspect the alignment reasons in Build Planner before treating it as a complete build state.
+        </div>
+      )}
 
       {maxroll && (
         <div className={`maxroll-guide-status ${maxroll.compatibility}`}>
