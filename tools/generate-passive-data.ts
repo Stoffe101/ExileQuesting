@@ -106,6 +106,18 @@ async function existingGeneratedAt(sha256: string): Promise<string | undefined> 
   return undefined;
 }
 
+function canonicalClassNames(tree: Record<string, unknown>): Map<number, string> {
+  if (!Array.isArray(tree.classes)) throw new Error('Passive tree did not expose its class table.');
+  const names = new Map<number, string>();
+  for (let index = 0; index < tree.classes.length; index += 1) {
+    const entry = record(tree.classes[index]);
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+    if (name) names.set(index, name);
+  }
+  if (names.size !== 7) throw new Error(`Expected seven base classes, found ${names.size}.`);
+  return names;
+}
+
 async function main() {
   const response = await fetch(SOURCE_URL, {
     headers: { 'User-Agent': 'ExileQuesting passive-data generator (github.com/Stoffe101/ExileQuesting)' },
@@ -120,30 +132,32 @@ async function main() {
   const constants = record(tree.constants);
   const skillsPerOrbit = numberArray(constants.skillsPerOrbit).map(Math.trunc);
   const orbitRadii = numberArray(constants.orbitRadii);
+  const classNames = canonicalClassNames(tree);
   if (!skillsPerOrbit.length || skillsPerOrbit.length !== orbitRadii.length) throw new Error('Passive tree orbit constants were missing or inconsistent.');
 
   const nodes: PassiveNodeRecord[] = [];
   for (const [key, raw] of Object.entries(rawNodes)) {
     const node = record(raw);
     const id = Number(node.skill ?? key);
-    const name = typeof node.name === 'string' ? node.name.trim() : '';
-    if (!Number.isSafeInteger(id) || id <= 0 || !name) continue;
     const kind = nodeKind(node);
+    const classStartIndex = Number(node.classStartIndex);
+    const rawName = typeof node.name === 'string' ? node.name.trim() : '';
+    const name = kind === 'class-start' && Number.isSafeInteger(classStartIndex)
+      ? classNames.get(classStartIndex) ?? rawName
+      : rawName;
+    if (!Number.isSafeInteger(id) || id <= 0 || !name) continue;
     const position = nodePosition(node, groups, skillsPerOrbit, orbitRadii);
     const rawGroupPresent = node.group !== undefined;
     const rawOrbitPresent = node.orbit !== undefined;
     const rawOrbitIndexPresent = node.orbitIndex !== undefined;
     const hasNoPlacementFields = !rawGroupPresent && !rawOrbitPresent && !rawOrbitIndexPresent;
     const dynamic = kind !== 'ascendancy' && !position && hasNoPlacementFields;
-    // A partly populated static placement is an upstream schema problem, not a
-    // Cluster Jewel/mastery definition. Fail rather than silently declaring it dynamic.
     if (kind !== 'ascendancy' && !position && !dynamic) {
       throw new Error(`Static passive ${id} (${name}) had incomplete or invalid group/orbit geometry.`);
     }
     const group = Number(node.group);
     const orbit = Number(node.orbit);
     const orbitIndex = Number(node.orbitIndex);
-    const classStartIndex = Number(node.classStartIndex);
     const out = Array.isArray(node.out) ? node.out.map(Number).filter((candidate) => Number.isSafeInteger(candidate) && candidate > 0) : [];
     const icon = typeof node.icon === 'string' ? node.icon : undefined;
     nodes.push({
@@ -165,6 +179,8 @@ async function main() {
   const staticMainTree = nodes.filter((node) => node.kind !== 'ascendancy' && !node.dynamic);
   const staticMainTreeGeometry = staticMainTree.filter((node) => node.x !== undefined && node.y !== undefined);
   if (staticMainTreeGeometry.length !== staticMainTree.length) throw new Error(`Only ${staticMainTreeGeometry.length}/${staticMainTree.length} static main-tree passive nodes had geometry.`);
+  const classStarts = nodes.filter((node) => node.kind === 'class-start');
+  if (classStarts.length !== classNames.size) throw new Error(`Expected ${classNames.size} class starts, extracted ${classStarts.length}.`);
   const dynamicCount = nodes.filter((node) => node.dynamic).length;
 
   const normalizedPayload = JSON.stringify(nodes);
@@ -181,7 +197,7 @@ async function main() {
   };
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
   await fs.writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions (${sha256.slice(0, 12)}).`);
+  console.log(`Generated ${OUTPUT} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions; ${classStarts.length} canonical class starts (${sha256.slice(0, 12)}).`);
 }
 
 await main();
