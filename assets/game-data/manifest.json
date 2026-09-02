@@ -3,7 +3,7 @@
   "datasets": [
     {
       "id": "gem-acquisition",
-      "datasetRevision": 1,
+      "datasetRevision": 0,
       "file": "gem-acquisition-3.29.json",
       "schemaVersion": 1,
       "gameVersion": "3.29",
@@ -29,7 +29,7 @@
     },
     {
       "id": "passive-tree",
-      "datasetRevision": 1,
+      "datasetRevision": 0,
       "file": "passive-tree-3.29.json",
       "schemaVersion": 2,
       "gameVersion": "3.29",
