@@ -4,6 +4,8 @@ export interface PassiveQuestDefinition {
   id: string;
   name: string;
   act: number;
+  /** Earliest completed-act boundary where it is safe to call this reward missing. */
+  auditAct?: number;
   points: number;
   killAllOnly?: boolean;
   recovery: string;
@@ -46,7 +48,7 @@ export interface PassivesReconciliation {
 export const CAMPAIGN_PASSIVE_QUESTS: PassiveQuestDefinition[] = [
   { id: 'a1-dweller', name: 'The Dweller of the Deep', act: 1, points: 1, recovery: 'Waypoint to The Submerged Passage, enter The Flooded Depths, kill the Dweller of the Deep, then claim the Book of Skill from Tarkleigh in Lioneye’s Watch.' },
   { id: 'a1-mariner', name: 'The Marooned Mariner', act: 1, points: 1, recovery: 'Go to The Ship Graveyard, find the Allflame in The Ship Graveyard Cave, return it to Fairgraves and kill him, then claim the Book of Skill from Bestel.' },
-  { id: 'a1-way-forward', name: 'The Way Forward', act: 1, points: 1, recovery: 'From The Western Forest in Act 2, kill Captain Arteri, take the Thaumetic Emblem and break the Thaumetic Seal, then return to Bestel in Act 1.' },
+  { id: 'a1-way-forward', name: 'The Way Forward', act: 1, auditAct: 2, points: 1, recovery: 'From The Western Forest in Act 2, kill Captain Arteri, take the Thaumetic Emblem and break the Thaumetic Seal, then return to Bestel in Act 1.' },
   { id: 'a2-sacred-ground', name: 'Through Sacred Ground', act: 2, points: 1, recovery: 'Travel through The Crossroads and Fellshrine Ruins to The Crypt Level 2, recover the Golden Hand, then return to Yeena for the Book of Skill.' },
   { id: 'a2-bandits', name: 'Deal with the Bandits', act: 2, points: 1, killAllOnly: true, recovery: 'For the passive-point reward, kill Alira, Kraityn and Oak, then speak to Eramir in The Forest Encampment. Helping a bandit intentionally gives no passive point.' },
   { id: 'a3-victario', name: "Victario's Secrets", act: 3, points: 1, recovery: 'Collect all three Platinum Busts in The Sewers, then return to Hargan in The Sarn Encampment.' },
@@ -76,6 +78,10 @@ function normalizeQuestName(value: string): string {
     .replace(/[^a-z0-9']+/gi, ' ')
     .trim()
     .toLowerCase();
+}
+
+function auditActFor(quest: PassiveQuestDefinition): number {
+  return quest.auditAct ?? quest.act;
 }
 
 function messagePart(line: string): string {
@@ -156,7 +162,7 @@ function normalizedThroughAct(value = 10): number {
 export function expectedCampaignPassivePoints(bandit: PassiveAuditBanditChoice, throughAct = 10): number {
   const maximumAct = normalizedThroughAct(throughAct);
   return CAMPAIGN_PASSIVE_QUESTS.reduce((total, quest) => {
-    if (quest.act > maximumAct) return total;
+    if (auditActFor(quest) > maximumAct) return total;
     if (quest.killAllOnly && bandit !== 'none') return total;
     return total + quest.points;
   }, 0);
@@ -183,7 +189,7 @@ export function reconcilePassivesCommand(content: string, bandit: PassiveAuditBa
 
   const items = CAMPAIGN_PASSIVE_QUESTS.map((quest): PassiveQuestAuditItem => {
     const reportedPoints = reported.get(normalizeQuestName(quest.name)) ?? 0;
-    if (quest.act > auditedThroughAct) return { ...quest, expectedPoints: 0, reportedPoints, status: 'future' };
+    if (auditActFor(quest) > auditedThroughAct) return { ...quest, expectedPoints: 0, reportedPoints, status: 'future' };
     const expectedPoints = quest.killAllOnly && bandit !== 'none' ? 0 : quest.points;
     return {
       ...quest,
