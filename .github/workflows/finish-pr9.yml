@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Harden migration script
+        run: node tools/fix-finish-pr9.mjs
       - name: Apply PR 9 runtime and UI wiring
         run: node tools/finish-pr9.mjs
       - run: npm ci
