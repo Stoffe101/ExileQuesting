@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "datasets": [
+    {
+      "id": "gem-acquisition",
+      "datasetRevision": 1,
+      "file": "gem-acquisition-3.29.json",
+      "schemaVersion": 1,
+      "gameVersion": "3.29",
+      "generatedAt": "2026-09-02T00:00:00.000Z",
+      "sizeBytes": 590486,
+      "checksum": {
+        "algorithm": "sha256",
+        "scope": "file",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "source": {
+        "kind": "git",
+        "url": "https://github.com/HeartofPhos/exile-leveling",
+        "repository": "HeartofPhos/exile-leveling",
+        "revision": "b7b2dd0ed62ae25cf55c74085fa64a1f4d7cf4ba",
+        "license": "MIT",
+        "paths": [
+          "common/data/json/gems.json",
+          "common/data/json/quests.json",
+          "common/data/json/characters.json"
+        ]
+      }
+    },
+    {
+      "id": "passive-tree",
+      "datasetRevision": 1,
+      "file": "passive-tree-3.29.json",
+      "schemaVersion": 2,
+      "gameVersion": "3.29",
+      "generatedAt": "2026-09-02T17:31:04.383Z",
+      "sizeBytes": 1001907,
+      "checksum": {
+        "algorithm": "sha256",
+        "scope": "file",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "source": {
+        "kind": "url",
+        "url": "https://www.pathofexile.com/passive-skill-tree",
+        "revision": "16def5b6b331c8330afd480af9606768f6efc13f7d7c9cd1067d43c27640c18d",
+        "paths": []
+      }
+    }
+  ]
+}
