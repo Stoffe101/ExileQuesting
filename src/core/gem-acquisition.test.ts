@@ -79,11 +79,12 @@ function profile(): BuildProfile {
 }
 
 describe('gem acquisition planner', () => {
-  it('filters quest/vendor sources by the build class', () => {
+  it('filters normal quest/vendor sources by class while retaining explicit universal fallbacks', () => {
     const first = alignPobStages(profile().build)[0];
     const result = acquisitionSourcesForRequirement(first, { key: 'arc', name: 'Arc', skillId: 'Arc', count: 1 }, 'Witch', snapshot);
-    expect(result.sources.map((source) => source.kind)).toEqual(['quest']);
-    expect(result.sources[0]).toMatchObject({ questName: 'Enemy at the Gate', npc: 'Nessa', timingVerified: true });
+    expect(result.sources[0]).toMatchObject({ kind: 'quest', questName: 'Enemy at the Gate', npc: 'Nessa', timingVerified: true });
+    expect(result.sources.some((candidate) => candidate.kind === 'vendor' && candidate.npc === 'Nessa' && !candidate.fallback)).toBe(false);
+    expect(new Set(result.sources.filter((candidate) => candidate.fallback).map((candidate) => candidate.fallback))).toEqual(new Set(['siosa', 'lilly']));
   });
 
   it('prefers starting gems and sources that are actually available by an Act-labelled stage', () => {

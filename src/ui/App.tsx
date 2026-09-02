@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import BuildWorkspace from './BuildWorkspace';
+import BuildOverlayBlock from './BuildOverlayBlock';
 import { focusHint } from '../core/layouts';
 import { isStepEnabled } from '../core/campaign';
 import { summarizeActions } from '../core/actions';
@@ -140,8 +141,8 @@ function Overlay({ state }: { state: RuntimeState }) {
   const step = state.dataset.steps[index];
   const nextIndex = nextEnabledIndex(state, index);
   const nextStep = nextIndex === null ? undefined : state.dataset.steps[nextIndex];
-  const actions = summarizeActions(step.actions);
-  const nextActions = nextStep ? summarizeActions(nextStep.actions) : undefined;
+  const actions = summarizeActions(step.actions.filter((action) => action.type !== 'build'));
+  const nextActions = nextStep ? summarizeActions(nextStep.actions.filter((action) => action.type !== 'build')) : undefined;
   const hint = focusHint(step.layoutHints ?? []);
   const [zoneIntro, setZoneIntro] = useState(false);
 
@@ -203,6 +204,8 @@ function Overlay({ state }: { state: RuntimeState }) {
           <span className="section-kicker">NOW</span>
           <h1>{actions.now?.title ?? step.title}</h1>
         </div>
+
+        <BuildOverlayBlock state={state} step={step} />
 
         {state.settings.overlayMode === 'compact' ? (
           <>

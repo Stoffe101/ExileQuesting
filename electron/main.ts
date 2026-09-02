@@ -67,7 +67,11 @@ import { defaultBuildProfileName, upsertBuildProfile, type BuildProfile } from '
 import { activateBuildProfile, activateBuildStage, buildPlannerSnapshot, normalizeBuildPlannerState, type BuildPlannerState } from '../src/core/build-planner';
 import { buildGemAcquisitionPlan, type GemAcquisitionPlan } from '../src/core/gem-acquisition';
 import { bridgeBuildPlanToCampaign, campaignBuildActionsForStep, type CampaignBuildBridge } from '../src/core/build-campaign';
-import { bundledGemDataPath, loadGemAcquisitionSnapshot, type GameDataLoadResult } from './services/game-data';
+import { buildCoachSnapshot, type BuildCoachSnapshot } from '../src/core/build-coach';
+import { buildCampaignIntelligence, campaignIntelligenceActionsForStep, type CampaignIntelligence } from '../src/core/campaign-intelligence';
+import type { LootFilterStatus } from '../src/core/loot-filter';
+import { bundledGemDataPath, bundledPassiveDataPath, loadGemAcquisitionSnapshot, loadPassiveTreeSnapshot, type GameDataLoadResult, type PassiveDataLoadResult } from './services/game-data';
+import { unconfiguredLootFilterState, writeBuildAwareLootFilter } from './services/loot-filter-service';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
@@ -138,8 +142,12 @@ let lastReplay: ReplayUiResult | null = null;
 let buildProfiles: BuildProfile[] = [];
 let buildPlannerState: BuildPlannerState = { schemaVersion: 1, activeStageByProfile: {} };
 let gemData: GameDataLoadResult = { path: '', status: 'missing', message: 'Bundled gem acquisition data has not been loaded yet.' };
+let passiveData: PassiveDataLoadResult = { path: '', status: 'missing', message: 'Bundled passive tree data has not been loaded yet.' };
 let activeGemPlan: GemAcquisitionPlan | undefined;
+let activeBuildCoach: BuildCoachSnapshot | undefined;
 let buildBridge: CampaignBuildBridge | undefined;
+let campaignIntelligence: CampaignIntelligence = { actionsByStep: {} };
+let lootFilter: LootFilterStatus = unconfiguredLootFilterState();
 let appUpdate: AppUpdateState = {
   status: app.isPackaged ? 'idle' : 'disabled', currentVersion: app.getVersion(),
   message: app.isPackaged ? 'Update check has not run yet.' : 'Application updates are disabled in development builds.',
@@ -149,6 +157,20 @@ log.initialize();
 log.transports.file.level = 'info';
 log.transports.console.level = 'info';
 
+function normalizeLootFilterStatus(value: unknown): LootFilterStatus {
+  const item = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const basePath = typeof item.basePath === 'string' && item.basePath.length <= 4096 ? item.basePath : undefined;
+  if (!basePath) return unconfiguredLootFilterState();
+  return {
+    basePath,
+    outputPath: typeof item.outputPath === 'string' && item.outputPath.length <= 4096 ? item.outputPath : undefined,
+    generatedAt: typeof item.generatedAt === 'string' ? item.generatedAt : undefined,
+    fingerprint: typeof item.fingerprint === 'string' && /^[a-f0-9]{64}$/i.test(item.fingerprint) ? item.fingerprint : undefined,
+    needsReload: item.needsReload === true,
+    status: item.status === 'error' ? 'error' : 'ready',
+    message: typeof item.message === 'string' && item.message.trim() ? item.message.slice(0, 500) : 'Build-aware loot filter configuration restored.',
+  };
+}
 function userPath(name: string): string { return store.path(name); }
 function bundledCampaignPath(name: string): string {
   return app.isPackaged ? path.join(process.resourcesPath, 'campaign', name) : path.join(app.getAppPath(), 'assets', 'campaign', name);
@@ -168,7 +190,10 @@ async function loadPersistentState(): Promise<void> {
   runHistory = run.history;
   buildProfiles = await store.loadBuildProfiles();
   buildPlannerState = await store.loadBuildPlanner(buildProfiles);
+  try { lootFilter = normalizeLootFilterStatus(await store.readUnknown('loot-filter.json')); }
+  catch { lootFilter = unconfiguredLootFilterState(); }
 }
+async function saveLootFilterState(): Promise<void> { await store.write('loot-filter.json', lootFilter); }
 async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
 async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
 async function saveRunState(): Promise<void> { await store.write('run.json', { session: runSession, history: runHistory, updatedAt: new Date().toISOString() }); }
@@ -226,27 +251,47 @@ async function loadCampaign(): Promise<void> {
 }
 
 async function loadBuildGameData(): Promise<void> {
-  const filePath = bundledGemDataPath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() });
-  gemData = await loadGemAcquisitionSnapshot(filePath, {
-    info: (...args) => log.info(...args),
-    warn: (...args) => log.warn(...args),
-  });
+  const options = { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() };
+  const [gems, passives] = await Promise.all([
+    loadGemAcquisitionSnapshot(bundledGemDataPath(options), { info: (...args) => log.info(...args), warn: (...args) => log.warn(...args) }),
+    loadPassiveTreeSnapshot(bundledPassiveDataPath(options), { info: (...args) => log.info(...args), warn: (...args) => log.warn(...args) }),
+  ]);
+  gemData = gems;
+  passiveData = passives;
 }
 
 function rebuildBuildGuidance(): void {
   buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
+  campaignIntelligence = buildCampaignIntelligence(dataset);
   const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
   activeGemPlan = activeProfile && gemData.snapshot ? buildGemAcquisitionPlan(activeProfile, gemData.snapshot) : undefined;
   buildBridge = activeGemPlan ? bridgeBuildPlanToCampaign(dataset, activeGemPlan) : undefined;
+  const activeStageId = activeProfile ? buildPlannerState.activeStageByProfile[activeProfile.id] : undefined;
+  activeBuildCoach = activeProfile && activeGemPlan && gemData.snapshot
+    ? buildCoachSnapshot(activeProfile, activeStageId, activeGemPlan, gemData.snapshot, passiveData.snapshot)
+    : undefined;
+}
+
+async function refreshBuildLootFilter(): Promise<void> {
+  if (!lootFilter.basePath) return;
+  const pendingReload = lootFilter.needsReload;
+  const generated = await writeBuildAwareLootFilter(lootFilter.basePath, activeBuildCoach?.loot, lootFilter.fingerprint);
+  lootFilter = { ...generated, needsReload: pendingReload || generated.needsReload };
+  await saveLootFilterState();
 }
 
 function buildAwareDataset(): CampaignDataset {
-  if (!buildBridge || !Object.keys(buildBridge.actionsByStep).length) return dataset;
+  const hasBuildActions = Boolean(buildBridge && Object.keys(buildBridge.actionsByStep).length);
+  const hasCampaignIntelligence = Object.keys(campaignIntelligence.actionsByStep).length > 0;
+  if (!hasBuildActions && !hasCampaignIntelligence) return dataset;
   return {
     ...dataset,
     steps: dataset.steps.map((step) => {
-      const buildActions = campaignBuildActionsForStep(buildBridge!, step.id);
-      return buildActions.length ? { ...step, actions: [...step.actions, ...buildActions] } : step;
+      const extras = [
+        ...campaignIntelligenceActionsForStep(campaignIntelligence, step.id),
+        ...(buildBridge ? campaignBuildActionsForStep(buildBridge, step.id) : []),
+      ];
+      return extras.length ? { ...step, actions: [...step.actions, ...extras] } : step;
     }),
   };
 }
@@ -260,7 +305,15 @@ function buildWorkspaceSnapshot() {
       gameVersion: gemData.snapshot?.gameVersion,
       sourceCommit: gemData.snapshot?.source.commit,
     },
+    passiveData: {
+      status: passiveData.status,
+      message: passiveData.message,
+      gameVersion: passiveData.snapshot?.gameVersion,
+      sha256: passiveData.snapshot?.source.sha256,
+    },
     plan: activeGemPlan,
+    coach: activeBuildCoach,
+    lootFilter,
     campaign: {
       resolved: buildBridge?.gemAvailability.filter((entry) => entry.confidence !== 'unresolved').length ?? 0,
       unresolved: buildBridge?.unresolved.length ?? 0,
@@ -276,7 +329,7 @@ function runtimeState(): RuntimeState {
     settings, dataset: buildAwareDataset(), sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
     xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, confirmedRewardStepIds),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
-    logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
+    logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
   };
 }
 function overlayState(real = runtimeState()): RuntimeState {
@@ -694,6 +747,22 @@ function registerIpc(): void {
   ipcMain.handle('diagnostics:export', async () => { await exportDiagnostics(); });
   ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());
   ipcMain.handle('diagnostics:replay-export', async () => exportReplayBundle());
+  ipcMain.handle('loot:select-base', async () => {
+    const options: Electron.OpenDialogOptions = { title: 'Choose your base Path of Exile loot filter', properties: ['openFile'], filters: [{ name: 'Path of Exile filter', extensions: ['filter'] }] };
+    const selected = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+    if (selected.canceled || !selected.filePaths[0]) return buildWorkspaceSnapshot();
+    lootFilter = { ...unconfiguredLootFilterState(), basePath: selected.filePaths[0], message: 'Base filter selected. Generating build-aware wrapper…' };
+    await refreshBuildLootFilter();
+    broadcastState();
+    return buildWorkspaceSnapshot();
+  });
+  ipcMain.handle('loot:regenerate', async () => { await refreshBuildLootFilter(); broadcastState(); return buildWorkspaceSnapshot(); });
+  ipcMain.handle('loot:reloaded', async () => {
+    lootFilter = { ...lootFilter, needsReload: false, message: 'Build-aware loot filter is current and marked as reloaded in Path of Exile.' };
+    await saveLootFilterState();
+    broadcastState();
+    return buildWorkspaceSnapshot();
+  });
   ipcMain.handle('pob:list', () => buildProfiles);
   ipcMain.handle('pob:workspace', () => buildWorkspaceSnapshot());
   ipcMain.handle('pob:import', async (_event, input: unknown) => {
@@ -704,6 +773,7 @@ function registerIpc(): void {
     buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
     rebuildBuildGuidance();
     await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    await refreshBuildLootFilter();
     broadcastState();
     return buildProfiles;
   });
@@ -712,13 +782,16 @@ function registerIpc(): void {
     buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, id);
     rebuildBuildGuidance();
     await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    await refreshBuildLootFilter();
     broadcastState();
     return buildWorkspaceSnapshot();
   });
   ipcMain.handle('pob:activate-stage', async (_event, profileId: unknown, stageId: unknown) => {
     if (typeof profileId !== 'string' || typeof stageId !== 'string' || profileId.length > 256 || stageId.length > 256) return buildWorkspaceSnapshot();
     buildPlannerState = activateBuildStage(buildPlannerState, buildProfiles, profileId, stageId);
+    rebuildBuildGuidance();
     await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    await refreshBuildLootFilter();
     broadcastState();
     return buildWorkspaceSnapshot();
   });
@@ -728,6 +801,7 @@ function registerIpc(): void {
     buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
     rebuildBuildGuidance();
     await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    await refreshBuildLootFilter();
     broadcastState();
     return buildProfiles;
   });
@@ -808,9 +882,11 @@ else {
     await loadCampaign();
     await loadBuildGameData();
     rebuildBuildGuidance();
+    await refreshBuildLootFilter();
     if (isSmokeTest) {
       if (gemData.status !== 'ready') throw new Error(`Packaged gem data failed startup smoke: ${gemData.message}`);
-      log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps and PoE ${gemData.snapshot?.gameVersion} gem data.`);
+      if (passiveData.status !== 'ready') throw new Error(`Packaged passive tree data failed startup smoke: ${passiveData.message}`);
+      log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps, PoE ${gemData.snapshot?.gameVersion} gem data and ${passiveData.snapshot?.nodes.length} passive nodes.`);
       app.exit(0); return;
     }
 
