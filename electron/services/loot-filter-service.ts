@@ -1,17 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { renderLootFilter, type LootFilterPlan } from '../../src/core/loot-filter';
-
-export interface LootFilterRuntimeState {
-  basePath?: string;
-  outputPath?: string;
-  generatedAt?: string;
-  fingerprint?: string;
-  needsReload: boolean;
-  status: 'unconfigured' | 'ready' | 'error';
-  message: string;
-}
+import { renderLootFilter, type LootFilterPlan, type LootFilterStatus } from '../../src/core/loot-filter';
 
 const OUTPUT_FILE = 'ExileQuesting.filter';
 const MAX_BASE_FILTER_BYTES = 8 * 1024 * 1024;
@@ -29,7 +19,7 @@ export async function validateBaseFilterPath(basePath: string): Promise<string> 
   return resolved;
 }
 
-export async function writeBuildAwareLootFilter(basePath: string, plan: LootFilterPlan, previousFingerprint?: string): Promise<LootFilterRuntimeState> {
+export async function writeBuildAwareLootFilter(basePath: string, plan: LootFilterPlan, previousFingerprint?: string): Promise<LootFilterStatus> {
   try {
     const resolvedBase = await validateBaseFilterPath(basePath);
     const outputPath = path.join(path.dirname(resolvedBase), OUTPUT_FILE);
@@ -64,6 +54,6 @@ export async function writeBuildAwareLootFilter(basePath: string, plan: LootFilt
   }
 }
 
-export function unconfiguredLootFilterState(): LootFilterRuntimeState {
+export function unconfiguredLootFilterState(): LootFilterStatus {
   return { needsReload: false, status: 'unconfigured', message: 'Choose your existing local loot filter to enable build-aware loot intelligence.' };
 }
