@@ -19,10 +19,10 @@ async function tempLog(content: string): Promise<string> {
   return file;
 }
 
-function report(): string {
+function report(quests = CAMPAIGN_PASSIVE_QUESTS, total = 24): string {
   return [
-    '2026/09/02 21:10:01 1 abc [INFO Client 1] : 24 Passive Skill Points from quests:',
-    ...CAMPAIGN_PASSIVE_QUESTS.map((quest) => `2026/09/02 21:10:02 1 abc [INFO Client 1] : (${quest.points} from ${quest.name})`),
+    `2026/09/02 21:10:01 1 abc [INFO Client 1] : ${total} Passive Skill Points from quests:`,
+    ...quests.map((quest) => `2026/09/02 21:10:02 1 abc [INFO Client 1] : (${quest.points} from ${quest.name})`),
   ].join('\n');
 }
 
@@ -41,9 +41,20 @@ describe('passives audit log service', () => {
     expect(result.earnedPoints).toBe(24);
   });
 
+  it('passes the completed-act scope through to reconciliation', async () => {
+    const quests = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => quest.act <= 5);
+    const file = await tempLog(report(quests, 10));
+    const result = await scanPassivesFromLog(file, 'none', 5);
+    expect(result.status).toBe('complete');
+    expect(result.auditedThroughAct).toBe(5);
+    expect(result.expectedQuestPoints).toBe(10);
+    expect(result.items.find((item) => item.act === 6)?.status).toBe('future');
+  });
+
   it('fails closed with a useful not-found result when the configured file is unavailable', async () => {
-    const result = await scanPassivesFromLog('Z:/definitely/missing/Client.txt', 'none');
+    const result = await scanPassivesFromLog('Z:/definitely/missing/Client.txt', 'none', 7);
     expect(result.status).toBe('not-found');
+    expect(result.auditedThroughAct).toBe(7);
     expect(result.message).toContain('Could not read');
     expect(result.warnings[0]).toContain('read-only');
   });
