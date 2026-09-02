@@ -1,0 +1,85 @@
+name: Passive HUD finalizer temp
+
+on:
+  push:
+    branches: [feature/passive-tree-hud]
+    paths:
+      - .github/workflows/passive-hud-finalize-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/passive-tree-hud
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply guarded all-class import fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, before, after, label):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(before)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one {label}, found {count}')
+              p.write_text(text.replace(before, after, 1), encoding='utf-8')
+
+          replace_once(
+              'src/core/maxroll.ts',
+              "    scion: 'Scion', ascendant: 'Scion',\n",
+              "    strdexint: 'Scion', strintdex: 'Scion', dexstrint: 'Scion', dexintstr: 'Scion', intstrdex: 'Scion', intdexstr: 'Scion',\n    scion: 'Scion', ascendant: 'Scion', reliquarian: 'Scion', luminary: 'Scion',\n",
+              'Scion Maxroll aliases',
+          )
+
+          replace_once(
+              'src/core/passive-tree-guide.ts',
+              "  const activeIndex = Math.max(0, stages.findIndex((stage) => stage.id === activeStageId));\n  const active = stages[activeIndex] ?? stages[0];\n",
+              "  const requestedIndex = activeStageId ? stages.findIndex((stage) => stage.id === activeStageId) : -1;\n  const flaggedIndex = stages.findIndex((stage) => stage.tree?.active);\n  const firstTreeIndex = stages.findIndex((stage) => stage.tree);\n  const activeIndex = requestedIndex >= 0 ? requestedIndex : flaggedIndex >= 0 ? flaggedIndex : Math.max(0, firstTreeIndex);\n  const active = stages[activeIndex] ?? stages[0];\n",
+              'PoB active-stage fallback',
+          )
+          replace_once(
+              'src/core/passive-tree-guide.ts',
+              "    .filter((nodeId) => !previous.has(nodeId) && nodeId !== classStartNodeId)\n    .slice(0, 80);\n",
+              "    .filter((nodeId) => !previous.has(nodeId) && nodeId !== classStartNodeId)\n    .slice(0, 160);\n",
+              'PoB stage target bound',
+          )
+
+          maxroll_test = Path('src/core/maxroll.test.ts')
+          text = maxroll_test.read_text(encoding='utf-8')
+          marker = "  it('disables exact coaching when a referenced passive no longer exists', () => {"
+          if text.count(marker) != 1:
+              raise RuntimeError('maxroll.test.ts: stale-guidance insertion marker changed')
+          test = """  it.each([\n    ['Str', 'Marauder'], ['Dex', 'Ranger'], ['Int', 'Witch'], ['StrDex', 'Duelist'],\n    ['StrInt', 'Templar'], ['DexInt', 'Shadow'], ['StrDexInt', 'Scion'],\n    ['Ascendant', 'Scion'], ['Reliquarian', 'Scion'], ['Luminary', 'Scion'],\n  ] as const)('normalizes Maxroll class identifier %s to %s', (classCode, expectedClass) => {\n    const guide = guideHtml({ title: 'Generic Leveling Guide', slug: 'generic-leveling-guide', plannerId: 'allclass1' });\n    const planner = plannerHtml({ id: 'allclass1', class: classCode, type: 'embed' }, {\n      embeds: [{ type: 'passives', id: 1, version: 329, charClass: classCode, active: 1, variants: [{ history: [10], masteries: {} }] }],\n    });\n    const parsed = parseMaxrollGuide('https://maxroll.gg/poe/build-guides/generic-leveling-guide', guide, planner, passives([10]));\n    expect(parsed.build.className).toBe(expectedClass);\n  });\n\n"""
+          maxroll_test.write_text(text.replace(marker, test + marker, 1), encoding='utf-8')
+
+          guide_test = Path('src/core/passive-tree-guide.test.ts')
+          text = guide_test.read_text(encoding='utf-8')
+          insertion = """\n  it('falls back to the PoB stage marked active when no explicit planner stage is selected', () => {\n    const profile: BuildProfile = {\n      id: 'templar-active-fallback', name: 'Templar active fallback', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',\n      build: {\n        ...emptyBuild('Templar'),\n        treeStages: [\n          { id: 'tree:1', title: 'Level 10', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201] },\n          { id: 'tree:2', title: 'Level 20', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 201, 202, 203] },\n        ],\n      },\n    };\n    const plan = buildPassiveTreeGuidePlan(profile, undefined, 0, snapshot);\n    expect(plan?.sourceLabel).toContain('Level 20');\n    expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);\n  });\n"""
+          close = '\n});\n'
+          idx = text.rfind(close)
+          if idx < 0:
+              raise RuntimeError('passive-tree-guide.test.ts: describe close not found')
+          guide_test.write_text(text[:idx] + insertion + text[idx:], encoding='utf-8')
+          PY
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Commit final production changes and remove finalizer
+        shell: bash
+        run: |
+          git config user.name "Skrra"
+          git config user.email "94893570+Stoffe101@users.noreply.github.com"
+          git rm .github/workflows/passive-hud-finalize-temp.yml
+          git add src/core/maxroll.ts src/core/maxroll.test.ts src/core/passive-tree-guide.ts src/core/passive-tree-guide.test.ts
+          git commit -m "Harden all-class passive guide imports"
+          git push origin HEAD:feature/passive-tree-hud
