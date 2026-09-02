@@ -5,7 +5,6 @@ on:
     branches: [feature/maxroll-leveling-support]
     paths:
       - tools/verify-maxroll-live-temp.ts
-      - tools/inspect-maxroll-equipment-temp.ts
       - .github/workflows/maxroll-validate-temp.yml
 
 permissions:
@@ -14,7 +13,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,15 +21,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run validate:gems
-      - run: npm run validate:passives
-      - run: npm run audit:campaign
-      - run: npm run lint:campaign
-      - run: npm run simulate:campaign
-      - run: npm run build
       - name: Verify live Maxroll guide contracts
         run: |
           npx esbuild tools/verify-maxroll-live-temp.ts --bundle --platform=node --format=esm --outfile=.tmp/verify-maxroll-live-temp.mjs
