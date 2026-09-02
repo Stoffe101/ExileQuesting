@@ -121,6 +121,7 @@ export function buildCoachSnapshot(
   gemData: GemAcquisitionSnapshot,
   passiveData?: PassiveTreeSnapshot,
   passiveCursor = 0,
+  characterLevel?: number,
 ): BuildCoachSnapshot {
   const stages = alignPobStages(profile.build);
   const active = stages.find((stage) => stage.id === activeStageId)
@@ -155,7 +156,7 @@ export function buildCoachSnapshot(
     nextPassiveText,
     maxroll,
     loot,
-    gearHints: gearLookForHints(profile, active?.id, gemData),
+    gearHints: gearLookForHints(profile, active?.id, gemData, characterLevel),
     craftingHints: craftingHintsFor(loot),
   };
 }
