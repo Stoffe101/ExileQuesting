@@ -40,8 +40,9 @@ function normalizeLabel(value: string): string {
 }
 
 function formatSearch(pattern: string): string {
+  const needsQuotes = pattern.includes('"') || /\s/.test(pattern);
   const cleaned = pattern.replaceAll('"', '');
-  return /\s/.test(cleaned) ? `"${cleaned}"` : cleaned;
+  return needsQuotes ? `"${cleaned}"` : cleaned;
 }
 
 function dedupeAlternatives(alternatives: SearchAlternative[]): SearchAlternative[] {
