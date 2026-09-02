@@ -34,10 +34,10 @@ function fixtureBuild(): PobBuildSummary {
 }
 
 describe('Maxroll service', () => {
-  it('canonicalizes Maxroll metadata-style gem names and IDs through bundled game data', () => {
+  it('canonicalizes Maxroll alias labels and IDs through bundled game data', () => {
     const snapshot = buildGemAcquisitionSnapshot({
       volley: {
-        id: 'Metadata/Items/Gems/SupportGemVolley',
+        id: 'Metadata/Items/Gems/SupportGemParallelProjectiles',
         name: 'Volley Support',
         primary_attribute: 'dex',
         required_level: 4,
@@ -57,7 +57,7 @@ describe('Maxroll service', () => {
             quest_npc: 'Nessa',
             quest: {},
             vendor: {
-              'Metadata/Items/Gems/SupportGemVolley': { classes: ['Ranger'], npc: 'Nessa' },
+              'Metadata/Items/Gems/SupportGemParallelProjectiles': { classes: ['Ranger'], npc: 'Nessa' },
               'Metadata/Items/Gems/SkillGemCausticArrow': { classes: ['Ranger'], npc: 'Nessa' },
             },
           },
@@ -69,7 +69,7 @@ describe('Maxroll service', () => {
     const gems = build.skillStages[0].skillGroups?.[0].gems ?? [];
     expect(gems[0]).toMatchObject({
       name: 'Volley Support',
-      skillId: 'Metadata/Items/Gems/SupportGemVolley',
+      skillId: 'Metadata/Items/Gems/SupportGemParallelProjectiles',
     });
     expect(gems[1]).toMatchObject({
       name: 'Caustic Arrow',
