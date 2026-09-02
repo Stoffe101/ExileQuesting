@@ -32,6 +32,7 @@ function plan(): LootFilterPlan {
       qualityBonusColours: ['R', 'B', 'B'],
       gems: ['Added Fire Damage', 'Fireball', 'Faster Casting'],
     }],
+    baseTargets: [],
     showChromaticRecipe: true,
     showSixSockets: true,
     warnings: [],
