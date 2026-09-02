@@ -38,10 +38,11 @@ function craftingHintsFor(plan: LootFilterPlan): string[] {
   const hints: string[] = [];
   if (plan.linkTargets.length) {
     const best = plan.linkTargets[0];
-    hints.push(`Prioritise ${best.links}-linked ${best.colours.join('-')} items for ${best.label}.`);
+    hints.push(`Prioritise any ${best.links}-link for ${best.label}; socket colours do not block gems in PoE 3.29.`);
+    hints.push(`Matching ${best.qualityBonusColours.join('-')} non-white sockets are an optional +10% gem-quality optimisation.`);
   }
   if (plan.showChromaticRecipe) hints.push('Linked red-green-blue items vendor for a Chromatic Orb.');
-  if (plan.showSixSockets) hints.push('Six-socket items vendor for 7 Jeweller\'s Orbs when they are not six-linked.');
+  if (plan.showSixSockets) hints.push("Six-socket items vendor for 7 Jeweller's Orbs when they are not six-linked.");
   return hints;
 }
 
