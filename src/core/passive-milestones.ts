@@ -1,6 +1,6 @@
 import type { BuildProfile } from './build-profiles';
 import { buildStageTransitions } from './build-transitions';
-import type { PassiveNodeKind, PassiveTreeSnapshot } from './passive-data';
+import type { PassiveNodeKind, PassiveNodeRecord, PassiveTreeSnapshot } from './passive-data';
 import { indexPassiveNodes } from './passive-data';
 
 export interface PassiveMilestoneTarget {
@@ -40,10 +40,10 @@ export function nextPassiveMilestone(
   const currentIndex = transitions.findIndex((transition) => transition.toStageId === activeStageId);
   if (currentIndex < 0 || currentIndex + 1 >= transitions.length) return undefined;
   const next = transitions[currentIndex + 1];
-  const index = snapshot ? indexPassiveNodes(snapshot) : new Map();
+  const index: Map<number, PassiveNodeRecord> = snapshot ? indexPassiveNodes(snapshot) : new Map<number, PassiveNodeRecord>();
   const namedTargets = next.passiveNodesAdded
     .map((id) => index.get(id))
-    .filter((node): node is NonNullable<typeof node> => Boolean(node))
+    .filter((node): node is PassiveNodeRecord => Boolean(node))
     .filter((node) => node.kind !== 'normal' || next.passiveNodesAdded.length <= 6)
     .sort((left, right) => KIND_RANK[left.kind] - KIND_RANK[right.kind] || left.name.localeCompare(right.name))
     .slice(0, 6)
