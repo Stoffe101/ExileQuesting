@@ -5,7 +5,6 @@ on:
     branches: [feature/v0.2-player-coach]
     paths:
       - tools/apply-v020-main-patch-temp.mjs
-      - .github/workflows/v020-runtime-patch-temp.yml
 
 permissions:
   contents: write
@@ -24,11 +23,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: Commit runtime integration
+      - name: Commit guarded integration changes
         run: |
           git config user.name "Skrra"
           git config user.email "94893570+Stoffe101@users.noreply.github.com"
-          git add electron/main.ts
+          git add electron/main.ts src/core/pob.ts
           git diff --cached --quiet && exit 0
-          git commit -m "Integrate Gear Coach runtime and local PoB import"
+          git commit -m "Integrate v0.2 player coach runtime"
           git push origin HEAD:feature/v0.2-player-coach
