@@ -2,24 +2,72 @@ type Workspace = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspac
 
 export default function BuildIntelligencePanel({ workspace, onWorkspace }: { workspace: Workspace; onWorkspace: (workspace: Workspace) => void }) {
   const coach = workspace.coach;
+  const maxroll = coach?.maxroll;
   const loot = workspace.lootFilter;
   const chooseBase = async () => onWorkspace(await window.exileQuesting.selectLootFilterBase());
   const regenerate = async () => onWorkspace(await window.exileQuesting.regenerateLootFilter());
   const markReloaded = async () => onWorkspace(await window.exileQuesting.markLootFilterReloaded());
+  const stepPassive = async (delta: number) => {
+    if (coach) onWorkspace(await window.exileQuesting.stepBuildPassive(coach.profileId, delta));
+  };
 
   return (
     <section className="panel build-intelligence-panel">
       <div className="section-title"><h2>Build intelligence</h2><span>{workspace.passiveData.status === 'ready' ? `PoE ${workspace.passiveData.gameVersion} tree` : 'Passive names unavailable'}</span></div>
-      <div className="build-intelligence-grid">
-        <div className="build-intelligence-card">
-          <span>Next passive milestone</span>
-          <strong>{coach?.nextPassiveText ?? 'No later passive stage detected'}</strong>
-          {coach?.nextPassive && <small>{coach.nextPassive.totalAllocations} allocations toward {coach.nextPassive.toTitle}</small>}
-          {coach?.nextPassive && !coach.nextPassive.namesVerified && <small>Node names hidden because this PoB tree version does not match the bundled passive snapshot.</small>}
-          {coach?.nextPassive?.namedTargets.length ? (
-            <div className="mini-chip-row">{coach.nextPassive.namedTargets.slice(0, 4).map((target) => <i key={target.id}>{target.name}</i>)}</div>
-          ) : null}
+
+      {maxroll && (
+        <div className={`maxroll-guide-status ${maxroll.compatibility}`}>
+          <div>
+            <span>MAXROLL · {maxroll.mode === 'twink' ? 'TWINK LEVELING' : 'LEVELING GUIDE'}</span>
+            <strong>{maxroll.guideTitle}</strong>
+            <small>{maxroll.compatibilityMessage}</small>
+            <small>
+              {maxroll.guideModified ? `Guide updated ${maxroll.guideModified}` : 'Guide revision unavailable'}
+              {maxroll.plannerTreeVersion ? ` · planner tree ${maxroll.plannerTreeVersion}` : ''}
+              {maxroll.passiveTotal ? ` · ${maxroll.passiveCompleted}/${maxroll.passiveTotal} passive operations completed` : ''}
+            </small>
+          </div>
+          <div className="setting-actions maxroll-actions">
+            <a className="ghost-button button-link" href={maxroll.guideUrl} target="_blank" rel="noreferrer">Open guide ↗</a>
+            <button className="ghost-button" disabled={maxroll.passiveCompleted <= 0} onClick={() => void stepPassive(-1)}>Back</button>
+            {maxroll.nextPassive && (
+              <button className="primary-button" onClick={() => void stepPassive(1)}>
+                {maxroll.nextPassive.type === 'refund' ? 'Mark refunded' : 'Mark taken'}
+              </button>
+            )}
+          </div>
         </div>
+      )}
+
+      <div className="build-intelligence-grid">
+        <div className={`build-intelligence-card ${maxroll?.nextPassive ? 'maxroll-next-card' : ''}`}>
+          <span>{maxroll ? 'Exact passive queue' : 'Next passive milestone'}</span>
+          {maxroll ? (
+            <>
+              <strong>{maxroll.nextPassive ? `${maxroll.nextPassive.type === 'refund' ? 'Refund' : 'Allocate'} ${maxroll.nextPassive.nodeName}` : maxroll.passiveComplete ? 'Maxroll passive path complete' : 'Exact passive coaching unavailable'}</strong>
+              {maxroll.nextPassive && <small>{maxroll.nextPassive.nodeKind ?? 'passive'} · step {maxroll.nextPassive.index}/{maxroll.nextPassive.total} · checkpoint {maxroll.nextPassive.checkpoint}</small>}
+              {!maxroll.nextPassive && !maxroll.passiveComplete && <small>{maxroll.compatibilityMessage}</small>}
+            </>
+          ) : (
+            <>
+              <strong>{coach?.nextPassiveText ?? 'No later passive stage detected'}</strong>
+              {coach?.nextPassive && <small>{coach.nextPassive.totalAllocations} allocations toward {coach.nextPassive.toTitle}</small>}
+              {coach?.nextPassive && !coach.nextPassive.namesVerified && <small>Node names hidden because this PoB tree version does not match the bundled passive snapshot.</small>}
+              {coach?.nextPassive?.namedTargets.length ? (
+                <div className="mini-chip-row">{coach.nextPassive.namedTargets.slice(0, 4).map((target) => <i key={target.id}>{target.name}</i>)}</div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        {maxroll && (
+          <div className="build-intelligence-card">
+            <span>Current leveling stage</span>
+            <strong>{coach?.stageTitle ?? 'Waiting for character level'}</strong>
+            <small>{coach?.currentGemTasks.length ? `${coach.currentGemTasks.length} new gem pickup${coach.currentGemTasks.length === 1 ? '' : 's'} in this stage` : 'No new gem purchases in this stage'}</small>
+            {maxroll.mode === 'twink' && maxroll.equipmentMilestones.length > 0 && <small>{maxroll.equipmentMilestones.length} Twink equipment set{maxroll.equipmentMilestones.length === 1 ? '' : 's'} detected in the planner.</small>}
+          </div>
+        )}
 
         <div className="build-intelligence-card">
           <span>Loot targets</span>
