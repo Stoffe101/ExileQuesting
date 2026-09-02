@@ -8,7 +8,6 @@ const SOURCE_REPOSITORY = 'grindinggear/skilltree-export';
 const SOURCE_COMMIT = '8bd138b32ea2631455cac5935bfab089f826094f'; // GGG 3.29.1 export
 const SOURCE_PATH = 'data.json';
 const SOURCE_RAW_URL = `https://raw.githubusercontent.com/${SOURCE_REPOSITORY}/${SOURCE_COMMIT}/${SOURCE_PATH}`;
-const SOURCE_DISPLAY_URL = `https://github.com/${SOURCE_REPOSITORY}/blob/${SOURCE_COMMIT}/${SOURCE_PATH}`;
 const OUTPUT = path.join(process.cwd(), 'assets', 'game-data', 'passive-tree-3.29.json');
 const SIXTEEN_ORBIT_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
 const FORTY_ORBIT_ANGLES = [0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170, 180, 190, 200, 210, 220, 225, 230, 240, 250, 260, 270, 280, 290, 300, 310, 315, 320, 330, 340, 350];
@@ -115,7 +114,7 @@ async function main() {
   const normalizedPayload = JSON.stringify(nodes); const sha256 = createHash('sha256').update(normalizedPayload).digest('hex');
   const snapshot: PassiveTreeSnapshot = {
     schemaVersion: 2, gameVersion: GAME_VERSION, generatedAt: await existingGeneratedAt(sha256) ?? new Date().toISOString(),
-    source: { url: SOURCE_DISPLAY_URL, sha256, repository: SOURCE_REPOSITORY, commit: SOURCE_COMMIT, path: SOURCE_PATH },
+    source: { url: SOURCE_RAW_URL, sha256, repository: SOURCE_REPOSITORY, commit: SOURCE_COMMIT, path: SOURCE_PATH },
     nodes, bounds: treeBounds(tree, nodes), skillsPerOrbit, orbitRadii,
   };
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
