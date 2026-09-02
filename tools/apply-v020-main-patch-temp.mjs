@@ -33,3 +33,12 @@ const newImport = `  ipcMain.handle('pob:import', async (_event, input: unknown)
 replaceOnce(oldImport, newImport, 'build import handler');
 
 fs.writeFileSync(file, text);
+
+const pobFile = 'src/core/pob.ts';
+let pobText = fs.readFileSync(pobFile, 'utf8');
+const oldSetRegex = '  const setRegex = /<ItemSet\\b([^>]*)>([\\s\\S]*?)<\\/ItemSet>/gi;';
+const newSetRegex = '  const setRegex = /<ItemSet\\b([^>]*?)(?:\\/>|>([\\s\\S]*?)<\\/ItemSet>)/gi;';
+const setRegexCount = pobText.split(oldSetRegex).length - 1;
+if (setRegexCount !== 1) throw new Error(`PoB item-set regex: expected exactly one match, found ${setRegexCount}`);
+pobText = pobText.replace(oldSetRegex, newSetRegex);
+fs.writeFileSync(pobFile, pobText);
