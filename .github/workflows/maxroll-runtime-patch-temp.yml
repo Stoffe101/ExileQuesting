@@ -22,14 +22,14 @@ jobs:
         with:
           node-version: 24
       - run: node tools/patch-maxroll-gem-runtime-temp.mjs
-      - name: Commit runtime patch
+      - name: Commit final patches
         run: |
           if git diff --quiet; then
-            echo "No runtime patch needed."
+            echo "No patches needed."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add electron/main.ts
-          git commit -m "Use canonical gem data for Maxroll imports"
+          git add electron/main.ts docs/ROADMAP.md docs/POB_TO_PLAY.md
+          git commit -m "Document Maxroll build planner support"
           git push
