@@ -9,6 +9,7 @@ const uniquenessGuard = "  if (content.indexOf(needle, first + needle.length) >=
 if (!source.includes(uniquenessGuard)) throw new Error('Could not locate integration patch uniqueness guard.');
 // Two PoB persistence handlers intentionally have an identical body. Applying those replacements
 // sequentially is safe because the first replacement removes its own anchor before the second runs.
+// Keep the checked source patch strict; only this ephemeral runtime copy relaxes that one guard.
 source = source.replace(uniquenessGuard, '');
 await fs.mkdir(path.dirname(temporaryPath), { recursive: true });
 await fs.writeFile(temporaryPath, source, 'utf8');
