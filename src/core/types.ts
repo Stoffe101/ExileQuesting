@@ -1,5 +1,6 @@
 import type { BuildCoachSnapshot } from './build-coach';
 import type { LootFilterStatus } from './loot-filter';
+import type { PassiveTreeHudState } from './passive-tree-hud-state';
 
 export type GuidanceMode = 'beginner' | 'balanced' | 'racer';
 export type OverlayMode = 'focus' | 'compact' | 'coach';
@@ -177,6 +178,8 @@ export interface AppSettings {
   overlayPosition: OverlayPosition;
   overlayAutoCollapse: boolean;
   overlayAutoCollapseSeconds: number;
+  passiveTreeHudEnabled: boolean;
+  passiveTreeHudPathPreview: boolean;
   reducedMotion: boolean;
   reducedTransparency: boolean;
   onboardingComplete: boolean;
@@ -377,6 +380,7 @@ export interface RuntimeState {
   recovery: RecoveryState;
   buildCoach?: BuildCoachSnapshot;
   lootFilter: LootFilterStatus;
+  passiveTreeHud: PassiveTreeHudState;
   appVersion: string;
   diagnosticsPath: string;
 }
