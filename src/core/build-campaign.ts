@@ -58,7 +58,7 @@ function resolveNeed(dataset: CampaignDataset, need: GemAcquisitionNeed): Campai
     return { need, source, confidence: 'unresolved', unlockStepIds: [], reason: `No Act ${source.act} route step contains the quest token for “${source.questName}”.` };
   }
 
-  const questNpc = source.kind === 'quest' ? source.npc : undefined;
+  const questNpc = source.questNpc;
   const npcCandidates = questNpc ? tokenCandidates.filter((step) => stepMentionsNpc(step, questNpc)) : [];
   if (npcCandidates.length) {
     return {
@@ -85,7 +85,7 @@ function resolveNeed(dataset: CampaignDataset, need: GemAcquisitionNeed): Campai
     source,
     confidence: 'unresolved',
     unlockStepIds: [],
-    reason: `Quest token “${source.questName}” appears on ${tokenCandidates.length} Act ${source.act} route steps and NPC evidence did not disambiguate them.`,
+    reason: `Quest token “${source.questName}” appears on ${tokenCandidates.length} Act ${source.act} route steps and quest-NPC evidence did not disambiguate them.`,
   };
 }
 
@@ -99,7 +99,7 @@ function actionForAvailability(availability: CampaignGemAvailability, stepId: st
     id: `build-gem:${stepId}:${need.stageId}:${need.requirement.key}`.replace(/[^a-zA-Z0-9:_-]+/g, '-').slice(0, 180),
     type: 'build',
     title: `${verb} ${copies}${need.requirement.name}${npc}`,
-    detail: `Needed for ${need.stageTitle}. Source: ${source.questName ?? 'campaign acquisition'}.`,
+    detail: `Needed for ${need.stageTitle}. Source unlock: ${source.questName ?? 'campaign acquisition'}.`,
     target: need.gem?.id,
     priority: 'then',
   };
