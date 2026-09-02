@@ -3,6 +3,7 @@ import type { BuildProfile } from './build-profiles';
 import { nextPassiveMilestone } from './passive-milestones';
 import type { PassiveTreeSnapshot } from './passive-data';
 import type { PobBuildSummary } from './pob';
+import { alignPobStages } from './pob-stages';
 
 const passiveData: PassiveTreeSnapshot = {
   schemaVersion: 1,
@@ -30,7 +31,10 @@ function profile(): BuildProfile {
 
 describe('passive milestone intelligence', () => {
   it('turns raw passive IDs into named notable/keystone targets', () => {
-    const milestone = nextPassiveMilestone(profile(), 'aligned:act-1', passiveData);
+    const value = profile();
+    const stages = alignPobStages(value.build);
+    expect(stages).toHaveLength(2);
+    const milestone = nextPassiveMilestone(value, stages[0].id, passiveData);
     expect(milestone?.totalAllocations).toBe(3);
     expect(milestone?.namedTargets.map((target) => target.name)).toEqual(['Elemental Overload', 'Heart of Flame', 'Node 1']);
   });
