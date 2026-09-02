@@ -1,4 +1,5 @@
 // Development-only live contract. Delete this probe before opening the pull request.
+// Final live pass validates exact support-label alias resolution against current bundled game data.
 import { readFile } from 'node:fs/promises';
 import { importMaxrollGuide } from '../electron/services/maxroll-service';
 import { validateGemAcquisitionSnapshot } from '../src/core/gem-data';
