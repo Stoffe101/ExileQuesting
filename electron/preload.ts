@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { BuildProfile } from '../src/core/build-profiles';
+import type { CampaignSimulationReport } from '../src/core/simulator';
 import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
 
 export interface ReplayResult {
@@ -17,6 +18,11 @@ export interface ReplayResult {
   }>;
 }
 
+export interface SimulationResult {
+  name: string;
+  report: CampaignSimulationReport;
+}
+
 const api = {
   bootstrap: (): Promise<RuntimeState> => ipcRenderer.invoke('app:bootstrap'),
   setSettings: (patch: Partial<AppSettings>): Promise<RuntimeState> => ipcRenderer.invoke('settings:update', patch),
@@ -31,6 +37,8 @@ const api = {
   resetOverlayPosition: (): Promise<RuntimeState> => ipcRenderer.invoke('overlay:reset-position'),
   previewOverlay: (config: { progress: number; mode: OverlayMode; characterLevel?: number; areaLevel?: number }): Promise<RuntimeState> => ipcRenderer.invoke('overlay:demo', config),
   stopOverlayPreview: (): Promise<RuntimeState> => ipcRenderer.invoke('overlay:demo-stop'),
+  runCampaignSimulation: (): Promise<SimulationResult[]> => ipcRenderer.invoke('simulation:run'),
+  exportCampaignSimulation: (): Promise<boolean> => ipcRenderer.invoke('simulation:export'),
   checkCampaignUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('campaign:check'),
   confirmReward: (stepId: string, confirmed: boolean): Promise<RuntimeState> => ipcRenderer.invoke('reward:confirm', stepId, confirmed),
   startRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:start'),

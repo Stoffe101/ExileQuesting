@@ -11,6 +11,7 @@ import {
   RunSettings,
   UpdatePanel,
 } from './reliability';
+import PreplaytestLab from './PreplaytestLab';
 import type {
   AppSettings,
   CampaignStep,
@@ -518,5 +519,7 @@ export default function App() {
   const [state, setState] = useRuntime();
   if (!state) return <div className="loading-screen"><div className="brand-mark">EQ</div><span>Loading verified campaign data…</span></div>;
   const mode = new URLSearchParams(window.location.search).get('mode');
-  return mode === 'overlay' ? <Overlay state={state} /> : <Manager state={state} setState={setState} />;
+  if (mode === 'overlay') return <Overlay state={state} />;
+  if (mode === 'lab') return <PreplaytestLab state={state} setState={setState} />;
+  return <Manager state={state} setState={setState} />;
 }

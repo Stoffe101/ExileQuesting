@@ -4,7 +4,7 @@ ExileQuesting is a modern Path of Exile campaign companion focused on one promis
 
 > Get from Twilight Strand to maps without wondering where to go, what to collect, or why the route is asking you to do it.
 
-Current development milestone: **v0.1.3 responsive manager + update channel**.
+Current development milestone: **v0.1.4 Lab + updater reliability hotfix**.
 
 The current campaign foundation provides:
 
@@ -28,9 +28,10 @@ The current campaign foundation provides:
 - live diagnostics, persistent settings/progress, configurable global hotkeys, tray controls, and first-run onboarding;
 - a deterministic Acts 1–10 campaign simulator, captured-log replay and replay-bundle export;
 - a Pre-playtest Lab for browsing any route page in the real overlay without mutating saved progress;
+- a real Lab smoke harness that clicks Preview and Auto Walk and executes all six simulation profiles through the packaged preload/IPC bridge;
 - Windows manager responsive regression for 1080p, compact/scaled viewports, and ultrawide displays;
 - Windows overlay visual regression at multiple DPI scale factors plus a real Electron window lifecycle soak;
-- a Windows NSIS installer validated through clean install, installed-app startup and uninstall in GitHub Actions.
+- a Windows NSIS installer validated through a real previous-stable-release to candidate-release updater rehearsal, upgraded-app startup verification, and uninstall in GitHub Actions.
 
 ## Safety boundary
 
@@ -74,7 +75,7 @@ npm run soak:overlay
 
 `npm run visual:manager` launches the real manager in a dedicated responsive-regression harness and captures Overview, Campaign, Settings and Diagnostics across representative desktop, scaled/compact and ultrawide viewports. It verifies horizontal overflow, real page scrolling, compact-sidebar fallback, ultrawide content width and Diagnostics readability.
 
-`npm run visual:overlay` and `npm run soak:overlay` launch the real Electron overlay in dedicated test modes. The Windows GitHub Actions workflow runs the manager matrix, renders the overlay at 100%, 125% and 150% Chromium scale factors, checks DOM overflow, runs the overlay lifecycle soak, builds the installer, installs it into a clean directory, launches the installed application in smoke-test mode, and silently uninstalls it.
+`npm run visual:overlay` and `npm run soak:overlay` launch the real Electron overlay in dedicated test modes. The Windows GitHub Actions workflow runs the manager matrix, renders the overlay at 100%, 125% and 150% Chromium scale factors, checks DOM overflow, runs the overlay lifecycle soak, builds the installer, downloads and installs the previous stable release, smoke-tests that installation, upgrades it through the real updater handoff, verifies the installed candidate version, smoke-tests the upgraded app, and silently uninstalls it.
 
 ### Pre-playtest Lab
 
@@ -83,8 +84,9 @@ Run the application normally and open **Pre-playtest Lab** from the tray menu. T
 - preview any campaign page in Compact, Focus or Coach without changing real campaign progress;
 - override simulated character and area levels;
 - auto-walk through the campaign overlay for content review;
+- run all six canonical Acts 1–10 campaign simulator profiles in the UI;
 - replay a captured `Client.txt` through the real parser/progression pipeline without mutating live progress;
-- export the latest replay as a JSON regression bundle with app/campaign provenance and route decisions.
+- export simulation reports and the latest replay as JSON regression bundles with app/campaign provenance and route decisions.
 
 Any real detection bug found during live play should be reduced to a captured fixture and kept as a permanent regression test.
 
@@ -98,11 +100,11 @@ npm run dist
 
 ## Application releases and updates
 
-A version tag such as `v0.1.3` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns deterministic verification, manager and overlay visual regression, overlay lifecycle soak and the installed-app smoke test, generates a SHA-256 checksum, and only then publishes the GitHub Release.
+A version tag such as `v0.1.4` triggers `.github/workflows/release.yml`. The workflow refuses to publish unless the tag matches `package.json`, reruns deterministic verification, manager and overlay visual regression, overlay lifecycle soak and the real previous-release upgrade rehearsal, generates a SHA-256 checksum, and only then publishes the GitHub Release.
 
-The installed application checks the public `Stoffe101/ExileQuesting` stable release feed, downloads the exact `ExileQuesting-<version>-setup.exe` asset, validates its reported size and GitHub-provided SHA-256 digest when available, then schedules the installer after ExileQuesting exits. No GitHub credential is embedded in the application.
+The installed application checks the public `Stoffe101/ExileQuesting` stable release feed, downloads the exact `ExileQuesting-<version>-setup.exe` asset, validates its reported size and GitHub-provided SHA-256 digest when available, then schedules a detached hidden Windows helper. The helper waits for the current ExileQuesting process to exit, runs the verified NSIS installer silently, verifies the installed executable, relaunches ExileQuesting, and leaves machine-readable result/trace diagnostics. No GitHub credential is embedded in the application.
 
-A missing release or temporary GitHub outage never blocks application startup or campaign tracking.
+A missing release or temporary GitHub outage never blocks application startup or campaign tracking. A failed updater handoff is bounded and diagnostic rather than an infinite wait.
 
 See [docs/UPDATES.md](docs/UPDATES.md) for the release/update contract.
 
