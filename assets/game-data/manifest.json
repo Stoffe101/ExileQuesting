@@ -29,22 +29,25 @@
     },
     {
       "id": "passive-tree",
-      "datasetRevision": 1,
+      "datasetRevision": 2,
       "file": "passive-tree-3.29.json",
       "schemaVersion": 2,
       "gameVersion": "3.29",
       "generatedAt": "2026-09-02T17:31:04.383Z",
-      "sizeBytes": 1001907,
+      "sizeBytes": 1002109,
       "checksum": {
         "algorithm": "sha256",
         "scope": "file",
-        "value": "0fb98f5a2456e99e1bc4491b6ab3cddc3e9d2b819a54a7bb9f4abc1b2dcea2b0"
+        "value": "491862d984010bf46a27cdbf618e6a62f388bd0ac0254654135422c3b99da274"
       },
       "source": {
-        "kind": "url",
-        "url": "https://www.pathofexile.com/passive-skill-tree",
-        "revision": "16def5b6b331c8330afd480af9606768f6efc13f7d7c9cd1067d43c27640c18d",
-        "paths": []
+        "kind": "git",
+        "url": "https://github.com/grindinggear/skilltree-export",
+        "repository": "grindinggear/skilltree-export",
+        "revision": "8bd138b32ea2631455cac5935bfab089f826094f",
+        "paths": [
+          "data.json"
+        ]
       }
     }
   ]
