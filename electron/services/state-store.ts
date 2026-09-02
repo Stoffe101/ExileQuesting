@@ -71,8 +71,10 @@ export class StateStore {
   }
 
   async loadRun(): Promise<{ session: RunSession; history: RunHistoryEntry[] }> {
-    try { return sanitizeRunTelemetry(...Object.values(normalizeRunDocument(await this.readUnknown('run.json'))) as [RunSession, RunHistoryEntry[]]); }
-    catch {
+    try {
+      const normalized = normalizeRunDocument(await this.readUnknown('run.json'));
+      return sanitizeRunTelemetry(normalized.session, normalized.history);
+    } catch {
       const fallback = normalizeRunDocument(undefined);
       return sanitizeRunTelemetry(fallback.session, fallback.history);
     }
@@ -93,8 +95,8 @@ export class StateStore {
   }
 
   async loadBuildPlanner(profiles: BuildProfile[]): Promise<BuildPlannerState> {
-    try { return normalizeBuildPlannerState(await this.readUnknown('build-planner.json'), profiles); }
-    catch { return normalizeBuildPlannerState(defaultBuildPlannerState(), profiles); }
+    try { return normalizeBuildPlannerState(await this.readUnknown('build-planner.json'), profiles);
+    } catch { return normalizeBuildPlannerState(defaultBuildPlannerState(), profiles); }
   }
 
   async saveBuildPlanner(state: BuildPlannerState, profiles: BuildProfile[]): Promise<void> {
