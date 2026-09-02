@@ -2,25 +2,18 @@ name: Refresh pinned gem data
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - codex/pob-to-play-v0.2
-    paths:
-      - tools/generate-gem-data.ts
-      - .github/workflows/gem-data-refresh.yml
 
 permissions:
   contents: write
 
 jobs:
   generate:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codex/pob-to-play-v0.2
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -41,4 +34,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Generate pinned PoE 3.29 gem acquisition snapshot"
-          git push origin HEAD:codex/pob-to-play-v0.2
+          git push origin "HEAD:${{ github.ref_name }}"
