@@ -51,14 +51,14 @@ export default function BuildWorkspace() {
     <div className="page custom-scrollbar build-page">
       <div className="page-heading compact-heading">
         <div>
-          <span className="eyebrow">PATH OF BUILDING → CAMPAIGN</span>
+          <span className="eyebrow">BUILD GUIDES → CAMPAIGN</span>
           <h1>Build planner</h1>
-          <p>Turn PoB stages into concrete leveling milestones and verified gem pickups.</p>
+          <p>Turn Path of Building or Maxroll leveling guides into live passive, gem, loot and campaign guidance.</p>
         </div>
         {workspace && (
           <span className={`status-pill ${workspace.gemData.status === 'ready' ? 'ok' : 'warning'}`}>
             <i />
-            {workspace.gemData.status === 'ready' ? `PoE ${workspace.gemData.gameVersion} gems ready` : 'Gem data unavailable'}
+            {workspace.gemData.status === 'ready' ? `PoE ${workspace.gemData.gameVersion} build data ready` : 'Gem data unavailable'}
           </span>
         )}
       </div>
@@ -68,16 +68,16 @@ export default function BuildWorkspace() {
 
       <div className="build-grid">
         <section className="panel build-import-panel">
-          <div className="section-title"><h2>Import Path of Building</h2><span>XML · export code · pobb.in</span></div>
+          <div className="section-title"><h2>Import build or leveling guide</h2><span>PoB · pobb.in · Maxroll</span></div>
           <textarea
             className="build-import-textarea custom-scrollbar"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Paste a PoB export code, XML build, or pobb.in URL…"
+            placeholder="Paste a PoB export/XML/pobb.in URL, or a Maxroll PoE leveling-guide URL…"
           />
           <div className="build-import-actions">
-            <small>Imports are parsed locally except pobb.in links, which fetch their bounded raw export.</small>
-            <button className="primary-button" disabled={!input.trim() || busy} onClick={() => void importBuild()}>{busy ? 'Working…' : 'Import build'}</button>
+            <small>PoB exports are parsed locally. pobb.in and Maxroll links fetch only bounded public build/planner data from their allowlisted hosts.</small>
+            <button className="primary-button" disabled={!input.trim() || busy} onClick={() => void importBuild()}>{busy ? 'Working…' : 'Import guide'}</button>
           </div>
         </section>
 
@@ -86,28 +86,31 @@ export default function BuildWorkspace() {
           <div className="build-profile-list custom-scrollbar">
             {workspace?.planner.profiles.length ? workspace.planner.profiles.map((entry) => {
               const selected = entry.profile.id === workspace.planner.activeProfileId;
+              const maxroll = entry.profile.maxroll;
               return (
                 <div className={`build-profile-row ${selected ? 'active' : ''}`} key={entry.profile.id}>
                   <button onClick={() => void window.exileQuesting.activateBuildProfile(entry.profile.id).then(setWorkspace)}>
                     <strong>{entry.profile.name}</strong>
-                    <small>{entry.profile.build.level ? `Level ${entry.profile.build.level}` : 'Level not specified'} · {entry.stages.length} aligned stage{entry.stages.length === 1 ? '' : 's'}</small>
+                    <small>
+                      {maxroll ? `Maxroll ${maxroll.mode === 'twink' ? 'Twink' : 'leveling'} · ${maxroll.passiveOperations.length} passive operations` : `${entry.profile.build.level ? `Level ${entry.profile.build.level}` : 'Level not specified'} · ${entry.stages.length} aligned stage${entry.stages.length === 1 ? '' : 's'}`}
+                    </small>
                   </button>
                   <button className="build-delete" disabled={busy} onClick={() => void deleteProfile(entry.profile.id)} aria-label={`Delete ${entry.profile.name}`}>×</button>
                 </div>
               );
-            }) : <p className="build-empty">Import a PoB build to create your first leveling plan.</p>}
+            }) : <p className="build-empty">Import a PoB build or Maxroll leveling guide to create your first leveling plan.</p>}
           </div>
         </section>
 
         <section className="panel build-stage-panel">
-          <div className="section-title"><h2>Active stage</h2><span>{activeStage?.confidence ?? 'none'}</span></div>
+          <div className="section-title"><h2>{active?.profile.maxroll ? 'Leveling stage' : 'Active stage'}</h2><span>{active?.profile.maxroll ? 'auto by level' : activeStage?.confidence ?? 'none'}</span></div>
           {active ? (
             <>
               <div className="build-stage-list custom-scrollbar">
                 {active.stages.map((stage) => (
                   <button className={stage.id === active.activeStageId ? 'active' : ''} key={stage.id} onClick={() => void window.exileQuesting.activateBuildStage(active.profile.id, stage.id).then(setWorkspace)}>
                     <strong>{stage.title}</strong>
-                    <small>{stage.milestone.label ?? 'Unlabelled milestone'} · {stage.confidence} confidence</small>
+                    <small>{active.profile.maxroll ? `${stage.milestone.label ?? 'Leveling milestone'} · auto-selects when Client.txt reports the level` : `${stage.milestone.label ?? 'Unlabelled milestone'} · ${stage.confidence} confidence`}</small>
                   </button>
                 ))}
               </div>
@@ -115,7 +118,7 @@ export default function BuildWorkspace() {
                 <div className="build-stage-summary">
                   <span>Selected</span>
                   <strong>{activeStage.title}</strong>
-                  <small>{[activeStage.tree && 'tree', activeStage.skills && 'skills', activeStage.items && 'items', activeStage.config && 'config'].filter(Boolean).join(' · ') || 'No stage families'}</small>
+                  <small>{active.profile.maxroll ? 'Maxroll skill/gem milestone' : [activeStage.tree && 'tree', activeStage.skills && 'skills', activeStage.items && 'items', activeStage.config && 'config'].filter(Boolean).join(' · ') || 'No stage families'}</small>
                 </div>
               )}
             </>
