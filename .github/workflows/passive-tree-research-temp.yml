@@ -5,6 +5,7 @@ on:
     branches: [feature/passive-tree-hud]
     paths:
       - src/core/passive-data.ts
+      - src/core/passive-data.test.ts
       - src/core/passive-tree-hud.ts
       - src/core/passive-tree-hud.test.ts
       - src/core/passive-tree-classes.test.ts
