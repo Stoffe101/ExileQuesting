@@ -1,0 +1,271 @@
+.gear-coach-callout-stacked {
+  align-items: flex-start;
+}
+
+.gear-coach-callout-stacked span {
+  min-width: 0;
+}
+
+.gear-coach-callout-stacked b {
+  color: var(--text-primary);
+}
+
+.gear-coach-callout-stacked em {
+  color: var(--text-primary);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.gear-equipped-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(118, 181, 255, .22);
+  border-radius: 10px;
+  background: rgba(78, 142, 218, .055);
+}
+
+.gear-equipped-card > div {
+  min-width: 0;
+}
+
+.gear-equipped-card span,
+.gear-equipped-card strong,
+.gear-equipped-card small {
+  display: block;
+}
+
+.gear-equipped-card span {
+  color: #8bbcff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.gear-equipped-card strong {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-equipped-card small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-comparison-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+
+.gear-comparison-card.upgrade {
+  border-color: rgba(86, 214, 173, .42);
+  background: rgba(86, 214, 173, .07);
+}
+
+.gear-comparison-card.sidegrade {
+  border-color: rgba(239, 169, 78, .36);
+  background: rgba(239, 169, 78, .055);
+}
+
+.gear-comparison-card.downgrade {
+  border-color: rgba(255, 105, 105, .3);
+  background: rgba(255, 105, 105, .05);
+}
+
+.gear-comparison-card.future {
+  border-color: rgba(184, 155, 232, .34);
+  background: rgba(184, 155, 232, .055);
+}
+
+.gear-comparison-card.different-slot {
+  border-color: rgba(239, 169, 78, .3);
+  background: rgba(239, 169, 78, .045);
+}
+
+.gear-comparison-heading {
+  min-width: 0;
+}
+
+.gear-comparison-heading > span {
+  color: #79e0bd;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.gear-comparison-card.sidegrade .gear-comparison-heading > span,
+.gear-comparison-card.different-slot .gear-comparison-heading > span {
+  color: #efb966;
+}
+
+.gear-comparison-card.downgrade .gear-comparison-heading > span {
+  color: #ff9191;
+}
+
+.gear-comparison-card.future .gear-comparison-heading > span {
+  color: #c6a9f2;
+}
+
+.gear-comparison-heading h3 {
+  margin: 4px 0 2px;
+  font-size: 16px;
+}
+
+.gear-comparison-heading p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-comparison-score {
+  min-width: 72px;
+  padding: 8px 10px;
+  align-self: start;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 9px;
+  background: rgba(0,0,0,.12);
+  text-align: right;
+}
+
+.gear-comparison-score strong,
+.gear-comparison-score span {
+  display: block;
+}
+
+.gear-comparison-score strong {
+  font-size: 20px;
+}
+
+.gear-comparison-score span {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.gear-comparison-deltas,
+.gear-comparison-reasons {
+  grid-column: 1 / -1;
+}
+
+.gear-comparison-deltas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.gear-comparison-delta {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 8px;
+  background: rgba(0,0,0,.1);
+}
+
+.gear-comparison-delta span,
+.gear-comparison-delta strong,
+.gear-comparison-delta small {
+  display: block;
+}
+
+.gear-comparison-delta span {
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.gear-comparison-delta strong {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.gear-comparison-delta.positive strong {
+  color: #79e0bd;
+}
+
+.gear-comparison-delta.negative strong {
+  color: #ff9a9a;
+}
+
+.gear-comparison-delta small {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-comparison-reasons {
+  padding-top: 2px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.gear-comparison-reasons p {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  margin: 5px 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.gear-comparison-reasons p i {
+  width: 6px;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #7d8794;
+}
+
+.gear-comparison-reasons p.positive i {
+  background: #56d6ad;
+}
+
+.gear-comparison-reasons p.warning i {
+  background: #efa94e;
+}
+
+@media (max-width: 680px) {
+  .gear-equipped-card {
+    align-items: flex-start;
+  }
+
+  .gear-comparison-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gear-comparison-score {
+    grid-row: 2;
+    width: fit-content;
+    min-width: 64px;
+    text-align: left;
+  }
+
+  .gear-comparison-deltas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
