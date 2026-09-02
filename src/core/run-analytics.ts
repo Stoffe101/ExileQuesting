@@ -62,8 +62,8 @@ function historySummaries(entry?: RunHistoryEntry): Map<string, RunZoneSummary> 
   return new Map(summarizeVisits(entry?.visits ?? []).map((summary) => [summary.areaId, summary]));
 }
 
-function areaLabel(zone: RunZoneSummary): string {
-  return zone.areaName?.trim() || zone.areaId;
+function areaLabel(zone: RunZoneSummary): string | undefined {
+  return zone.areaName?.trim() || undefined;
 }
 
 function compactDuration(milliseconds: number): string {
@@ -116,12 +116,13 @@ function buildInsights(
     .filter((zone) => !zone.town && zone.deltaVsPreviousMs !== undefined && zone.deltaVsPreviousMs >= 45_000 && zone.totalMs >= 60_000)
     .sort((left, right) => (right.deltaVsPreviousMs ?? 0) - (left.deltaVsPreviousMs ?? 0))[0];
   if (regression) {
+    const label = areaLabel(regression);
     insights.push({
       id: `slow:${regression.areaId}`,
       kind: 'slow-zone',
       tone: 'attention',
       title: 'Biggest zone regression',
-      detail: `${areaLabel(regression)} took ${compactDuration(regression.deltaVsPreviousMs ?? 0)} longer than your previous run.`,
+      detail: `${label ?? 'Your largest comparable area'} took ${compactDuration(regression.deltaVsPreviousMs ?? 0)} longer than your previous run.`,
       metricMs: regression.deltaVsPreviousMs,
     });
   }
@@ -132,6 +133,7 @@ function buildInsights(
       .sort((left, right) => right.revisitMs - left.revisitMs)
       .slice(0, 2)
       .map(areaLabel)
+      .filter((label): label is string => Boolean(label))
       .join(' and ');
     insights.push({
       id: 'route:revisits',
