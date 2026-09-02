@@ -75,10 +75,17 @@ function baseTimings(splits: ActSplit[]): ActTiming[] {
   return timings;
 }
 
+function markFinalUnproven(timings: ActTiming[]): ActTiming[] {
+  if (timings.length > 0) timings[timings.length - 1].complete = false;
+  return timings;
+}
+
 function sessionTimings(session: RunSession, now: number): ActTiming[] {
   const timings = baseTimings(session.splits);
   const currentAct = session.currentAct;
-  if (!currentAct || currentAct < 1 || currentAct > 10) return timings;
+  if (!currentAct || currentAct < 1 || currentAct > 10) {
+    return markFinalUnproven(timings);
+  }
 
   // A split for an Act is comparison-safe only after the run has transitioned
   // into a later Act. finishRun() also writes the current Act as a final split,
@@ -101,13 +108,12 @@ function sessionTimings(session: RunSession, now: number): ActTiming[] {
 
 function historyTimings(entry?: RunHistoryEntry): Map<number, ActTiming> {
   if (!entry) return new Map();
-  const timings = baseTimings(entry.splits);
+  const timings = markFinalUnproven(baseTimings(entry.splits));
   // RunHistoryEntry intentionally stores raw split facts rather than duplicated
   // analytics. finishRun() writes the active Act as the final split even when the
   // player ends mid-Act, so only splits followed by a later Act boundary are
   // historically proven complete. The final split remains visible as baseline
   // context but is never used for a scored comparison.
-  if (timings.length > 0) timings[timings.length - 1].complete = false;
   return new Map(timings.map((timing) => [timing.act, timing]));
 }
 
