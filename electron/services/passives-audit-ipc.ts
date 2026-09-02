@@ -2,9 +2,9 @@ import { app, ipcMain } from 'electron';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { PassiveAuditBanditChoice } from '../../src/core/passives-audit';
+import { MAX_SETTINGS_BYTES, migrateSettingsDocument, parseBoundedJson } from '../../src/core/persistence';
 import { scanPassivesFromLog } from './passives-audit-service';
 
-const MAX_SETTINGS_BYTES = 512 * 1024;
 const BANDITS = new Set<PassiveAuditBanditChoice>(['none', 'alira', 'kraityn', 'oak']);
 
 interface AuditSettings {
@@ -23,8 +23,8 @@ async function persistedAuditSettings(): Promise<AuditSettings> {
   try {
     const stat = await fs.stat(settingsPath);
     if (!stat.isFile() || stat.size > MAX_SETTINGS_BYTES) return { logPath: '', bandit: 'none' };
-    const raw = JSON.parse(await fs.readFile(settingsPath, 'utf8')) as unknown;
-    const settings = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+    const migrated = migrateSettingsDocument(parseBoundedJson(await fs.readFile(settingsPath, 'utf8'), MAX_SETTINGS_BYTES));
+    const settings = migrated.settings;
     const logPath = typeof settings.logPath === 'string' && settings.logPath.length <= 4096 ? settings.logPath : '';
     const candidateBandit = String(settings.bandit ?? 'none') as PassiveAuditBanditChoice;
     return { logPath, bandit: BANDITS.has(candidateBandit) ? candidateBandit : 'none' };
