@@ -89,7 +89,7 @@ See `PRE_PLAYTEST.md` for the exact automation/live-test boundary.
 
 The parser, bounded pobb.in fetcher and Build Profile persistence are established. This milestone turns them into a deterministic, player-facing leveling planner.
 
-PR #9 ships the checked stage-persistence, manager import, bundled gem-planning, and semantic campaign-bridge slices below; unchecked items remain deliberate follow-up work rather than hidden assumptions.
+PR #9 ships the original checked stage-persistence, manager import, bundled gem-planning, and semantic campaign-bridge slices. The build-intelligence follow-up completes several planner presentation/data slices while the unchecked items remain deliberate future work.
 
 ### Stage model
 
@@ -116,30 +116,36 @@ PR #9 ships the checked stage-persistence, manager import, bundled gem-planning,
 - [x] versioned gem metadata snapshot with provenance
 - [x] class-aware quest reward plan
 - [x] class-aware vendor availability plan
-- [ ] Siosa/Lilly fallback acquisition rules
+- [x] Siosa/Lilly fallback acquisition rules
 - [x] gem transition planner
-- [ ] link/socket/colour transition planner
-- [ ] passive milestone diff between aligned tree stages
+- [x] link-count + optional socket-colour quality targets from the active PoB stage, using PoE 3.29 semantics
+- [x] passive milestone diff between aligned tree stages with version-safe named targets
 - [x] attach build actions to the semantic campaign-action model
-- [ ] concise BUILD block in Compact/Focus/Coach overlays
+- [x] concise BUILD block in Compact/Focus/Coach overlays
 
 ### Data quality
 
 - [ ] version every generated game-data snapshot independently from the application
-- [ ] record game version, schema version, generated-at timestamp, source revision/URL and checksum
+- [ ] unify game version, schema version, generated-at, source revision/URL and checksum metadata across every generated snapshot
 - [x] keep runtime operation independent of PoE Wiki availability
 - [x] regression-test known quest/vendor edge cases and class restrictions
+- [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
+- [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
+
+See `BUILD_INTELLIGENCE.md` for the current build-aware planner, passive, crafting and loot-filter behavior.
 
 ## 0.3 — build-aware campaign + loot intelligence
 
-- [ ] build-specific vendor/gem reminders at campaign steps
-- [ ] socket/link/colour targets from the active PoB stage
-- [ ] concise LOOK FOR gear hints in the overlay
+- [x] build-specific vendor/gem reminders at campaign steps
+- [x] active-stage link-count targets plus optional 3.29 socket-colour quality bonuses
+- [ ] concise LOOK FOR gear hints beyond links/recipes
 - [ ] build-specific vendor regex/search reminders
-- [ ] leveling loot-filter generator
+- [x] leveling loot-filter generator that safely wraps an existing local filter
+- [x] campaign crafting intelligence for current bench recipes, Act 2+ town benches and Kitava resistance preparation
 - [ ] richer `/passives` reconciliation workflow
 - [ ] versioned layout images/diagrams where they beat text
 - [ ] deeper personal route analytics without gameplay automation
+- [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
 
 ## 0.4 — Gear Coach
 
@@ -163,6 +169,7 @@ PR #9 ships the checked stage-persistence, manager import, bundled gem-planning,
 ## Release requirements for every milestone
 
 - typecheck, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
+- generated gem and passive snapshots validate before packaging;
 - Windows manager responsive matrix, overlay visual matrix and lifecycle soak pass;
 - Windows NSIS installer builds successfully;
 - when a previous stable release exists, CI installs that release and proves the real updater can move it to the candidate build;
