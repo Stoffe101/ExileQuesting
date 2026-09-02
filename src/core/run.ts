@@ -1,7 +1,8 @@
+import { beginRunZoneVisit, resumeRunZoneVisit, settleRunZoneVisit, withRunZoneVisits, zoneVisitsFor } from './run-intelligence';
 import type { ActSplit, RunHistoryEntry, RunSession, RunStats } from './types';
 
 export function emptyRunSession(): RunSession {
-  return { state: 'idle', pausedMs: 0, townTimeMs: 0, splits: [] };
+  return withRunZoneVisits({ state: 'idle', pausedMs: 0, townTimeMs: 0, splits: [] }, []);
 }
 
 export function elapsedRunMs(session: RunSession, now = Date.now()): number {
@@ -32,32 +33,37 @@ export function startRun(session: RunSession, act = 1, now = new Date()): RunSes
   if (session.state === 'paused' && session.startedAt && session.pausedAt) {
     const pauseStarted = Date.parse(session.pausedAt);
     const resumedAt = now.getTime();
-    return {
+    const resumed: RunSession = {
       ...session,
       state: 'running',
       pausedAt: undefined,
       pausedMs: session.pausedMs + (Number.isFinite(pauseStarted) ? Math.max(0, resumedAt - pauseStarted) : 0),
-      lastZoneChangedAt: isTownAreaId(session.lastAreaId) ? now.toISOString() : session.lastZoneChangedAt,
+      // Reset the active-zone timestamp for both town and field areas. Town-time
+      // accounting uses this value; zone intelligence starts a continuation
+      // segment below so paused wall-clock time is never charged to the area.
+      lastZoneChangedAt: session.lastAreaId ? now.toISOString() : session.lastZoneChangedAt,
     };
+    return resumeRunZoneVisit(resumed, now);
   }
-  return {
+  return withRunZoneVisits({
     state: 'running',
     startedAt: now.toISOString(),
     pausedMs: 0,
     townTimeMs: 0,
     currentAct: act,
     splits: [],
-  };
+  }, []);
 }
 
 export function pauseRun(session: RunSession, now = new Date()): RunSession {
   if (session.state !== 'running') return session;
-  const settled = settleTownTime(session, now);
+  const settledTown = settleTownTime(session, now);
+  const settledZone = settleRunZoneVisit(settledTown, now);
   return {
-    ...settled,
+    ...settledZone,
     state: 'paused',
     pausedAt: now.toISOString(),
-    lastZoneChangedAt: isTownAreaId(settled.lastAreaId) ? now.toISOString() : settled.lastZoneChangedAt,
+    lastZoneChangedAt: settledZone.lastAreaId ? now.toISOString() : settledZone.lastZoneChangedAt,
   };
 }
 
@@ -67,8 +73,14 @@ export function resetRun(): RunSession {
 
 export function recordRunArea(session: RunSession, areaId: string | undefined, now = new Date()): RunSession {
   if (session.state !== 'running' || !areaId || areaId === session.lastAreaId) return session;
-  const settled = settleTownTime(session, now);
-  return { ...settled, lastAreaId: areaId, lastZoneChangedAt: now.toISOString() };
+  const settledTown = settleTownTime(session, now);
+  const settledZone = settleRunZoneVisit(settledTown, now);
+  const transitioned: RunSession = {
+    ...settledZone,
+    lastAreaId: areaId,
+    lastZoneChangedAt: now.toISOString(),
+  };
+  return beginRunZoneVisit(transitioned, areaId, transitioned.currentAct, now);
 }
 
 export function recordActTransition(session: RunSession, nextAct: number, now = new Date()): RunSession {
@@ -87,7 +99,8 @@ export function finishRun(session: RunSession, now = new Date()): { session: Run
   if (!session.startedAt || session.state === 'idle' || session.state === 'finished') return { session };
   const startedAt = session.startedAt;
   const finishedAt = now.toISOString();
-  let settled = settleTownTime(session, now);
+  const settledTown = settleTownTime(session, now);
+  let settled = settleRunZoneVisit(settledTown, now);
   const elapsedMs = elapsedRunMs(settled, now.getTime());
   const splits: ActSplit[] = [...settled.splits];
   const currentAct = settled.currentAct;
@@ -95,17 +108,15 @@ export function finishRun(session: RunSession, now = new Date()): { session: Run
     splits.push({ act: currentAct, at: finishedAt, elapsedMs });
   }
   settled = { ...settled, state: 'finished', finishedAt, pausedAt: undefined, splits };
-  return {
-    session: settled,
-    history: {
-      id: `${startedAt}:${finishedAt}`,
-      startedAt,
-      finishedAt,
-      totalMs: elapsedMs,
-      townTimeMs: settled.townTimeMs,
-      splits,
-    },
-  };
+  const history = withRunZoneVisits({
+    id: `${startedAt}:${finishedAt}`,
+    startedAt,
+    finishedAt,
+    totalMs: elapsedMs,
+    townTimeMs: settled.townTimeMs,
+    splits,
+  }, zoneVisitsFor(settled));
+  return { session: settled, history };
 }
 
 export function appendRunHistory(history: RunHistoryEntry[], entry: RunHistoryEntry, limit = 20): RunHistoryEntry[] {
