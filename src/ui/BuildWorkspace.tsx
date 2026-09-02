@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import BuildIntelligencePanel from './BuildIntelligencePanel';
 
 type BuildWorkspaceState = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
 
@@ -161,6 +162,8 @@ export default function BuildWorkspace() {
           ) : <p className="build-empty">Select or import a build to generate its acquisition plan.</p>}
         </section>
       </div>
+
+      {workspace && <BuildIntelligencePanel workspace={workspace} onWorkspace={setWorkspace} />}
     </div>
   );
 }

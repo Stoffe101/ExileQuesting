@@ -1,3 +1,6 @@
+import type { BuildCoachSnapshot } from './build-coach';
+import type { LootFilterStatus } from './loot-filter';
+
 export type GuidanceMode = 'beginner' | 'balanced' | 'racer';
 export type OverlayMode = 'focus' | 'compact' | 'coach';
 export type OverlayTypographyPreset = 'compact' | 'default' | 'large' | 'extra-large' | 'custom';
@@ -372,6 +375,8 @@ export interface RuntimeState {
   runStats: RunStats;
   appUpdate: AppUpdateState;
   recovery: RecoveryState;
+  buildCoach?: BuildCoachSnapshot;
+  lootFilter: LootFilterStatus;
   appVersion: string;
   diagnosticsPath: string;
 }

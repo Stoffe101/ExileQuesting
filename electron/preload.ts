@@ -3,6 +3,8 @@ import type { BuildProfile } from '../src/core/build-profiles';
 import type { BuildPlannerSnapshot } from '../src/core/build-planner';
 import type { GemAcquisitionPlan } from '../src/core/gem-acquisition';
 import type { CampaignSimulationReport } from '../src/core/simulator';
+import type { BuildCoachSnapshot } from '../src/core/build-coach';
+import type { LootFilterStatus } from '../src/core/loot-filter';
 import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
 
 export interface ReplayResult {
@@ -28,7 +30,10 @@ export interface SimulationResult {
 export interface BuildWorkspaceResult {
   planner: BuildPlannerSnapshot;
   gemData: { status: 'ready' | 'missing' | 'invalid'; message: string; gameVersion?: string; sourceCommit?: string };
+  passiveData: { status: 'ready' | 'missing' | 'invalid'; message: string; gameVersion?: string; sha256?: string };
   plan?: GemAcquisitionPlan;
+  coach?: BuildCoachSnapshot;
+  lootFilter: LootFilterStatus;
   campaign: { resolved: number; unresolved: number; actionSteps: number };
 }
 
@@ -69,6 +74,9 @@ const api = {
   activateBuildProfile: (id: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-profile', id),
   activateBuildStage: (profileId: string, stageId: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-stage', profileId, stageId),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
+  selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
+  regenerateLootFilter: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:regenerate'),
+  markLootFilterReloaded: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:reloaded'),
   onState: (callback: (state: RuntimeState) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);
     ipcRenderer.on('state:changed', listener);
