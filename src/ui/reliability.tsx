@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { elapsedRunMs, formatDuration, isTownAreaId } from '../core/run';
-import type { AppSettings, RuntimeState } from '../core/types';
+import { elapsedRunMs, formatDuration, liveTownTimeMs } from '../core/run';
+import type { AppSettings, RunZoneSummary, RuntimeState } from '../core/types';
 import PassivesAuditPanel from './PassivesAuditPanel';
 
 function useNow(enabled = true): number {
@@ -17,11 +17,9 @@ export function liveElapsed(state: RuntimeState, now = Date.now()): number {
   return elapsedRunMs(state.runStats.session, now);
 }
 
-function liveTownTime(state: RuntimeState, now: number): number {
-  const session = state.runStats.session;
-  if (session.state !== 'running' || !isTownAreaId(session.lastAreaId) || !session.lastZoneChangedAt) return session.townTimeMs;
-  const entered = Date.parse(session.lastZoneChangedAt);
-  return session.townTimeMs + (Number.isFinite(entered) ? Math.max(0, now - entered) : 0);
+function signedDuration(milliseconds: number): string {
+  const prefix = milliseconds > 0 ? '+' : milliseconds < 0 ? '−' : '';
+  return `${prefix}${formatDuration(Math.abs(milliseconds))}`;
 }
 
 export function OverlayRunClock({ state }: { state: RuntimeState }) {
@@ -46,9 +44,12 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
   const active = session.state === 'running' || session.state === 'paused';
   const now = useNow(active);
   const elapsed = liveElapsed(state, now);
-  const town = liveTownTime(state, now);
+  const town = liveTownTimeMs(session, now);
   const previous = state.runStats.previous;
   const pb = state.runStats.personalBest;
+  const analytics = state.runStats.analytics;
+  const areaNames = useMemo(() => new Map(state.dataset.areas.map((area) => [area.id, area.name])), [state.dataset.areas]);
+  const zoneName = (zone: RunZoneSummary) => zone.areaName ?? areaNames.get(zone.areaId) ?? zone.areaId;
 
   return (
     <article className="panel run-dashboard-panel">
@@ -61,8 +62,45 @@ export function RunDashboard({ state, setState }: { state: RuntimeState; setStat
       <div className="run-reference-row">
         <span>Previous <b>{previous ? formatDuration(previous.totalMs) : '—'}</b></span>
         <span>Personal best <b>{pb ? formatDuration(pb.totalMs) : '—'}</b></span>
+        {analytics.newPersonalBest && <span className="run-pb-badge">NEW PB</span>}
       </div>
       {session.splits.length > 0 && <div className="split-strip">{session.splits.map((split) => <span key={split.act}><i>A{split.act}</i>{formatDuration(split.elapsedMs)}</span>)}</div>}
+
+      <div className="route-metric-row">
+        <div><span>AREAS SEEN</span><strong>{analytics.uniqueZones || '—'}</strong><small>{analytics.transitions} transitions</small></div>
+        <div><span>REVISIT TIME</span><strong>{analytics.revisitMs > 0 ? formatDuration(analytics.revisitMs) : '0:00'}</strong><small>{analytics.revisitCount} repeat visit{analytics.revisitCount === 1 ? '' : 's'}</small></div>
+        <div><span>TOWN SHARE</span><strong>{analytics.zoneTimeMs + town > 0 ? `${Math.round((town / (analytics.zoneTimeMs + town)) * 100)}%` : '—'}</strong><small>of tracked area time</small></div>
+      </div>
+
+      {analytics.insights.length > 0 && (
+        <div className="run-insight-list">
+          {analytics.insights.map((insight) => (
+            <div className={`run-insight insight-${insight.tone}`} key={insight.id}>
+              <span>{insight.kind.replace('-', ' ').toUpperCase()}</span>
+              <div><strong>{insight.title}</strong><p>{insight.detail}</p></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {analytics.slowestZones.length > 0 && (
+        <details className="route-breakdown" open={session.state === 'finished'}>
+          <summary>Zone breakdown · slowest tracked areas</summary>
+          <div className="route-zone-list">
+            {analytics.slowestZones.map((zone) => (
+              <div className="route-zone-row" key={zone.areaId}>
+                <div><strong>{zoneName(zone)}</strong><small>{zone.act ? `Act ${zone.act} · ` : ''}{zone.visits} visit{zone.visits === 1 ? '' : 's'}{zone.revisitMs > 0 ? ` · ${formatDuration(zone.revisitMs)} revisit` : ''}</small></div>
+                <strong>{formatDuration(zone.totalMs)}</strong>
+                <span className={zone.deltaVsPreviousMs !== undefined && zone.deltaVsPreviousMs > 0 ? 'delta-slower' : 'delta-faster'}>
+                  {zone.deltaVsPreviousMs === undefined ? 'no previous data' : `${signedDuration(zone.deltaVsPreviousMs)} vs previous`}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="route-review-note">Revisits are a review signal, not automatically a routing error. Some campaign objectives intentionally return through earlier areas.</p>
+        </details>
+      )}
+
       <div className="run-actions">
         {session.state === 'idle' || session.state === 'finished'
           ? <button className="primary-button" onClick={() => void window.exileQuesting.startRun().then(setState)}>Start run</button>
