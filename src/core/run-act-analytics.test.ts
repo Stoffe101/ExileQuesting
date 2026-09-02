@@ -18,7 +18,7 @@ function history(id: string, act1: number, act2: number, act3: number): RunHisto
   };
 }
 
-function finishedSession(act1: number, act2: number, act3: number): RunSession {
+function transitionedSession(act1: number, act2: number, act3: number): RunSession {
   const total = act1 + act2 + act3;
   return {
     state: 'finished',
@@ -26,7 +26,7 @@ function finishedSession(act1: number, act2: number, act3: number): RunSession {
     finishedAt: new Date(Date.parse('2026-09-03T10:00:00Z') + total).toISOString(),
     pausedMs: 0,
     townTimeMs: 0,
-    currentAct: 3,
+    currentAct: 4,
     splits: [
       { act: 1, at: '2026-09-03T10:10:00Z', elapsedMs: act1 },
       { act: 2, at: '2026-09-03T10:20:00Z', elapsedMs: act1 + act2 },
@@ -37,23 +37,25 @@ function finishedSession(act1: number, act2: number, act3: number): RunSession {
 }
 
 describe('act-level pace analytics', () => {
-  it('turns cumulative splits into per-Act durations and deltas', () => {
+  it('turns cumulative transition splits into per-Act durations and deltas', () => {
     const previous = history('previous', 600_000, 900_000, 1_200_000);
-    const session = finishedSession(660_000, 780_000, 1_080_000);
+    const session = transitionedSession(660_000, 780_000, 1_080_000);
     const analytics = buildRunActAnalytics(session, previous, previous);
+    const complete = analytics.acts.filter((act) => act.complete);
 
-    expect(analytics.acts.map((act) => [act.act, act.elapsedMs])).toEqual([
+    expect(complete.map((act) => [act.act, act.elapsedMs])).toEqual([
       [1, 660_000],
       [2, 780_000],
       [3, 1_080_000],
     ]);
-    expect(analytics.acts.map((act) => act.deltaVsPreviousMs)).toEqual([60_000, -120_000, -120_000]);
-    expect(analytics.acts.map((act) => act.cumulativeDeltaVsPreviousMs)).toEqual([60_000, -60_000, -180_000]);
+    expect(complete.map((act) => act.deltaVsPreviousMs)).toEqual([60_000, -120_000, -120_000]);
+    expect(complete.map((act) => act.cumulativeDeltaVsPreviousMs)).toEqual([60_000, -60_000, -180_000]);
+    expect(analytics.acts.at(-1)).toMatchObject({ act: 4, complete: false, elapsedMs: 0 });
   });
 
   it('surfaces the biggest regression and gain without inventing a cause', () => {
     const previous = history('previous', 600_000, 900_000, 1_200_000);
-    const session = finishedSession(690_000, 720_000, 1_140_000);
+    const session = transitionedSession(690_000, 720_000, 1_140_000);
     const analytics = buildRunActAnalytics(session, previous, previous);
 
     expect(analytics.biggestRegression?.act).toBe(1);
@@ -90,6 +92,27 @@ describe('act-level pace analytics', () => {
     expect(analytics.insights.some((insight) => insight.title.includes('Through Act 2'))).toBe(true);
   });
 
+  it('does not compare the final Act segment merely because Finish run was pressed', () => {
+    const previous = history('previous', 600_000, 900_000, 1_200_000);
+    const session: RunSession = {
+      state: 'finished',
+      startedAt: '2026-09-03T10:00:00Z',
+      finishedAt: '2026-09-03T10:24:00Z',
+      pausedMs: 0,
+      townTimeMs: 0,
+      currentAct: 2,
+      splits: [
+        { act: 1, at: '2026-09-03T10:11:00Z', elapsedMs: 660_000 },
+        { act: 2, at: '2026-09-03T10:24:00Z', elapsedMs: 1_440_000 },
+      ],
+      visits: [],
+    };
+    const analytics = buildRunActAnalytics(session, previous, previous);
+    expect(analytics.acts[0]).toMatchObject({ act: 1, complete: true, deltaVsPreviousMs: 60_000 });
+    expect(analytics.acts[1]).toMatchObject({ act: 2, complete: false });
+    expect(analytics.acts[1].deltaVsPreviousMs).toBeUndefined();
+  });
+
   it('handles skipped split acts deterministically without negative durations', () => {
     const session: RunSession = {
       state: 'finished',
@@ -97,7 +120,7 @@ describe('act-level pace analytics', () => {
       finishedAt: '2026-09-03T10:20:00Z',
       pausedMs: 0,
       townTimeMs: 0,
-      currentAct: 3,
+      currentAct: 4,
       splits: [
         { act: 1, at: '2026-09-03T10:10:00Z', elapsedMs: 600_000 },
         { act: 2, at: '2026-09-03T10:10:00Z', elapsedMs: 600_000 },
@@ -105,6 +128,6 @@ describe('act-level pace analytics', () => {
       ],
       visits: [],
     };
-    expect(buildRunActAnalytics(session).acts.map((act) => act.elapsedMs)).toEqual([600_000, 0, 600_000]);
+    expect(buildRunActAnalytics(session).acts.filter((act) => act.complete).map((act) => act.elapsedMs)).toEqual([600_000, 0, 600_000]);
   });
 });
