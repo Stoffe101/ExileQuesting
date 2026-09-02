@@ -36,6 +36,9 @@ async function main(): Promise<void> {
     fetchJson(SOURCE_PATHS.characters, 64 * 1024),
   ]);
 
+  // buildGemAcquisitionSnapshot intentionally keeps only player-acquirable gem records referenced
+  // by real acquisition offers or character starts. The pinned upstream source also contains many
+  // internal/DNT definitions that are useful to upstream tooling but not to ExileQuesting runtime.
   const snapshot = buildGemAcquisitionSnapshot(gems, quests, characters, {
     gameVersion: GAME_VERSION,
     generatedAt: GENERATED_AT,
@@ -54,14 +57,14 @@ async function main(): Promise<void> {
   if (checkOnly) {
     const existing = await fs.readFile(OUTPUT_PATH, 'utf8');
     if (existing !== content) throw new Error(`Bundled gem snapshot is stale. Run npm run data:gems. Expected SHA-256 ${digest}.`);
-    console.log(`Gem snapshot verified: ${snapshot.gems.length} gems, ${snapshot.offers.length} acquisition offers, SHA-256 ${digest}`);
+    console.log(`Gem snapshot verified: ${snapshot.gems.length} player-acquirable gems, ${snapshot.offers.length} acquisition offers, SHA-256 ${digest}`);
     return;
   }
 
   await fs.mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
   await fs.writeFile(OUTPUT_PATH, content, 'utf8');
   console.log(`Wrote ${OUTPUT_PATH}`);
-  console.log(`PoE ${GAME_VERSION}: ${snapshot.gems.length} gems, ${snapshot.offers.length} acquisition offers`);
+  console.log(`PoE ${GAME_VERSION}: ${snapshot.gems.length} player-acquirable gems, ${snapshot.offers.length} acquisition offers`);
   console.log(`Source ${SOURCE_REPOSITORY}@${SOURCE_COMMIT}`);
   console.log(`SHA-256 ${digest}`);
 }
