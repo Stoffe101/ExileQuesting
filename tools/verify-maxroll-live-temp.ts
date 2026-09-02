@@ -1,10 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { importMaxrollGuide } from '../electron/services/maxroll-service';
+import { validateGemAcquisitionSnapshot } from '../src/core/gem-data';
 import { validatePassiveTreeSnapshot } from '../src/core/passive-data';
 
 const passiveRaw = JSON.parse(await readFile('assets/game-data/passive-tree-3.29.json', 'utf8')) as unknown;
 const passive = validatePassiveTreeSnapshot(passiveRaw);
 if (!passive) throw new Error('Bundled passive snapshot did not validate.');
+const gemRaw = JSON.parse(await readFile('assets/game-data/gem-acquisition-3.29.json', 'utf8')) as unknown;
+const gems = validateGemAcquisitionSnapshot(gemRaw);
+if (!gems) throw new Error('Bundled gem snapshot did not validate.');
 
 const targets = [
   {
@@ -21,7 +25,7 @@ const targets = [
 
 const summaries: unknown[] = [];
 for (const target of targets) {
-  const imported = await importMaxrollGuide(target.url, 'live-contract-smoke', passive);
+  const imported = await importMaxrollGuide(target.url, 'live-contract-smoke', passive, gems);
   const metadata = imported.maxroll;
   const gemNames = imported.build.skillStages
     .flatMap((stage) => stage.skillGroups ?? [])
@@ -35,6 +39,8 @@ for (const target of targets) {
   if (metadata.passiveOperations.length < 70) throw new Error(`${target.label}: suspiciously small passive stream (${metadata.passiveOperations.length}).`);
   if (imported.build.skillStages.length < 2) throw new Error(`${target.label}: skill progression did not parse.`);
   if (uniqueGemNames.length < 5) throw new Error(`${target.label}: gem extraction is suspiciously small (${uniqueGemNames.length} unique names).`);
+  if (uniqueGemNames.some((name) => /^Support\s/i.test(name))) throw new Error(`${target.label}: metadata-derived support gem names leaked after canonicalization.`);
+  if (!uniqueGemNames.some((name) => / Support$/i.test(name))) throw new Error(`${target.label}: expected canonical support gem names were not found.`);
 
   if (target.label === 'normal') {
     if (!metadata.skillMilestones.some((name) => /Level 38/i.test(name))) throw new Error('normal: expected late leveling skill milestone is missing.');
