@@ -1,7 +1,7 @@
 .run-intelligence {
   margin-top: 14px;
   padding-top: 13px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid #242b38;
 }
 
 .run-intelligence-head {
@@ -13,14 +13,14 @@
 }
 
 .run-intelligence-head span {
-  color: var(--accent);
+  color: #f1a842;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .12em;
 }
 
 .run-intelligence-head small {
-  color: var(--text-muted);
+  color: #8490a5;
   font-size: 10px;
   text-align: right;
 }
@@ -34,15 +34,15 @@
 .run-intelligence-card {
   min-width: 0;
   padding: 9px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #242b38;
   border-radius: 9px;
-  background: rgba(255, 255, 255, .018);
+  background: rgba(8, 11, 16, .55);
 }
 
 .run-intelligence-card > span {
   display: block;
   margin-bottom: 4px;
-  color: var(--text-muted);
+  color: #8490a5;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .08em;
@@ -52,7 +52,7 @@
 .run-intelligence-card strong {
   display: block;
   overflow: hidden;
-  color: var(--text-primary);
+  color: #f6f7fa;
   font-size: 13px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -62,17 +62,17 @@
 .run-intelligence-card small {
   display: block;
   margin-top: 3px;
-  color: var(--text-muted);
+  color: #8490a5;
   font-size: 10px;
   line-height: 1.3;
 }
 
 .run-intelligence-card.loss strong {
-  color: var(--warning);
+  color: #ffc364;
 }
 
 .run-intelligence-empty {
-  color: var(--text-muted);
+  color: #8490a5;
   font-size: 11px;
   line-height: 1.45;
 }
