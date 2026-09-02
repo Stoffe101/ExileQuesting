@@ -34,6 +34,8 @@ import {
 } from '../src/core/run';
 import { isAllowedDataUrl, isAllowedExternalUrl, MAX_REMOTE_JSON_BYTES, readBoundedResponseText } from '../src/core/security';
 import { isMaxrollGuideUrl } from '../src/core/maxroll';
+import { analyzeGearItem, type GearCoachAnalysis } from '../src/core/gear-coach';
+import { MAX_POB_XML_BYTES } from '../src/core/pob';
 import { calculateXpGuidance } from '../src/core/xp';
 import type {
   AppSettings,
@@ -319,6 +321,7 @@ function buildWorkspaceSnapshot() {
     },
     plan: activeGemPlan,
     coach: activeBuildCoach,
+    characterLevel,
     lootFilter,
     campaign: {
       resolved: buildBridge?.gemAvailability.filter((entry) => entry.confidence !== 'unresolved').length ?? 0,
@@ -673,6 +676,32 @@ function sanitizeDemo(value: unknown): OverlayDemoConfig {
   const optionalLevel = (candidate: unknown, min: number, max: number) => candidate === undefined ? undefined : Math.max(min, Math.min(max, Math.trunc(Number(candidate) || min)));
   return { progress: demoProgress, mode, characterLevel: optionalLevel(input.characterLevel, 1, 100), areaLevel: optionalLevel(input.areaLevel, 1, 100) };
 }
+async function importBuildProfileInput(input: string, sourceOverride?: string): Promise<BuildProfile[]> {
+  let profile: BuildProfile;
+  if (isMaxrollGuideUrl(input.trim())) {
+    const imported = await importMaxrollGuide(input.trim(), app.getVersion(), passiveData.snapshot, gemData.snapshot);
+    profile = { ...imported, name: imported.maxroll.guideTitle };
+  } else {
+    const imported = await importPobBuild(input, app.getVersion());
+    profile = { ...imported, name: defaultBuildProfileName(imported.build), source: sourceOverride ?? imported.source };
+  }
+  buildProfiles = upsertBuildProfile(buildProfiles, profile);
+  buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
+  rebuildBuildGuidance();
+  await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await refreshBuildLootFilter();
+  broadcastState();
+  return buildProfiles;
+}
+
+function analyzeActiveGear(input: string): GearCoachAnalysis {
+  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  if (!activeProfile) throw new Error('Select or import a Build Profile before using Gear Coach.');
+  if (!gemData.snapshot) throw new Error('Bundled gem data is unavailable, so Gear Coach cannot build a stage-aware score.');
+  const activeStageId = buildPlannerState.activeStageByProfile[activeProfile.id];
+  return analyzeGearItem(input, activeProfile, activeStageId, gemData.snapshot, characterLevel);
+}
+
 function registerIpc(): void {
   ipcMain.handle('app:bootstrap', () => runtimeState());
   ipcMain.handle('lab:open', () => openPreplaytestLab());
@@ -787,21 +816,28 @@ function registerIpc(): void {
   ipcMain.handle('pob:workspace', () => buildWorkspaceSnapshot());
   ipcMain.handle('pob:import', async (_event, input: unknown) => {
     if (typeof input !== 'string') throw new Error('Build input must be text.');
-    let profile: BuildProfile;
-    if (isMaxrollGuideUrl(input.trim())) {
-      const imported = await importMaxrollGuide(input.trim(), app.getVersion(), passiveData.snapshot, gemData.snapshot);
-      profile = { ...imported, name: imported.maxroll.guideTitle };
-    } else {
-      const imported = await importPobBuild(input, app.getVersion());
-      profile = { ...imported, name: defaultBuildProfileName(imported.build) };
-    }
-    buildProfiles = upsertBuildProfile(buildProfiles, profile);
-    buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
-    rebuildBuildGuidance();
-    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
-    await refreshBuildLootFilter();
-    broadcastState();
-    return buildProfiles;
+    return importBuildProfileInput(input);
+  });
+  ipcMain.handle('pob:select-xml', async () => {
+    const options: Electron.OpenDialogOptions = { title: 'Open Path of Building XML', properties: ['openFile'], filters: [{ name: 'Path of Building XML', extensions: ['xml'] }] };
+    const selected = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+    if (selected.canceled || !selected.filePaths[0]) return buildWorkspaceSnapshot();
+    const selectedPath = selected.filePaths[0];
+    const stat = await fs.stat(selectedPath);
+    if (!stat.isFile()) throw new Error('Selected PoB XML path is not a file.');
+    if (stat.size > MAX_POB_XML_BYTES) throw new Error('Selected PoB XML exceeds the safety size limit.');
+    const xml = await fs.readFile(selectedPath, 'utf8');
+    await importBuildProfileInput(xml, selectedPath);
+    return buildWorkspaceSnapshot();
+  });
+  ipcMain.handle('gear:analyze', (_event, input: unknown) => {
+    if (typeof input !== 'string') throw new Error('Gear Coach item input must be text.');
+    return analyzeActiveGear(input);
+  });
+  ipcMain.handle('gear:analyze-clipboard', () => {
+    const input = clipboard.readText();
+    if (!input.trim()) throw new Error('Clipboard is empty. Hover an item in Path of Exile and press Ctrl+C first.');
+    return analyzeActiveGear(input);
   });
   ipcMain.handle('pob:activate-profile', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildWorkspaceSnapshot();

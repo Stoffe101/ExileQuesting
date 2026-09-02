@@ -214,7 +214,7 @@ function itemStageTags(xml: string): PobStageSummary[] {
   }
 
   const stages: PobStageSummary[] = [];
-  const setRegex = /<ItemSet\b([^>]*)>([\s\S]*?)<\/ItemSet>/gi;
+  const setRegex = /<ItemSet\b([^>]*?)(?:\/>|>([\s\S]*?)<\/ItemSet>)/gi;
   let setMatch: RegExpExecArray | null;
   let ordinal = 0;
   while ((setMatch = setRegex.exec(body))) {
