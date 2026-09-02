@@ -59,7 +59,7 @@ function exactHud(width: number, height: number, operation: 'allocate' | 'refund
   return {
     status: 'locked', enabled: true, visible: true, mode: 'exact', sourceLabel: 'Maxroll leveling',
     className: operation === 'refund' ? 'Witch' : 'Ranger', classStartNodeId: operation === 'refund' ? 54447 : 50459,
-    message: 'Visual fixture aligned.', confidence: 0.94, inliers: 9, rms: 2.7, displayId: 1,
+    treeScope: 'base', message: 'Visual fixture aligned.', confidence: 0.94, inliers: 9, rms: 2.7, displayId: 1,
     displayBounds: { x: 0, y: 0, width, height }, captureSize: { width: 960, height: Math.round(960 * height / width) },
     target: {
       nodeId: operation === 'refund' ? 33122 : 59791,
@@ -78,12 +78,39 @@ function exactHud(width: number, height: number, operation: 'allocate' | 'refund
   };
 }
 
-function stageHud(width: number, height: number): PassiveTreeHudState {
+function ascendancyExactHud(width: number, height: number, operation: 'allocate' | 'refund'): PassiveTreeHudState {
+  const x = Math.round(width * 0.56);
+  const y = Math.round(height * 0.52);
+  const refund = operation === 'refund';
+  return {
+    status: 'locked', enabled: true, visible: true, mode: 'exact', sourceLabel: 'Maxroll leveling',
+    className: refund ? 'Witch' : 'Ranger', classStartNodeId: refund ? 54447 : 50459,
+    treeScope: 'ascendancy', ascendancyName: refund ? 'Occultist' : 'Deadeye',
+    message: 'Ascendancy fixture aligned.', confidence: 0.96, inliers: 8, rms: 2.3, displayId: 1,
+    displayBounds: { x: 0, y: 0, width, height }, captureSize: { width: 960, height: Math.round(960 * height / width) },
+    target: {
+      nodeId: refund ? 33740 : 45635,
+      name: refund ? 'Profane Bloom' : 'Gathering Winds',
+      kind: 'ascendancy', x, y, markerRadius: 31, operation, index: refund ? 45 : 27, total: 93,
+      checkpoint: refund ? 7 : 4, offscreen: false,
+    },
+    path: [
+      { nodeId: 31, name: 'Ascendancy recent', x: x - 150, y: y + 85, state: 'recent' },
+      { nodeId: refund ? 33740 : 45635, name: 'Ascendancy target', x, y, state: 'next' },
+      { nodeId: 33, name: 'Ascendancy upcoming', x: x + 145, y: y - 72, state: 'upcoming' },
+    ],
+    lastLockedAt: '2026-09-02T00:00:00.000Z',
+  };
+}
+
+function stageHud(width: number, height: number, ascendancy = false): PassiveTreeHudState {
   const cx = width * 0.52;
   const cy = height * 0.57;
   return {
     status: 'locked', enabled: true, visible: true, mode: 'stage', sourceLabel: 'Path of Building',
-    className: 'Marauder', classStartNodeId: 47175, message: 'PoB stage highlights.', confidence: 0.91, inliers: 8, rms: 3.2,
+    className: ascendancy ? 'Witch' : 'Marauder', classStartNodeId: ascendancy ? 54447 : 47175,
+    treeScope: ascendancy ? 'ascendancy' : 'base', ...(ascendancy ? { ascendancyName: 'Necromancer' } : {}),
+    message: 'PoB stage highlights.', confidence: 0.91, inliers: 8, rms: 3.2,
     displayId: 1, displayBounds: { x: 0, y: 0, width, height }, captureSize: { width: 960, height: Math.round(960 * height / width) },
     path: [
       { nodeId: 11, name: 'Stage A', x: cx - 180, y: cy + 20, state: 'stage' },
@@ -95,15 +122,16 @@ function stageHud(width: number, height: number): PassiveTreeHudState {
   };
 }
 
-function offscreenHud(width: number, height: number): PassiveTreeHudState {
+function offscreenHud(width: number, height: number, ascendancy = false): PassiveTreeHudState {
   return {
     status: 'locked', enabled: true, visible: true, mode: 'exact', sourceLabel: 'Maxroll leveling',
-    className: 'Shadow', classStartNodeId: 44683, message: 'Target is outside the visible passive-tree viewport.',
-    confidence: 0.93, inliers: 8, rms: 2.9, displayId: 1,
+    className: ascendancy ? 'Duelist' : 'Shadow', classStartNodeId: ascendancy ? 44683 : 44683,
+    treeScope: ascendancy ? 'ascendancy' : 'base', ...(ascendancy ? { ascendancyName: 'Slayer' } : {}),
+    message: 'Target is outside the visible passive-tree viewport.', confidence: 0.93, inliers: 8, rms: 2.9, displayId: 1,
     displayBounds: { x: 0, y: 0, width, height }, captureSize: { width: 960, height: Math.round(960 * height / width) },
     target: {
-      nodeId: 22222, name: 'Ghost Dance', kind: 'keystone', x: width + 420, y: height * 0.35, markerRadius: 28,
-      operation: 'allocate', index: 56, total: 90, checkpoint: 8, offscreen: true,
+      nodeId: ascendancy ? 3184 : 22222, name: ascendancy ? 'Headsman' : 'Ghost Dance', kind: ascendancy ? 'ascendancy' : 'keystone',
+      x: width + 420, y: height * 0.35, markerRadius: 28, operation: 'allocate', index: ascendancy ? 62 : 56, total: 90, checkpoint: 8, offscreen: true,
       arrowX: width - 92, arrowY: Math.round(height * 0.35), arrowAngle: 0,
     },
     path: [{ nodeId: 21, name: 'Recent', x: width * 0.76, y: height * 0.42, state: 'recent' }],
@@ -142,8 +170,12 @@ async function main(): Promise<void> {
   const cases = [
     { name: 'exact', make: (w: number, h: number) => exactHud(w, h, 'allocate'), selector: '.passive-target:not(.operation-refund)' },
     { name: 'refund', make: (w: number, h: number) => exactHud(w, h, 'refund'), selector: '.passive-target.operation-refund' },
-    { name: 'pob-stage', make: stageHud, selector: '.passive-stage-legend' },
-    { name: 'offscreen', make: offscreenHud, selector: '.passive-edge-target' },
+    { name: 'pob-stage', make: (w: number, h: number) => stageHud(w, h, false), selector: '.passive-stage-legend' },
+    { name: 'offscreen', make: (w: number, h: number) => offscreenHud(w, h, false), selector: '.passive-edge-target' },
+    { name: 'ascendancy-exact', make: (w: number, h: number) => ascendancyExactHud(w, h, 'allocate'), selector: '.passive-target:not(.operation-refund)' },
+    { name: 'ascendancy-refund', make: (w: number, h: number) => ascendancyExactHud(w, h, 'refund'), selector: '.passive-target.operation-refund' },
+    { name: 'ascendancy-pob-stage', make: (w: number, h: number) => stageHud(w, h, true), selector: '.passive-stage-legend' },
+    { name: 'ascendancy-offscreen', make: (w: number, h: number) => offscreenHud(w, h, true), selector: '.passive-edge-target' },
   ];
   const captures: Array<Record<string, unknown>> = [];
 
@@ -178,6 +210,10 @@ async function main(): Promise<void> {
       if (fixture.name === 'refund' && (!metrics.text.includes('REFUND PASSIVE') || metrics.targetCount !== 1)) throw new Error('Refund target presentation is incomplete.');
       if (fixture.name === 'pob-stage' && (!metrics.stageLegend || metrics.stageCount !== 4 || metrics.targetCount !== 0)) throw new Error('PoB stage fixture is incomplete or invents an exact target.');
       if (fixture.name === 'offscreen' && (metrics.edgeCount !== 1 || metrics.targetCount !== 0 || !metrics.text.includes('Ghost Dance'))) throw new Error('Offscreen guidance fixture is incomplete.');
+      if (fixture.name === 'ascendancy-exact' && (!metrics.text.includes('Deadeye Ascendancy') || !metrics.text.includes('Gathering Winds'))) throw new Error('Ascendancy exact target presentation is incomplete.');
+      if (fixture.name === 'ascendancy-refund' && (!metrics.text.includes('Occultist Ascendancy') || !metrics.text.includes('Profane Bloom') || !metrics.text.includes('REFUND PASSIVE'))) throw new Error('Ascendancy refund presentation is incomplete.');
+      if (fixture.name === 'ascendancy-pob-stage' && (!metrics.text.includes('Necromancer Ascendancy') || !metrics.stageLegend || metrics.stageCount !== 4 || metrics.targetCount !== 0)) throw new Error('Ascendancy PoB stage presentation is incomplete.');
+      if (fixture.name === 'ascendancy-offscreen' && (metrics.edgeCount !== 1 || !metrics.text.includes('Headsman'))) throw new Error('Ascendancy offscreen presentation is incomplete.');
       const png = (await window.webContents.capturePage()).toPNG();
       if (png.length < 1000) throw new Error(`${fixture.name} ${viewport.label}: screenshot was unexpectedly small (${png.length} bytes).`);
       const filename = `${fixture.name}-${viewport.label}.png`;
