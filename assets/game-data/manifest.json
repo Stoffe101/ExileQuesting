@@ -3,7 +3,7 @@
   "datasets": [
     {
       "id": "gem-acquisition",
-      "datasetRevision": 0,
+      "datasetRevision": 1,
       "file": "gem-acquisition-3.29.json",
       "schemaVersion": 1,
       "gameVersion": "3.29",
@@ -12,7 +12,7 @@
       "checksum": {
         "algorithm": "sha256",
         "scope": "file",
-        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        "value": "7960d92313d0788f889bfae212af18e1f8e7569ff4840284572417bd7bde9615"
       },
       "source": {
         "kind": "git",
@@ -29,7 +29,7 @@
     },
     {
       "id": "passive-tree",
-      "datasetRevision": 0,
+      "datasetRevision": 1,
       "file": "passive-tree-3.29.json",
       "schemaVersion": 2,
       "gameVersion": "3.29",
@@ -38,7 +38,7 @@
       "checksum": {
         "algorithm": "sha256",
         "scope": "file",
-        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        "value": "0fb98f5a2456e99e1bc4491b6ab3cddc3e9d2b819a54a7bb9f4abc1b2dcea2b0"
       },
       "source": {
         "kind": "url",
