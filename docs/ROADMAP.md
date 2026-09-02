@@ -152,7 +152,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] leveling loot-filter generator safely wraps an existing local filter
 - [x] campaign crafting intelligence for current bench recipes, Act 2+ town benches and Kitava resistance preparation
 - [x] build-specific vendor regex/search reminders
-- [ ] richer `/passives` reconciliation workflow
+- [x] richer `/passives` reconciliation workflow
 - [ ] versioned layout images/diagrams where they beat text
 - [ ] deeper personal route analytics without gameplay automation
 - [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
@@ -166,14 +166,14 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md` and `VENDOR_SEARCH.md` for the build-aware planner, passive, crafting, loot-filter and vendor-search behavior.
+See `BUILD_INTELLIGENCE.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
 
 ## 0.3 — deeper route + endgame intelligence
 
 - [ ] current-patch real-world PoB corpus validation and heuristics hardening
 - [ ] character-linked build profiles when a reliable identity source is available
 - [x] build-specific vendor regex/search reminders
-- [ ] richer `/passives` reconciliation workflow
+- [x] richer `/passives` reconciliation workflow
 - [ ] more reviewed high-confidence layout and routing hints
 - [ ] deeper personal route analytics without gameplay automation
 - [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper

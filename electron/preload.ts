@@ -6,6 +6,7 @@ import type { CampaignSimulationReport } from '../src/core/simulator';
 import type { BuildCoachSnapshot } from '../src/core/build-coach';
 import type { GearCoachAnalysis } from '../src/core/gear-coach';
 import type { LootFilterStatus } from '../src/core/loot-filter';
+import type { PassivesReconciliation } from '../src/core/passives-audit';
 import type { AppSettings, OverlayMode, RuntimeState } from '../src/core/types';
 
 export interface ReplayResult {
@@ -57,6 +58,7 @@ const api = {
   exportCampaignSimulation: (): Promise<boolean> => ipcRenderer.invoke('simulation:export'),
   checkCampaignUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('campaign:check'),
   confirmReward: (stepId: string, confirmed: boolean): Promise<RuntimeState> => ipcRenderer.invoke('reward:confirm', stepId, confirmed),
+  scanPassivesAudit: (throughAct: number): Promise<PassivesReconciliation> => ipcRenderer.invoke('passives:scan', throughAct),
   startRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:start'),
   pauseRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:pause'),
   resetRun: (): Promise<RuntimeState> => ipcRenderer.invoke('run:reset'),
