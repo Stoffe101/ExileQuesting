@@ -13,6 +13,7 @@ import { readBoundedResponseText } from '../../src/core/security';
 const MAX_MAXROLL_GUIDE_BYTES = 4 * 1024 * 1024;
 const MAX_MAXROLL_PLANNER_BYTES = 12 * 1024 * 1024;
 const MAXROLL_TIMEOUT_MS = 15_000;
+const MAX_MAXROLL_REDIRECTS = 3;
 
 export interface ImportedMaxrollBuild {
   id: string;
@@ -23,11 +24,17 @@ export interface ImportedMaxrollBuild {
   maxroll: MaxrollGuideMetadata;
 }
 
-function isAllowedMaxrollResponse(value: string, expected: 'guide' | 'planner'): boolean {
+export function isAllowedMaxrollResponse(value: string, expected: 'guide' | 'planner'): boolean {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    if (url.protocol !== 'https:' || url.username || url.password || !['maxroll.gg', 'www.maxroll.gg'].includes(host)) return false;
+    if (
+      url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || (url.port && url.port !== '443')
+      || !['maxroll.gg', 'www.maxroll.gg'].includes(host)
+    ) return false;
     return expected === 'guide'
       ? /^\/poe\/build-guides\/[a-z0-9-]+\/?$/i.test(url.pathname)
       : /^\/poe\/planner\/[A-Za-z0-9_-]{3,80}\/?$/i.test(url.pathname);
@@ -37,19 +44,37 @@ function isAllowedMaxrollResponse(value: string, expected: 'guide' | 'planner'):
 }
 
 async function fetchMaxrollHtml(url: string, expected: 'guide' | 'planner', appVersion: string, maxBytes: number): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': `ExileQuesting/${appVersion} (github.com/Stoffe101/ExileQuesting)`,
-      Accept: 'text/html,application/xhtml+xml',
-    },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(MAXROLL_TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error(`Maxroll returned HTTP ${response.status}.`);
-  if (!isAllowedMaxrollResponse(response.url, expected)) throw new Error('Maxroll redirected the import to an unexpected location.');
-  const html = await readBoundedResponseText(response, maxBytes);
-  if (!html.includes('window.__remixContext')) throw new Error('Maxroll page did not expose the expected public page state.');
-  return html;
+  let currentUrl = url;
+  for (let redirectCount = 0; redirectCount <= MAX_MAXROLL_REDIRECTS; redirectCount += 1) {
+    if (!isAllowedMaxrollResponse(currentUrl, expected)) throw new Error('Maxroll import URL is outside the allowed public route.');
+    const response = await fetch(currentUrl, {
+      headers: {
+        'User-Agent': `ExileQuesting/${appVersion} (github.com/Stoffe101/ExileQuesting)`,
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(MAXROLL_TIMEOUT_MS),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      if (redirectCount >= MAX_MAXROLL_REDIRECTS) throw new Error('Maxroll exceeded the allowed redirect count.');
+      const location = response.headers.get('location');
+      if (!location) throw new Error(`Maxroll returned HTTP ${response.status} without a redirect location.`);
+      let nextUrl: string;
+      try { nextUrl = new URL(location, currentUrl).toString(); }
+      catch { throw new Error('Maxroll returned an invalid redirect location.'); }
+      if (!isAllowedMaxrollResponse(nextUrl, expected)) throw new Error('Maxroll redirected the import to an unexpected location.');
+      currentUrl = nextUrl;
+      continue;
+    }
+
+    if (!response.ok) throw new Error(`Maxroll returned HTTP ${response.status}.`);
+    if (!isAllowedMaxrollResponse(response.url || currentUrl, expected)) throw new Error('Maxroll returned an unexpected response location.');
+    const html = await readBoundedResponseText(response, maxBytes);
+    if (!html.includes('window.__remixContext')) throw new Error('Maxroll page did not expose the expected public page state.');
+    return html;
+  }
+  throw new Error('Maxroll import did not reach a final response.');
 }
 
 function importedId(metadata: MaxrollGuideMetadata, importedAt: string): string {
