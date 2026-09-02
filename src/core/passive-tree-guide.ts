@@ -25,6 +25,7 @@ export interface PassiveTreeGuidePlan {
   sourceKind: BuildProfile['sourceKind'];
   sourceLabel: string;
   className?: string;
+  classId?: number;
   classStartNodeId?: number;
   operations: PassiveTreeGuideOperation[];
   cursor: number;
@@ -50,6 +51,12 @@ function previousTreeNodeIds(stages: ReturnType<typeof alignPobStages>, activeIn
   return new Set<number>();
 }
 
+function activeClassId(profile: BuildProfile, activeStageId?: string): number | undefined {
+  const stages = alignPobStages(profile.build);
+  const active = stages.find((stage) => stage.id === activeStageId) ?? stages.find((stage) => stage.tree?.active) ?? stages.find((stage) => stage.tree);
+  return active?.tree?.classId ?? profile.build.treeStages.find((stage) => stage.active)?.classId ?? profile.build.treeStages.find((stage) => stage.classId !== undefined)?.classId;
+}
+
 /**
  * Convert any active Build Profile into a passive-tree display plan.
  *
@@ -66,8 +73,11 @@ export function buildPassiveTreeGuidePlan(
 ): PassiveTreeGuidePlan | undefined {
   if (!profile) return undefined;
 
-  const className = profile.build.className;
-  const classStartNodeId = snapshot ? passiveClassStart(snapshot, { className })?.id : undefined;
+  const requestedClassName = profile.build.className;
+  const classId = activeClassId(profile, activeStageId);
+  const classStart = snapshot ? passiveClassStart(snapshot, { className: requestedClassName, classId }) : undefined;
+  const className = requestedClassName ?? (classStart ? classStart.name[0] + classStart.name.slice(1).toLowerCase() : undefined);
+  const classStartNodeId = classStart?.id;
 
   if (profile.maxroll) {
     const exactAllowed = profile.maxroll.compatibility === 'current' || profile.maxroll.compatibility === 'compatible-ids';
@@ -85,6 +95,7 @@ export function buildPassiveTreeGuidePlan(
       sourceKind: profile.sourceKind,
       sourceLabel: profile.maxroll.guideTitle,
       className,
+      classId,
       classStartNodeId,
       operations,
       cursor,
@@ -102,7 +113,7 @@ export function buildPassiveTreeGuidePlan(
 
   const stages = alignPobStages(profile.build);
   if (!stages.length) return {
-    mode: 'stage', sourceKind: profile.sourceKind, sourceLabel: profile.name, className, classStartNodeId,
+    mode: 'stage', sourceKind: profile.sourceKind, sourceLabel: profile.name, className, classId, classStartNodeId,
     operations: [], cursor: 0, stageTargets: [], message: 'This build does not expose passive tree stages.',
   };
   const activeIndex = Math.max(0, stages.findIndex((stage) => stage.id === activeStageId));
@@ -118,6 +129,7 @@ export function buildPassiveTreeGuidePlan(
     sourceKind: profile.sourceKind,
     sourceLabel: `${profile.name} · ${active.title}`,
     className,
+    classId,
     classStartNodeId,
     operations: [],
     cursor: 0,
