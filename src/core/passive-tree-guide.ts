@@ -116,13 +116,16 @@ export function buildPassiveTreeGuidePlan(
     mode: 'stage', sourceKind: profile.sourceKind, sourceLabel: profile.name, className, classId, classStartNodeId,
     operations: [], cursor: 0, stageTargets: [], message: 'This build does not expose passive tree stages.',
   };
-  const activeIndex = Math.max(0, stages.findIndex((stage) => stage.id === activeStageId));
+  const requestedIndex = activeStageId ? stages.findIndex((stage) => stage.id === activeStageId) : -1;
+  const flaggedIndex = stages.findIndex((stage) => stage.tree?.active);
+  const firstTreeIndex = stages.findIndex((stage) => stage.tree);
+  const activeIndex = requestedIndex >= 0 ? requestedIndex : flaggedIndex >= 0 ? flaggedIndex : Math.max(0, firstTreeIndex);
   const active = stages[activeIndex] ?? stages[0];
   const activeNodes = active.tree?.nodeIds ?? [];
   const previous = previousTreeNodeIds(stages, activeIndex);
   const additions = [...new Set(activeNodes)]
     .filter((nodeId) => !previous.has(nodeId) && nodeId !== classStartNodeId)
-    .slice(0, 80);
+    .slice(0, 160);
   const stageTargets = additions.map((nodeId) => nodeTarget(snapshot, nodeId));
   return {
     mode: 'stage',

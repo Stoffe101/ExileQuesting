@@ -78,4 +78,20 @@ describe('build-agnostic passive tree guide planning', () => {
     expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
     expect(plan?.message).toContain('does not encode click order');
   });
+  it('falls back to the PoB stage marked active when no explicit planner stage is selected', () => {
+    const profile: BuildProfile = {
+      id: 'templar-active-fallback', name: 'Templar active fallback', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
+      build: {
+        ...emptyBuild('Templar'),
+        treeStages: [
+          { id: 'tree:1', title: 'Level 10', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201] },
+          { id: 'tree:2', title: 'Level 20', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 201, 202, 203] },
+        ],
+      },
+    };
+    const plan = buildPassiveTreeGuidePlan(profile, undefined, 0, snapshot);
+    expect(plan?.sourceLabel).toContain('Level 20');
+    expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
+  });
+
 });

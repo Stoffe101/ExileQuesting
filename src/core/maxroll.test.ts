@@ -135,6 +135,19 @@ describe('Maxroll leveling guide adapter', () => {
     expect(parsed.metadata.equipmentMilestones[0]).toMatchObject({ name: 'act 1', itemNames: ['Tabula Rasa'] });
   });
 
+  it.each([
+    ['Str', 'Marauder'], ['Dex', 'Ranger'], ['Int', 'Witch'], ['StrDex', 'Duelist'],
+    ['StrInt', 'Templar'], ['DexInt', 'Shadow'], ['StrDexInt', 'Scion'],
+    ['Ascendant', 'Scion'], ['Reliquarian', 'Scion'], ['Luminary', 'Scion'],
+  ] as const)('normalizes Maxroll class identifier %s to %s', (classCode, expectedClass) => {
+    const guide = guideHtml({ title: 'Generic Leveling Guide', slug: 'generic-leveling-guide', plannerId: 'allclass1' });
+    const planner = plannerHtml({ id: 'allclass1', class: classCode, type: 'embed' }, {
+      embeds: [{ type: 'passives', id: 1, version: 329, charClass: classCode, active: 1, variants: [{ history: [10], masteries: {} }] }],
+    });
+    const parsed = parseMaxrollGuide('https://maxroll.gg/poe/build-guides/generic-leveling-guide', guide, planner, passives([10]));
+    expect(parsed.build.className).toBe(expectedClass);
+  });
+
   it('disables exact coaching when a referenced passive no longer exists', () => {
     const guide = guideHtml({ title: 'Some Ranger Leveling Guide', slug: 'some-ranger-leveling-guide', plannerId: 'abc123' });
     const planner = plannerHtml({ id: 'abc123', class: 'Dex', type: 'embed' }, {

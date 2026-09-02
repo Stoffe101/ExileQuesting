@@ -243,7 +243,8 @@ function classNameFromMaxroll(value: unknown, guideTitle: string): string | unde
     dexint: 'Shadow', intdex: 'Shadow', shadow: 'Shadow', assassin: 'Shadow', saboteur: 'Shadow', trickster: 'Shadow',
     strdex: 'Duelist', dexstr: 'Duelist', duelist: 'Duelist', slayer: 'Duelist', gladiator: 'Duelist', champion: 'Duelist',
     strint: 'Templar', intstr: 'Templar', templar: 'Templar', inquisitor: 'Templar', hierophant: 'Templar', guardian: 'Templar',
-    scion: 'Scion', ascendant: 'Scion',
+    strdexint: 'Scion', strintdex: 'Scion', dexstrint: 'Scion', dexintstr: 'Scion', intstrdex: 'Scion', intdexstr: 'Scion',
+    scion: 'Scion', ascendant: 'Scion', reliquarian: 'Scion', luminary: 'Scion',
   };
   const compact = raw?.replace(/[^a-z]/g, '');
   if (compact && map[compact]) return map[compact];
