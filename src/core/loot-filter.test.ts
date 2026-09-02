@@ -30,15 +30,20 @@ function profile(): BuildProfile {
 }
 
 describe('build-aware loot filter', () => {
-  it('derives linked socket colours from the active PoB gem group', () => {
+  it('derives optional 3.29 quality-bonus colours from the active PoB gem group', () => {
     const plan = buildLootFilterPlan(profile(), 'aligned:act-2', snapshot);
-    expect(plan.linkTargets[0]).toMatchObject({ label: 'Main', links: 3, colours: ['R', 'B', 'B'] });
+    expect(plan).toMatchObject({ gameVersion: '3.29' });
+    expect(plan.linkTargets[0]).toMatchObject({ label: 'Main', links: 3, qualityBonusColours: ['R', 'B', 'B'] });
   });
 
-  it('renders narrow high-priority rules and then imports the user base filter', () => {
+  it('shows usable links regardless of colour before falling through to the user base filter', () => {
     const output = renderLootFilter(buildLootFilterPlan(profile(), undefined, snapshot), 'NeverSink.filter');
     expect(output).toContain('SocketGroup >= 3RBB');
+    expect(output).toContain('LinkedSockets >= 3');
+    expect(output).toContain('colours are optional for gem compatibility in PoE 3.29');
+    expect(output).toContain('AreaLevel <= 67');
     expect(output).toContain('SocketGroup RGB');
+    expect(output).toContain('LinkedSockets 6');
     expect(output).toContain('Sockets 6');
     expect(output.trimEnd().endsWith('Import "NeverSink.filter"')).toBe(true);
   });
