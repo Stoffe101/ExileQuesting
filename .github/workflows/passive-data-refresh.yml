@@ -1,0 +1,37 @@
+name: Refresh pinned passive data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Generate pinned PoE passive tree snapshot
+        run: npm run data:passives
+      - name: Validate generated passive tree snapshot
+        run: npm run validate:passives
+      - name: Commit generated snapshot when changed
+        shell: bash
+        run: |
+          git add assets/game-data/passive-tree-3.29.json
+          if git diff --cached --quiet; then
+            echo "Pinned passive tree snapshot is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Generate pinned PoE 3.29 passive tree snapshot"
+          git push origin "HEAD:${{ github.ref_name }}"
