@@ -73,6 +73,7 @@ const api = {
   importBuildProfile: (input: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:import', input),
   activateBuildProfile: (id: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-profile', id),
   activateBuildStage: (profileId: string, stageId: string): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('pob:activate-stage', profileId, stageId),
+  stepBuildPassive: (profileId: string, delta: number): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('build:passive-step', profileId, delta),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
   selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
   regenerateLootFilter: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:regenerate'),
