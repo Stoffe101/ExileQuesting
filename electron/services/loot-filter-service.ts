@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { renderLootFilter, type LootFilterPlan, type LootFilterStatus } from '../../src/core/loot-filter';
+import { renderLootFilter, renderLootFilterPassthrough, type LootFilterPlan, type LootFilterStatus } from '../../src/core/loot-filter';
 
 const OUTPUT_FILE = 'ExileQuesting.filter';
 const MAX_BASE_FILTER_BYTES = 8 * 1024 * 1024;
@@ -19,11 +19,11 @@ export async function validateBaseFilterPath(basePath: string): Promise<string> 
   return resolved;
 }
 
-export async function writeBuildAwareLootFilter(basePath: string, plan: LootFilterPlan, previousFingerprint?: string): Promise<LootFilterStatus> {
+export async function writeBuildAwareLootFilter(basePath: string, plan?: LootFilterPlan, previousFingerprint?: string): Promise<LootFilterStatus> {
   try {
     const resolvedBase = await validateBaseFilterPath(basePath);
     const outputPath = path.join(path.dirname(resolvedBase), OUTPUT_FILE);
-    const content = renderLootFilter(plan, path.basename(resolvedBase));
+    const content = plan ? renderLootFilter(plan, path.basename(resolvedBase)) : renderLootFilterPassthrough(path.basename(resolvedBase));
     const nextFingerprint = fingerprint(content);
     let existing = '';
     try { existing = await fs.readFile(outputPath, 'utf8'); } catch { /* first generation */ }
@@ -41,8 +41,12 @@ export async function writeBuildAwareLootFilter(basePath: string, plan: LootFilt
       needsReload: changed,
       status: 'ready',
       message: changed
-        ? 'Build-aware loot filter updated. Reload ExileQuesting.filter once in Path of Exile.'
-        : 'Build-aware loot filter is already current.',
+        ? plan
+          ? 'Build-aware loot filter updated. Reload ExileQuesting.filter once in Path of Exile.'
+          : 'Build-aware rules cleared because no Build Profile is active. Reload ExileQuesting.filter once in Path of Exile.'
+        : plan
+          ? 'Build-aware loot filter is already current.'
+          : 'No Build Profile is active; ExileQuesting.filter is safely passing through to your base filter.',
     };
   } catch (error) {
     return {
