@@ -100,6 +100,11 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] migrate v0.1 Build Profiles that predate config-stage parsing
 - [x] confidence-rated stage alignment: exact loadout title -> semantic milestone -> guarded ordinal fallback -> explicit ambiguity
 - [x] recognize PoB linked-title `{token}` convention
+- [x] treat real-world level ranges and same-level respec/swap transitions as distinct milestones
+- [x] refuse ordinal fallback when explicit levels, ranges, or linked-title tokens conflict
+- [x] preserve author sequence when PoBs mix Act, Level, and phase milestones
+- [x] expose ambiguous alignment reasons directly in Build Planner
+- [x] regression-test current 3.29 naming patterns such as `Lvl 1-12`, `12-32`, `Lvl 56 (Minor Respec)`, per-Act stages, and linked loadouts
 - [ ] validate stage alignment against a broader corpus of current real-world PoBs
 - [x] active Build Stage selection and persistence
 
@@ -126,6 +131,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] concise BUILD block in Compact/Focus/Coach overlays
 - [x] exact Maxroll next-passive/refund coaching with persisted manual cursor
 - [x] character-level-driven Maxroll skill/gem stage activation
+- [x] range-aware Maxroll stage activation with exact-transition precedence and earliest-future fallback
 - [x] canonicalize Maxroll gem IDs/names through bundled PoE game data
 - [x] preserve Twink equipment slot/item/base/unique references for future item-data resolution
 - [x] stage-aware LOOK FOR gear hints in manager and overlay
@@ -166,7 +172,7 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 - [x] pin and validate a packaged PoE 3.29 passive-tree snapshot with source URL and SHA-256 provenance
 - [x] refuse to apply current passive-node names when an imported PoB targets a different tree version
 
-See `BUILD_INTELLIGENCE.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
+See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `VENDOR_SEARCH.md` and `PASSIVES_RECONCILIATION.md` for the build-aware planner, stage reconciliation, passive, crafting, loot-filter, vendor-search and authoritative passive-reward audit behavior.
 
 ## 0.3 — deeper route + endgame intelligence
 
