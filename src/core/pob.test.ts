@@ -63,6 +63,8 @@ describe('PoB foundation', () => {
     expect(build.skillStages[1].active).toBe(true);
     expect(build.itemStages[1].active).toBe(true);
     expect(build.configStages[1].active).toBe(true);
+    expect(build.skillStages[0].skillGroups?.[0].gems.map((gem) => gem.name)).toEqual(['Rolling Magma']);
+    expect(build.skillStages[1].skillGroups?.[0].gems.map((gem) => gem.name)).toEqual(['Armageddon Brand', 'Combustion']);
     expect(build.activeSkillGroups[0].gems.map((gem) => gem.name)).toEqual(['Armageddon Brand', 'Combustion']);
     expect(build.notes).toContain('Switch at level 28');
   });
