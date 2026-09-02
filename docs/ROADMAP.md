@@ -65,28 +65,70 @@
 - [x] bounded pobb.in raw-fetch service
 - [x] persistent normalized Build Profiles and narrow IPC boundary
 - [x] tagged releases rerun campaign simulation, semantic lint, overlay visuals, soak and installed-app smoke testing
+- [x] public anonymous GitHub Releases update feed
 - [ ] capture real full-campaign Client.txt fixtures during the first live run
 - [ ] validate always-on-top/click-through/combat readability against Path of Exile
 - [ ] real multi-monitor / mixed-DPI placement regression pass
-- [ ] public release feed for end-user app updates (repo or dedicated release repo)
 - [ ] expand reviewed layout hints and bespoke guidance where live testing identifies weak decisions
 
 See `PRE_PLAYTEST.md` for the exact automation/live-test boundary.
 
+## 0.1.4 — Lab + updater reliability hotfix
+
+- [x] replace inert Lab renderer with the packaged React/Vite renderer and sandboxed preload bridge
+- [x] exercise Preview, Auto Walk and all six campaign simulator profiles through real Lab IPC in CI
+- [x] Full Acts 1–10 Simulator UI and report export in the Lab
+- [x] hidden detached file-based Windows updater handoff
+- [x] bounded parent-process wait with failure trace instead of hanging shell pipeline
+- [x] installer exit-code and installed-executable verification
+- [x] relaunch command verification plus a real post-update ExileQuesting process assertion in CI
+- [x] real previous-stable -> candidate upgrade rehearsal before package/release acceptance
+- [x] v0.1.4 public installer + SHA-256 checksum published from verified commit `d1f59724cc28848e8139cb713c8d8828499fe00e`
+
 ## 0.2 — PoB to Play
 
-The parser, bounded pobb.in fetcher and Build Profile persistence are already established by 0.1.2. This milestone turns that foundation into a player-facing planner.
+The parser, bounded pobb.in fetcher and Build Profile persistence are established. This milestone turns them into a deterministic, player-facing leveling planner.
 
-- [ ] paste export code or pobb.in URL in the manager
+PR #9 ships the checked stage-persistence, manager import, bundled gem-planning, and semantic campaign-bridge slices below; unchecked items remain deliberate follow-up work rather than hidden assumptions.
+
+### Stage model
+
+- [x] parse modern passive specs by ordinal instead of inventing IDs from `treeVersion`
+- [x] preserve independent native IDs for skill/item/config sets without assuming cross-family ID equality
+- [x] parse configuration sets as a fourth PoB stage family
+- [x] preserve passive-stage tree version, class/ascendancy IDs, allocated node IDs and mastery selections
+- [x] migrate v0.1 Build Profiles that predate config-stage parsing
+- [x] confidence-rated stage alignment: exact loadout title -> semantic milestone -> guarded ordinal fallback -> explicit ambiguity
+- [x] recognize PoB linked-title `{token}` convention
+- [ ] validate stage alignment against a corpus of current real-world PoBs
+- [x] active Build Stage selection and persistence
+
+### Import + interpretation
+
+- [x] paste export code or pobb.in URL in the manager
 - [ ] local `.xml` build discovery/import UX
 - [ ] background import/decompression workflow
-- [ ] stage-selection and active Build Profile UI
-- [ ] class-aware quest reward and vendor plan
-- [ ] link colours, socket counts, and gem transitions
-- [ ] passive milestone overlay
 - [ ] build notes and guide-source link
-- [ ] build + character progress profiles
-- [ ] attach build actions to the semantic campaign-action model
+- [ ] character-linked Build Profiles
+
+### Leveling plan
+
+- [x] versioned gem metadata snapshot with provenance
+- [x] class-aware quest reward plan
+- [x] class-aware vendor availability plan
+- [ ] Siosa/Lilly fallback acquisition rules
+- [x] gem transition planner
+- [ ] link/socket/colour transition planner
+- [ ] passive milestone diff between aligned tree stages
+- [x] attach build actions to the semantic campaign-action model
+- [ ] concise BUILD block in Compact/Focus/Coach overlays
+
+### Data quality
+
+- [ ] version every generated game-data snapshot independently from the application
+- [ ] record game version, schema version, generated-at timestamp, source revision/URL and checksum
+- [x] keep runtime operation independent of PoE Wiki availability
+- [x] regression-test known quest/vendor edge cases and class restrictions
 
 ## 0.3 — build-aware campaign + loot intelligence
 
@@ -120,11 +162,14 @@ The parser, bounded pobb.in fetcher and Build Profile persistence are already es
 
 ## Release requirements for every milestone
 
-- type check, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
-- Windows overlay visual matrix and lifecycle soak pass;
-- Windows NSIS installer builds and survives an installed-app smoke test on GitHub Actions;
+- typecheck, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
+- Windows manager responsive matrix, overlay visual matrix and lifecycle soak pass;
+- Windows NSIS installer builds successfully;
+- when a previous stable release exists, CI installs that release and proves the real updater can move it to the candidate build;
+- the relaunched ExileQuesting process must actually be observed after update, not merely requested;
+- the upgraded installed executable reports the candidate version and survives a packaged startup smoke test before uninstall;
 - packaged resource paths are exercised;
-- startup and failure paths produce diagnostic logs;
+- startup, updater and failure paths produce diagnostic logs;
 - a release tag must match `package.json` version;
 - public release assets must be generated by the tested release workflow, not uploaded ad hoc;
 - current GGG policy boundary is rechecked;

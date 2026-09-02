@@ -4,7 +4,7 @@ import type { PobBuildSummary } from './pob';
 
 const build: PobBuildSummary = {
   root: 'PathOfBuilding', className: 'Witch', ascendancy: 'Elementalist', level: 38,
-  treeStages: [], skillStages: [], itemStages: [], activeSkillGroups: [], warnings: [],
+  treeStages: [], skillStages: [], itemStages: [], configStages: [], activeSkillGroups: [], warnings: [],
 };
 
 function profile(id: string, importedAt = '2026-09-01T10:00:00Z'): BuildProfile {
@@ -25,5 +25,13 @@ describe('build profiles', () => {
   it('drops malformed persisted profiles', () => {
     const normalized = normalizeBuildProfiles([profile('good'), { id: 42 }, { id: 'bad', importedAt: 'x', sourceKind: 'wat', build }]);
     expect(normalized.map((item) => item.id)).toEqual(['good']);
+  });
+
+  it('migrates v0.1 Build Profiles that predate configuration-stage parsing', () => {
+    const legacyBuild = { ...build } as Record<string, unknown>;
+    delete legacyBuild.configStages;
+    const normalized = normalizeBuildProfiles([{ ...profile('legacy'), build: legacyBuild }]);
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0].build.configStages).toEqual([]);
   });
 });

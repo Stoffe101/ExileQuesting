@@ -64,6 +64,10 @@ import { createPreplaytestLab } from './services/preplaytest-lab';
 import { runOverlayWindowSoak } from './services/overlay-soak';
 import { importPobBuild } from './services/pob-service';
 import { defaultBuildProfileName, upsertBuildProfile, type BuildProfile } from '../src/core/build-profiles';
+import { activateBuildProfile, activateBuildStage, buildPlannerSnapshot, normalizeBuildPlannerState, type BuildPlannerState } from '../src/core/build-planner';
+import { buildGemAcquisitionPlan, type GemAcquisitionPlan } from '../src/core/gem-acquisition';
+import { bridgeBuildPlanToCampaign, campaignBuildActionsForStep, type CampaignBuildBridge } from '../src/core/build-campaign';
+import { bundledGemDataPath, loadGemAcquisitionSnapshot, type GameDataLoadResult } from './services/game-data';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
 const DEFAULT_GUIDE_PATH = 'data/english/[leveltracker] default guide.json';
@@ -132,6 +136,10 @@ let appUpdater: AppUpdater | null = null;
 let overlayDemo: OverlayDemoConfig | null = null;
 let lastReplay: ReplayUiResult | null = null;
 let buildProfiles: BuildProfile[] = [];
+let buildPlannerState: BuildPlannerState = { schemaVersion: 1, activeStageByProfile: {} };
+let gemData: GameDataLoadResult = { path: '', status: 'missing', message: 'Bundled gem acquisition data has not been loaded yet.' };
+let activeGemPlan: GemAcquisitionPlan | undefined;
+let buildBridge: CampaignBuildBridge | undefined;
 let appUpdate: AppUpdateState = {
   status: app.isPackaged ? 'idle' : 'disabled', currentVersion: app.getVersion(),
   message: app.isPackaged ? 'Update check has not run yet.' : 'Application updates are disabled in development builds.',
@@ -159,6 +167,7 @@ async function loadPersistentState(): Promise<void> {
   runSession = run.session;
   runHistory = run.history;
   buildProfiles = await store.loadBuildProfiles();
+  buildPlannerState = await store.loadBuildPlanner(buildProfiles);
 }
 async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
 async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
@@ -216,11 +225,55 @@ async function loadCampaign(): Promise<void> {
   confirmedRewardStepIds = await store.loadRewards(knownRewardIds);
 }
 
+async function loadBuildGameData(): Promise<void> {
+  const filePath = bundledGemDataPath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() });
+  gemData = await loadGemAcquisitionSnapshot(filePath, {
+    info: (...args) => log.info(...args),
+    warn: (...args) => log.warn(...args),
+  });
+}
+
+function rebuildBuildGuidance(): void {
+  buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
+  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  activeGemPlan = activeProfile && gemData.snapshot ? buildGemAcquisitionPlan(activeProfile, gemData.snapshot) : undefined;
+  buildBridge = activeGemPlan ? bridgeBuildPlanToCampaign(dataset, activeGemPlan) : undefined;
+}
+
+function buildAwareDataset(): CampaignDataset {
+  if (!buildBridge || !Object.keys(buildBridge.actionsByStep).length) return dataset;
+  return {
+    ...dataset,
+    steps: dataset.steps.map((step) => {
+      const buildActions = campaignBuildActionsForStep(buildBridge!, step.id);
+      return buildActions.length ? { ...step, actions: [...step.actions, ...buildActions] } : step;
+    }),
+  };
+}
+
+function buildWorkspaceSnapshot() {
+  return {
+    planner: buildPlannerSnapshot(buildProfiles, buildPlannerState),
+    gemData: {
+      status: gemData.status,
+      message: gemData.message,
+      gameVersion: gemData.snapshot?.gameVersion,
+      sourceCommit: gemData.snapshot?.source.commit,
+    },
+    plan: activeGemPlan,
+    campaign: {
+      resolved: buildBridge?.gemAvailability.filter((entry) => entry.confidence !== 'unresolved').length ?? 0,
+      unresolved: buildBridge?.unresolved.length ?? 0,
+      actionSteps: buildBridge ? Object.keys(buildBridge.actionsByStep).length : 0,
+    },
+  };
+}
+
 function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
 function xpGuidance(level = characterLevel, area = currentAreaLevel) { return calculateXpGuidance(level, area); }
 function runtimeState(): RuntimeState {
   return {
-    settings, dataset, sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
+    settings, dataset: buildAwareDataset(), sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
     xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, confirmedRewardStepIds),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
     logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
@@ -480,6 +533,7 @@ async function checkCampaignUpdates(): Promise<void> {
     progress = Math.min(progress, dataset.steps.length - 1);
     confirmedRewardStepIds = new Set([...confirmedRewardStepIds].filter((id) => dataset.steps.some((step) => step.id === id)));
     await saveRewardConfirmations();
+    rebuildBuildGuidance();
     sourceStatus = { state: 'current', activeCommit: commitInfo.sha, latestCommit: commitInfo.sha, checkedAt, message: 'New Exile-UI campaign data passed validation and is active.', validation };
   } catch (error) {
     sourceStatus = { state: 'error', activeCommit: dataset.source.commit, checkedAt, message: `Update check failed. Verified local campaign remains active. ${error instanceof Error ? error.message : ''}`.trim() };
@@ -641,18 +695,40 @@ function registerIpc(): void {
   ipcMain.handle('diagnostics:replay', async () => replayCapturedLog());
   ipcMain.handle('diagnostics:replay-export', async () => exportReplayBundle());
   ipcMain.handle('pob:list', () => buildProfiles);
+  ipcMain.handle('pob:workspace', () => buildWorkspaceSnapshot());
   ipcMain.handle('pob:import', async (_event, input: unknown) => {
     if (typeof input !== 'string') throw new Error('PoB input must be text.');
     const imported = await importPobBuild(input, app.getVersion());
     const profile: BuildProfile = { ...imported, name: defaultBuildProfileName(imported.build) };
     buildProfiles = upsertBuildProfile(buildProfiles, profile);
-    await store.saveBuildProfiles(buildProfiles);
+    buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
+    rebuildBuildGuidance();
+    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    broadcastState();
     return buildProfiles;
+  });
+  ipcMain.handle('pob:activate-profile', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 256) return buildWorkspaceSnapshot();
+    buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, id);
+    rebuildBuildGuidance();
+    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    broadcastState();
+    return buildWorkspaceSnapshot();
+  });
+  ipcMain.handle('pob:activate-stage', async (_event, profileId: unknown, stageId: unknown) => {
+    if (typeof profileId !== 'string' || typeof stageId !== 'string' || profileId.length > 256 || stageId.length > 256) return buildWorkspaceSnapshot();
+    buildPlannerState = activateBuildStage(buildPlannerState, buildProfiles, profileId, stageId);
+    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    broadcastState();
+    return buildWorkspaceSnapshot();
   });
   ipcMain.handle('pob:delete', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildProfiles;
     buildProfiles = buildProfiles.filter((profile) => profile.id !== id);
-    await store.saveBuildProfiles(buildProfiles);
+    buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
+    rebuildBuildGuidance();
+    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    broadcastState();
     return buildProfiles;
   });
 }
@@ -730,7 +806,13 @@ else {
     await loadPersistentState();
     await loadLocalCompatibility();
     await loadCampaign();
-    if (isSmokeTest) { log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps.`); app.exit(0); return; }
+    await loadBuildGameData();
+    rebuildBuildGuidance();
+    if (isSmokeTest) {
+      if (gemData.status !== 'ready') throw new Error(`Packaged gem data failed startup smoke: ${gemData.message}`);
+      log.info(`Packaged startup smoke test passed with ${dataset.steps.length} campaign steps and PoE ${gemData.snapshot?.gameVersion} gem data.`);
+      app.exit(0); return;
+    }
 
     sessionGuard = new SessionGuard(app.getPath('userData'));
     recovery = sessionGuard.begin(app.getVersion(), progress);

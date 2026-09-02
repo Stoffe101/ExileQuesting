@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-profiles';
+import { defaultBuildPlannerState, normalizeBuildPlannerState, type BuildPlannerState } from '../../src/core/build-planner';
 import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, settingsDocument } from '../../src/core/persistence';
 import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from '../../src/core/types';
 
@@ -85,5 +86,14 @@ export class StateStore {
 
   async saveBuildProfiles(profiles: BuildProfile[]): Promise<void> {
     await this.write('build-profiles.json', normalizeBuildProfiles(profiles));
+  }
+
+  async loadBuildPlanner(profiles: BuildProfile[]): Promise<BuildPlannerState> {
+    try { return normalizeBuildPlannerState(await this.readUnknown('build-planner.json'), profiles); }
+    catch { return normalizeBuildPlannerState(defaultBuildPlannerState(), profiles); }
+  }
+
+  async saveBuildPlanner(state: BuildPlannerState, profiles: BuildProfile[]): Promise<void> {
+    await this.write('build-planner.json', normalizeBuildPlannerState(state, profiles));
   }
 }

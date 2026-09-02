@@ -17,12 +17,15 @@
     "audit:campaign": "node tools/audit-campaign.mjs",
     "lint:campaign": "esbuild tools/lint-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/lint-campaign.mjs && node .tmp/lint-campaign.mjs",
     "simulate:campaign": "esbuild tools/simulate-campaign.ts --bundle --platform=node --format=esm --outfile=.tmp/simulate-campaign.mjs && node .tmp/simulate-campaign.mjs",
+    "data:gems": "esbuild tools/generate-gem-data.ts --bundle --platform=node --format=esm --outfile=.tmp/generate-gem-data.mjs && node .tmp/generate-gem-data.mjs",
+    "check:gems": "esbuild tools/generate-gem-data.ts --bundle --platform=node --format=esm --outfile=.tmp/generate-gem-data.mjs && node .tmp/generate-gem-data.mjs --check",
+    "validate:gems": "esbuild tools/validate-gem-data.ts --bundle --platform=node --format=esm --outfile=.tmp/validate-gem-data.mjs && node .tmp/validate-gem-data.mjs",
     "visual:overlay": "npm run build && electron --force-device-scale-factor=1 . --visual-smoke=artifacts/visual/100 && electron --force-device-scale-factor=1.25 . --visual-smoke=artifacts/visual/125 && electron --force-device-scale-factor=1.5 . --visual-smoke=artifacts/visual/150",
     "visual:manager": "npm run build && esbuild tools/visual-manager.ts --bundle --platform=node --format=cjs --packages=external --outfile=.tmp/visual-manager.cjs && electron .tmp/visual-manager.cjs artifacts/manager-visual",
     "soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",
     "smoke:lab": "npm run build && esbuild tools/smoke-lab.ts --bundle --platform=node --format=cjs --packages=external --outfile=.tmp/smoke-lab.cjs && electron .tmp/smoke-lab.cjs",
     "smoke:update-handoff": "esbuild tools/smoke-update-handoff.ts --bundle --platform=node --format=cjs --outfile=.tmp/smoke-update-handoff.cjs",
-    "verify:preplaytest": "npm run typecheck && npm test && npm run audit:campaign && npm run lint:campaign && npm run simulate:campaign",
+    "verify:preplaytest": "npm run typecheck && npm test && npm run validate:gems && npm run audit:campaign && npm run lint:campaign && npm run simulate:campaign",
     "check:upstream": "node tools/check-upstream.mjs",
     "dist": "npm run build && electron-builder --win nsis --publish never",
     "dist:dir": "npm run build && electron-builder --dir",
@@ -67,6 +70,10 @@
       {
         "from": "assets/campaign",
         "to": "campaign"
+      },
+      {
+        "from": "assets/game-data",
+        "to": "game-data"
       }
     ],
     "win": {

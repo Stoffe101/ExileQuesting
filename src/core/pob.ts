@@ -1,4 +1,5 @@
 export type PobInputKind = 'xml' | 'export-code' | 'pobbin';
+export type PobStageKind = 'tree' | 'skills' | 'items' | 'config';
 
 export interface PobInputDescriptor {
   kind: PobInputKind;
@@ -6,12 +7,9 @@ export interface PobInputDescriptor {
   pobbinRawUrl?: string;
 }
 
-export interface PobStageSummary {
-  id: string;
-  title: string;
-  kind: 'tree' | 'skills' | 'items';
-  active: boolean;
-  ordinal: number;
+export interface PobMasterySelection {
+  nodeId: number;
+  effectId: number;
 }
 
 export interface PobGemSummary {
@@ -28,6 +26,25 @@ export interface PobSkillGroupSummary {
   gems: PobGemSummary[];
 }
 
+export interface PobStageSummary {
+  /** Stable ExileQuesting-local identity. Never assumes PoB set IDs align across families. */
+  id: string;
+  /** Native PoB set ID when the container actually has one. Passive specs are ordinal in modern PoB. */
+  sourceId?: string;
+  title: string;
+  kind: PobStageKind;
+  active: boolean;
+  ordinal: number;
+  treeVersion?: string;
+  classId?: number;
+  ascendClassId?: number;
+  secondaryAscendClassId?: number;
+  nodeIds?: number[];
+  masterySelections?: PobMasterySelection[];
+  /** Present on skill stages so transitions can be derived without reparsing the original XML. */
+  skillGroups?: PobSkillGroupSummary[];
+}
+
 export interface PobBuildSummary {
   root: 'PathOfBuilding';
   className?: string;
@@ -39,6 +56,7 @@ export interface PobBuildSummary {
   treeStages: PobStageSummary[];
   skillStages: PobStageSummary[];
   itemStages: PobStageSummary[];
+  configStages: PobStageSummary[];
   activeSkillGroups: PobSkillGroupSummary[];
   warnings: string[];
 }
@@ -71,41 +89,24 @@ function cleanText(value: string): string {
   return decodeXmlEntities(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, '')).trim();
 }
 
-function stageTags(xml: string, container: 'Tree' | 'Skills' | 'Items', child: 'Spec' | 'SkillSet' | 'ItemSet'): PobStageSummary[] {
-  const containerMatch = xml.match(new RegExp(`<${container}\\b([^>]*)>([\\s\\S]*?)<\\/${container}>`, 'i'));
-  if (!containerMatch) return [];
-  const parent = attributes(containerMatch[1]);
-  const activeId = parent[`active${child === 'Spec' ? 'Spec' : child}`] ?? parent.activeSpec ?? parent.activeSkillSet ?? parent.activeItemSet;
-  const result: PobStageSummary[] = [];
-  const regex = new RegExp(`<${child}\\b([^>]*)`, 'gi');
-  let match: RegExpExecArray | null;
-  let ordinal = 0;
-  while ((match = regex.exec(containerMatch[2]))) {
-    ordinal += 1;
-    const attrs = attributes(match[1]);
-    const id = attrs.id ?? attrs.treeVersion ?? String(ordinal);
-    result.push({
-      id,
-      title: attrs.title?.trim() || `${child === 'Spec' ? 'Tree' : child === 'SkillSet' ? 'Skills' : 'Items'} ${ordinal}`,
-      kind: child === 'Spec' ? 'tree' : child === 'SkillSet' ? 'skills' : 'items',
-      active: activeId ? activeId === id : ordinal === 1,
-      ordinal,
-    });
-  }
-  return result;
+function integerList(value: string | undefined): number[] | undefined {
+  if (!value?.trim()) return undefined;
+  const result = [...value.matchAll(/\d+/g)].map((match) => Number(match[0])).filter(Number.isSafeInteger);
+  return result.length ? result : undefined;
 }
 
-function activeSkillGroups(xml: string): PobSkillGroupSummary[] {
-  const skillsMatch = xml.match(/<Skills\b([^>]*)>([\s\S]*?)<\/Skills>/i);
-  if (!skillsMatch) return [];
-  const parent = attributes(skillsMatch[1]);
-  const activeId = parent.activeSkillSet;
-  let body = skillsMatch[2];
-  if (activeId) {
-    const escaped = activeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const active = body.match(new RegExp(`<SkillSet\\b([^>]*)\\bid=["']${escaped}["'][^>]*>([\\s\\S]*?)<\\/SkillSet>`, 'i'));
-    if (active) body = active[2];
+function masterySelections(value: string | undefined): PobMasterySelection[] | undefined {
+  if (!value) return undefined;
+  const result: PobMasterySelection[] = [];
+  for (const match of value.matchAll(/\{(\d+),(\d+)\}/g)) {
+    const nodeId = Number(match[1]);
+    const effectId = Number(match[2]);
+    if (Number.isSafeInteger(nodeId) && Number.isSafeInteger(effectId)) result.push({ nodeId, effectId });
   }
+  return result.length ? result : undefined;
+}
+
+function parseSkillGroups(body: string): PobSkillGroupSummary[] {
   const groups: PobSkillGroupSummary[] = [];
   const skillRegex = /<Skill\b([^>]*)>([\s\S]*?)<\/Skill>/gi;
   let skill: RegExpExecArray | null;
@@ -129,6 +130,84 @@ function activeSkillGroups(xml: string): PobSkillGroupSummary[] {
     groups.push({ label: skillAttrs.label || undefined, enabled: skillAttrs.enabled !== 'false', gems });
   }
   return groups;
+}
+
+interface StageContainerDefinition {
+  container: 'Tree' | 'Items' | 'Config';
+  child: 'Spec' | 'ItemSet' | 'ConfigSet';
+  kind: Exclude<PobStageKind, 'skills'>;
+  activeAttribute: 'activeSpec' | 'activeItemSet' | 'activeConfigSet';
+  fallbackLabel: string;
+  /** Modern PoB passive specs are selected by 1-based ordinal, not a child `id`. */
+  activeByOrdinal?: boolean;
+}
+
+function stageTags(xml: string, definition: StageContainerDefinition): PobStageSummary[] {
+  const containerMatch = xml.match(new RegExp(`<${definition.container}\\b([^>]*)>([\\s\\S]*?)<\\/${definition.container}>`, 'i'));
+  if (!containerMatch) return [];
+  const parent = attributes(containerMatch[1]);
+  const activeValue = parent[definition.activeAttribute];
+  const activeOrdinal = definition.activeByOrdinal ? integer(activeValue) : undefined;
+  const result: PobStageSummary[] = [];
+  const regex = new RegExp(`<${definition.child}\\b([^>]*)`, 'gi');
+  let match: RegExpExecArray | null;
+  let ordinal = 0;
+  while ((match = regex.exec(containerMatch[2]))) {
+    ordinal += 1;
+    const attrs = attributes(match[1]);
+    const sourceId = attrs.id?.trim() || undefined;
+    const active = definition.activeByOrdinal
+      ? (activeOrdinal ? activeOrdinal === ordinal : ordinal === 1)
+      : (activeValue ? activeValue === sourceId : ordinal === 1);
+    result.push({
+      id: `${definition.kind}:${ordinal}`,
+      sourceId,
+      title: attrs.title?.trim() || `${definition.fallbackLabel} ${ordinal}`,
+      kind: definition.kind,
+      active,
+      ordinal,
+      treeVersion: definition.kind === 'tree' ? attrs.treeVersion || undefined : undefined,
+      classId: definition.kind === 'tree' ? integer(attrs.classId) : undefined,
+      ascendClassId: definition.kind === 'tree' ? integer(attrs.ascendClassId) : undefined,
+      secondaryAscendClassId: definition.kind === 'tree' ? integer(attrs.secondaryAscendClassId) : undefined,
+      nodeIds: definition.kind === 'tree' ? integerList(attrs.nodes) : undefined,
+      masterySelections: definition.kind === 'tree' ? masterySelections(attrs.masteryEffects) : undefined,
+    });
+  }
+  return result;
+}
+
+function skillStageTags(xml: string): { stages: PobStageSummary[]; activeGroups: PobSkillGroupSummary[] } {
+  const skillsMatch = xml.match(/<Skills\b([^>]*)>([\s\S]*?)<\/Skills>/i);
+  if (!skillsMatch) return { stages: [], activeGroups: [] };
+  const parent = attributes(skillsMatch[1]);
+  const activeId = parent.activeSkillSet;
+  const stages: PobStageSummary[] = [];
+  const regex = /<SkillSet\b([^>]*)>([\s\S]*?)<\/SkillSet>/gi;
+  let match: RegExpExecArray | null;
+  let ordinal = 0;
+  while ((match = regex.exec(skillsMatch[2]))) {
+    ordinal += 1;
+    const attrs = attributes(match[1]);
+    const sourceId = attrs.id?.trim() || undefined;
+    stages.push({
+      id: `skills:${ordinal}`,
+      sourceId,
+      title: attrs.title?.trim() || `Skills ${ordinal}`,
+      kind: 'skills',
+      active: activeId ? activeId === sourceId : ordinal === 1,
+      ordinal,
+      skillGroups: parseSkillGroups(match[2]),
+    });
+  }
+
+  if (stages.length) {
+    const active = stages.find((stage) => stage.active) ?? stages[0];
+    return { stages, activeGroups: active.skillGroups ?? [] };
+  }
+
+  // Older/simple PoBs can store Skill nodes directly under <Skills> without named SkillSet children.
+  return { stages: [], activeGroups: parseSkillGroups(skillsMatch[2]) };
 }
 
 export function describePobInput(input: string): PobInputDescriptor {
@@ -200,12 +279,15 @@ export function parsePobXml(xml: string): PobBuildSummary {
   const build = attributes(buildTag?.[1] ?? '');
   const notesMatch = trimmed.match(/<Notes\b[^>]*>([\s\S]*?)<\/Notes>/i);
   const warnings: string[] = [];
-  const treeStages = stageTags(trimmed, 'Tree', 'Spec');
-  const skillStages = stageTags(trimmed, 'Skills', 'SkillSet');
-  const itemStages = stageTags(trimmed, 'Items', 'ItemSet');
+  const treeStages = stageTags(trimmed, { container: 'Tree', child: 'Spec', kind: 'tree', activeAttribute: 'activeSpec', fallbackLabel: 'Tree', activeByOrdinal: true });
+  const skills = skillStageTags(trimmed);
+  const skillStages = skills.stages;
+  const itemStages = stageTags(trimmed, { container: 'Items', child: 'ItemSet', kind: 'items', activeAttribute: 'activeItemSet', fallbackLabel: 'Items' });
+  const configStages = stageTags(trimmed, { container: 'Config', child: 'ConfigSet', kind: 'config', activeAttribute: 'activeConfigSet', fallbackLabel: 'Config' });
   if (!treeStages.length) warnings.push('No passive-tree stages were found.');
   if (!skillStages.length) warnings.push('No named skill stages were found; this may be an older/simpler PoB export.');
   if (!itemStages.length) warnings.push('No named item stages were found; this may be an older/simpler PoB export.');
+  if (!configStages.length) warnings.push('No named configuration stages were found; this may be an older/simpler PoB export.');
 
   return {
     root: 'PathOfBuilding',
@@ -218,7 +300,8 @@ export function parsePobXml(xml: string): PobBuildSummary {
     treeStages,
     skillStages,
     itemStages,
-    activeSkillGroups: activeSkillGroups(trimmed),
+    configStages,
+    activeSkillGroups: skills.activeGroups,
     warnings,
   };
 }
