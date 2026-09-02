@@ -10,6 +10,9 @@ export interface GemAcquisitionSource {
   questId?: string;
   questName?: string;
   rewardOfferId?: string;
+  /** NPC that completes/unlocks the reward offer. Used to resolve the campaign route. */
+  questNpc?: string;
+  /** NPC the player actually takes/buys the gem from. */
   npc?: string;
   timingVerified: boolean;
 }
@@ -52,6 +55,7 @@ function sourceFromOffer(stage: PobAlignedStage, offer: GemAcquisitionOffer): Ge
     questId: offer.questId,
     questName: offer.questName,
     rewardOfferId: offer.rewardOfferId,
+    questNpc: offer.questNpc,
     npc: offer.kind === 'vendor' ? offer.npc : offer.questNpc,
     timingVerified: timingVerified(stage, offer),
   };
