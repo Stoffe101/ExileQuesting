@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-profiles';
 import { defaultBuildPlannerState, normalizeBuildPlannerState, type BuildPlannerState } from '../../src/core/build-planner';
+import { sanitizeRunTelemetry } from '../../src/core/run-intelligence';
 import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, settingsDocument } from '../../src/core/persistence';
 import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from '../../src/core/types';
 
@@ -70,8 +71,11 @@ export class StateStore {
   }
 
   async loadRun(): Promise<{ session: RunSession; history: RunHistoryEntry[] }> {
-    try { return normalizeRunDocument(await this.readUnknown('run.json')); }
-    catch { return normalizeRunDocument(undefined); }
+    try { return sanitizeRunTelemetry(...Object.values(normalizeRunDocument(await this.readUnknown('run.json'))) as [RunSession, RunHistoryEntry[]]); }
+    catch {
+      const fallback = normalizeRunDocument(undefined);
+      return sanitizeRunTelemetry(fallback.session, fallback.history);
+    }
   }
 
   async loadRewards(allowedStepIds?: Set<string>): Promise<Set<string>> {
