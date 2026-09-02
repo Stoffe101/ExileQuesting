@@ -102,6 +102,29 @@ describe('Gear Coach equipped comparison', () => {
     expect(result.deltas.some((item) => item.tone === 'negative')).toBe(true);
   });
 
+  it('uses the conservative visible-offence signal for weapon comparisons', () => {
+    const equipped = analysis({
+      name: 'Old Wand',
+      slot: 'weapon',
+      score: 54,
+      stats: { increasedDamage: 30, castSpeed: 8 },
+      maxLinks: 3,
+    });
+    const candidate = analysis({
+      name: 'New Wand',
+      slot: 'weapon',
+      score: 68,
+      stats: { increasedDamage: 35, castSpeed: 12, gemLevels: 1 },
+      maxLinks: 3,
+    });
+
+    const result = compareGearAnalyses(candidate, equipped);
+    const offence = result.deltas.find((item) => item.key === 'offence');
+    expect(result.verdict).toBe('upgrade');
+    expect(offence?.delta).toBeGreaterThan(0);
+    expect(result.deltas.some((item) => item.key === 'life')).toBe(false);
+  });
+
   it('refuses to make upgrade claims across different gear slots', () => {
     const equipped = analysis({ name: 'Old Helm', slot: 'helmet', score: 45 });
     const candidate = analysis({ name: 'New Boots', slot: 'boots', score: 90 });
@@ -112,13 +135,14 @@ describe('Gear Coach equipped comparison', () => {
     expect(result.reasons[0].tone).toBe('warning');
   });
 
-  it('keeps an unusable higher-scoring candidate in the future category', () => {
+  it('keeps an unusable higher-scoring candidate in the future category without calling it an upgrade', () => {
     const equipped = analysis({ name: 'Old Pace', score: 50 });
     const candidate = analysis({ name: 'Future Pace', score: 92, verdict: 'future', stats: { maximumLife: 100, movementSpeed: 30 } });
 
     const result = compareGearAnalyses(candidate, equipped);
     expect(result.verdict).toBe('future');
     expect(result.scoreDelta).toBe(42);
+    expect(result.headline).not.toMatch(/upgrade/i);
     expect(result.reasons[0].label).toMatch(/cannot be equipped/i);
   });
 });
