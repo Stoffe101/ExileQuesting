@@ -92,7 +92,8 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
 
   const nodes: PassiveNodeRecord[] = [];
   const ids = new Set<number>();
-  let geometryNodes = 0;
+  let mainTreeNodes = 0;
+  let mainTreeGeometryNodes = 0;
   for (const candidate of source.nodes) {
     const node = record(candidate);
     const nodeKind = kind(node?.kind);
@@ -105,7 +106,10 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
     const y = node.y === undefined ? undefined : finite(node.y);
     if ((x === undefined) !== (y === undefined)) return null;
     if ((node.x !== undefined && x === undefined) || (node.y !== undefined && y === undefined)) return null;
-    if (x !== undefined) geometryNodes += 1;
+    if (nodeKind !== 'ascendancy') {
+      mainTreeNodes += 1;
+      if (x !== undefined) mainTreeGeometryNodes += 1;
+    }
 
     const group = node.group === undefined ? undefined : safeInteger(node.group, 0, 10_000);
     const orbit = node.orbit === undefined ? undefined : safeInteger(node.orbit, 0, 64);
@@ -138,10 +142,9 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
   const skillsPerOrbit = source.skillsPerOrbit === undefined ? undefined : boundedIntegerArray(source.skillsPerOrbit, 64, 1, 128);
   const orbitRadii = source.orbitRadii === undefined ? undefined : boundedIntegerArray(source.orbitRadii, 64, 0, 10_000);
   if (schemaVersion === 2) {
-    // Geometry is deliberately a release-grade contract. A truncated or partly
-    // migrated snapshot must disable the HUD rather than place a marker on the
-    // wrong passive node.
-    if (!bounds || !skillsPerOrbit || !orbitRadii || geometryNodes < Math.floor(nodes.length * 0.9)) return null;
+    // Ascendancy subtrees use separate geometry. Require near-complete geometry
+    // for the main passive tree, which is the surface Passive Tree HUD targets.
+    if (!bounds || !skillsPerOrbit || !orbitRadii || mainTreeNodes < 1000 || mainTreeGeometryNodes < Math.floor(mainTreeNodes * 0.98)) return null;
   }
 
   return {
@@ -162,5 +165,5 @@ export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, Pa
 
 export function hasPassiveTreeGeometry(snapshot?: PassiveTreeSnapshot): snapshot is PassiveTreeSnapshot & Required<Pick<PassiveTreeSnapshot, 'bounds' | 'skillsPerOrbit' | 'orbitRadii'>> {
   if (!snapshot || snapshot.schemaVersion !== 2 || !snapshot.bounds || !snapshot.skillsPerOrbit || !snapshot.orbitRadii) return false;
-  return snapshot.nodes.some((node) => node.x !== undefined && node.y !== undefined);
+  return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && node.x !== undefined && node.y !== undefined);
 }
