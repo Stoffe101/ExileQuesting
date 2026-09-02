@@ -8,6 +8,8 @@ const EXTERNAL_HOSTS = new Set([
   'www.pathofexile.com',
   'poewiki.net',
   'www.poewiki.net',
+  'maxroll.gg',
+  'www.maxroll.gg',
 ]);
 
 export function isAllowedExternalUrl(value: string): boolean {
