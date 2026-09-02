@@ -143,12 +143,22 @@ export function finishRun(session: RunSession, now = new Date()): { session: Run
   const finishedAt = now.toISOString();
   let settled = settleActiveVisit(settleTownTime(session, now), now);
   const elapsedMs = elapsedRunMs(settled, now.getTime());
+  const finalPauseStarted = settled.state === 'paused' && settled.pausedAt ? Date.parse(settled.pausedAt) : NaN;
+  const finalPausedMs = settled.pausedMs + (Number.isFinite(finalPauseStarted) ? Math.max(0, now.getTime() - finalPauseStarted) : 0);
   const splits: ActSplit[] = [...settled.splits];
   const currentAct = settled.currentAct;
   if (currentAct && !splits.some((split) => split.act === currentAct)) {
     splits.push({ act: currentAct, at: finishedAt, elapsedMs });
   }
-  settled = { ...settled, state: 'finished', finishedAt, pausedAt: undefined, activeVisitStartedAt: undefined, splits };
+  settled = {
+    ...settled,
+    state: 'finished',
+    finishedAt,
+    pausedAt: undefined,
+    pausedMs: finalPausedMs,
+    activeVisitStartedAt: undefined,
+    splits,
+  };
   return {
     session: settled,
     history: {
