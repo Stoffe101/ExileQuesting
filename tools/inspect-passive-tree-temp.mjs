@@ -39,6 +39,7 @@ const missing = nodes.filter((node) => {
   const group = groups[String(node.group)];
   return node.name && (!group || !Number.isInteger(Number(node.orbit)) || !Number.isInteger(Number(node.orbitIndex)));
 });
+const classStarts = nodes.filter((node) => node.classStartIndex !== undefined);
 const byKind = {};
 const flags = {};
 for (const node of missing) {
@@ -53,6 +54,17 @@ for (const node of missing) {
 }
 console.log(JSON.stringify({
   namedNodes: nodes.filter((node) => node.name).length,
+  classStarts: classStarts.map((node) => ({
+    skill: node.skill,
+    name: node.name,
+    classStartIndex: node.classStartIndex,
+    group: node.group,
+    orbit: node.orbit,
+    orbitIndex: node.orbitIndex,
+    out: node.out,
+  })),
+  classes: tree.classes,
+  constantsClasses: tree.constants?.classes,
   missingGeometry: missing.length,
   byKind,
   flags,
