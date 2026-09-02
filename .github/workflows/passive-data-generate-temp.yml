@@ -18,13 +18,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: codex/build-aware-campaign-intelligence
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - name: Generate pinned PoE 3.29 passive tree snapshot
-        run: npx esbuild tools/generate-passive-data.ts --bundle --platform=node --format=esm --outfile=.tmp/generate-passive-data.mjs && node .tmp/generate-passive-data.mjs
+        run: npm run data:passives
+      - name: Validate generated passive tree snapshot
+        run: npm run validate:passives
       - name: Commit generated snapshot
         shell: bash
         run: |
