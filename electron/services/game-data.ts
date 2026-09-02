@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { gameDataManifestEntry, validateGameDataManifest, type GameDataManifest, type GameDataManifestEntry } from '../../src/core/game-data-manifest';
+import { gameDataManifestEntry, validateGameDataManifest, type GameDataManifest, type GameDataManifestEntry, type GameDataDatasetId } from '../../src/core/game-data-manifest';
 import { validateGemAcquisitionSnapshot, type GemAcquisitionSnapshot } from '../../src/core/gem-data';
 import { validatePassiveTreeSnapshot, type PassiveTreeSnapshot } from '../../src/core/passive-data';
 
@@ -110,6 +110,10 @@ function samePaths(left: string[], right: string[]): boolean {
   return expected.every((value, index) => value === actual[index]);
 }
 
+function canonicalFileFor(id: GameDataDatasetId): string {
+  return id === 'gem-acquisition' ? GEM_SNAPSHOT_FILE : PASSIVE_SNAPSHOT_FILE;
+}
+
 export async function loadGameDataManifest(filePath: string, log?: GameDataLogger): Promise<GameDataManifestLoadResult> {
   let stat;
   try {
@@ -147,6 +151,17 @@ export async function loadGameDataManifest(filePath: string, log?: GameDataLogge
   }
 }
 
+async function manifestEntryFor(filePath: string, id: GameDataDatasetId, provided: GameDataManifestEntry | undefined, log?: GameDataLogger): Promise<GameDataManifestEntry | undefined> {
+  if (provided) return provided;
+  if (path.basename(filePath) !== canonicalFileFor(id)) return undefined;
+  const manifestPath = path.join(path.dirname(filePath), GAME_DATA_MANIFEST_FILE);
+  const result = await loadGameDataManifest(manifestPath, log);
+  if (!result.manifest) throw new Error(`required adjacent game-data manifest unavailable: ${result.message}`);
+  const entry = gameDataManifestEntry(result.manifest, id);
+  if (!entry) throw new Error(`required ${id} entry is missing from the adjacent game-data manifest`);
+  return entry;
+}
+
 export async function loadGemAcquisitionSnapshot(filePath: string, log?: GameDataLogger, manifestEntry?: GameDataManifestEntry): Promise<GameDataLoadResult> {
   let stat;
   try {
@@ -169,28 +184,29 @@ export async function loadGemAcquisitionSnapshot(filePath: string, log?: GameDat
   }
 
   try {
+    const effectiveManifestEntry = await manifestEntryFor(filePath, 'gem-acquisition', manifestEntry, log);
     const raw = await fs.readFile(filePath, 'utf8');
-    if (manifestEntry) {
-      if (manifestEntry.id !== 'gem-acquisition') throw new Error(`wrong manifest dataset id ${manifestEntry.id}`);
-      verifyManifestFile(manifestEntry, filePath, raw, stat.size);
+    if (effectiveManifestEntry) {
+      if (effectiveManifestEntry.id !== 'gem-acquisition') throw new Error(`wrong manifest dataset id ${effectiveManifestEntry.id}`);
+      verifyManifestFile(effectiveManifestEntry, filePath, raw, stat.size);
     }
     const snapshot = validateGemAcquisitionSnapshot(JSON.parse(raw) as unknown);
     if (!snapshot) throw new Error('schema validation failed');
-    if (manifestEntry) {
-      verifyCommonMetadata(manifestEntry, snapshot);
-      if (manifestEntry.source.kind !== 'git'
-        || manifestEntry.source.repository !== snapshot.source.repository
-        || manifestEntry.source.revision !== snapshot.source.commit
-        || manifestEntry.source.license !== snapshot.source.license
-        || !samePaths(manifestEntry.source.paths, [snapshot.source.gemsPath, snapshot.source.questsPath, snapshot.source.charactersPath])) {
+    if (effectiveManifestEntry) {
+      verifyCommonMetadata(effectiveManifestEntry, snapshot);
+      if (effectiveManifestEntry.source.kind !== 'git'
+        || effectiveManifestEntry.source.repository !== snapshot.source.repository
+        || effectiveManifestEntry.source.revision !== snapshot.source.commit
+        || effectiveManifestEntry.source.license !== snapshot.source.license
+        || !samePaths(effectiveManifestEntry.source.paths, [snapshot.source.gemsPath, snapshot.source.questsPath, snapshot.source.charactersPath])) {
         throw new Error('manifest source provenance does not match the gem snapshot');
       }
     }
     log?.info('Loaded bundled gem acquisition data.', {
       path: filePath,
       gameVersion: snapshot.gameVersion,
-      datasetRevision: manifestEntry?.datasetRevision,
-      checksum: manifestEntry?.checksum.value,
+      datasetRevision: effectiveManifestEntry?.datasetRevision,
+      checksum: effectiveManifestEntry?.checksum.value,
       sourceRepository: snapshot.source.repository,
       sourceCommit: snapshot.source.commit,
       gems: snapshot.gems.length,
@@ -200,9 +216,9 @@ export async function loadGemAcquisitionSnapshot(filePath: string, log?: GameDat
       snapshot,
       path: filePath,
       status: 'ready',
-      message: `PoE ${snapshot.gameVersion} gem data${manifestEntry ? ` r${manifestEntry.datasetRevision}` : ''} ready from ${snapshot.source.repository}@${snapshot.source.commit.slice(0, 12)}.`,
-      datasetRevision: manifestEntry?.datasetRevision,
-      checksum: manifestEntry?.checksum.value,
+      message: `PoE ${snapshot.gameVersion} gem data${effectiveManifestEntry ? ` r${effectiveManifestEntry.datasetRevision}` : ''} ready from ${snapshot.source.repository}@${snapshot.source.commit.slice(0, 12)}.`,
+      datasetRevision: effectiveManifestEntry?.datasetRevision,
+      checksum: effectiveManifestEntry?.checksum.value,
     };
   } catch (error) {
     const result: GameDataLoadResult = { path: filePath, status: 'invalid', message: `Bundled gem acquisition data is corrupt or incompatible: ${String(error)}` };
@@ -237,25 +253,26 @@ export async function loadPassiveTreeSnapshot(filePath: string, log?: GameDataLo
   }
 
   try {
+    const effectiveManifestEntry = await manifestEntryFor(filePath, 'passive-tree', manifestEntry, log);
     const raw = await fs.readFile(filePath, 'utf8');
-    if (manifestEntry) {
-      if (manifestEntry.id !== 'passive-tree') throw new Error(`wrong manifest dataset id ${manifestEntry.id}`);
-      verifyManifestFile(manifestEntry, filePath, raw, stat.size);
+    if (effectiveManifestEntry) {
+      if (effectiveManifestEntry.id !== 'passive-tree') throw new Error(`wrong manifest dataset id ${effectiveManifestEntry.id}`);
+      verifyManifestFile(effectiveManifestEntry, filePath, raw, stat.size);
     }
     const snapshot = validatePassiveTreeSnapshot(JSON.parse(raw) as unknown);
     if (!snapshot) throw new Error('schema validation failed');
     const calculatedChecksum = passiveChecksum(snapshot);
     if (calculatedChecksum !== snapshot.source.sha256) throw new Error(`payload checksum mismatch (expected ${snapshot.source.sha256}, calculated ${calculatedChecksum})`);
-    if (manifestEntry) {
-      verifyCommonMetadata(manifestEntry, snapshot);
-      if (manifestEntry.source.url !== new URL(snapshot.source.url).toString()) throw new Error('manifest source URL does not match the passive snapshot');
-      if (manifestEntry.source.revision && manifestEntry.source.revision !== snapshot.source.sha256) throw new Error('manifest source revision does not match the passive payload checksum');
+    if (effectiveManifestEntry) {
+      verifyCommonMetadata(effectiveManifestEntry, snapshot);
+      if (effectiveManifestEntry.source.url !== new URL(snapshot.source.url).toString()) throw new Error('manifest source URL does not match the passive snapshot');
+      if (effectiveManifestEntry.source.revision && effectiveManifestEntry.source.revision !== snapshot.source.sha256) throw new Error('manifest source revision does not match the passive payload checksum');
     }
     log?.info('Loaded bundled passive tree data.', {
       path: filePath,
       gameVersion: snapshot.gameVersion,
-      datasetRevision: manifestEntry?.datasetRevision,
-      fileChecksum: manifestEntry?.checksum.value,
+      datasetRevision: effectiveManifestEntry?.datasetRevision,
+      fileChecksum: effectiveManifestEntry?.checksum.value,
       payloadChecksum: snapshot.source.sha256,
       nodes: snapshot.nodes.length,
     });
@@ -263,9 +280,9 @@ export async function loadPassiveTreeSnapshot(filePath: string, log?: GameDataLo
       snapshot,
       path: filePath,
       status: 'ready',
-      message: `PoE ${snapshot.gameVersion} passive tree${manifestEntry ? ` r${manifestEntry.datasetRevision}` : ''} ready with ${snapshot.nodes.length} named nodes.`,
-      datasetRevision: manifestEntry?.datasetRevision,
-      checksum: manifestEntry?.checksum.value,
+      message: `PoE ${snapshot.gameVersion} passive tree${effectiveManifestEntry ? ` r${effectiveManifestEntry.datasetRevision}` : ''} ready with ${snapshot.nodes.length} named nodes.`,
+      datasetRevision: effectiveManifestEntry?.datasetRevision,
+      checksum: effectiveManifestEntry?.checksum.value,
     };
   } catch (error) {
     const result: PassiveDataLoadResult = { path: filePath, status: 'invalid', message: `Bundled passive tree data is corrupt or incompatible: ${String(error)}` };
