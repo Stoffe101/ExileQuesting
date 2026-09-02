@@ -1,31 +1,9 @@
 import { useState } from 'react';
 import type { VendorSearchKind, VendorSearchQuery } from '../core/vendor-search';
+import { copyText } from './clipboard';
 import './vendor-search.css';
 
 type Workspace = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
-
-async function copySearchText(value: string): Promise<void> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
-  } catch {
-    // Sandboxed/file renderers can deny the modern Clipboard API. Fall back to a user-triggered selection copy.
-  }
-
-  const input = document.createElement('textarea');
-  input.value = value;
-  input.setAttribute('readonly', 'true');
-  input.style.position = 'fixed';
-  input.style.opacity = '0';
-  input.style.pointerEvents = 'none';
-  document.body.appendChild(input);
-  input.select();
-  const copied = document.execCommand('copy');
-  input.remove();
-  if (!copied) throw new Error('Clipboard access was blocked. Select the search text and copy it manually.');
-}
 
 function VendorSearchCard({ query, copied, onCopy }: { query: VendorSearchQuery; copied: boolean; onCopy: (query: VendorSearchQuery) => void }) {
   return (
@@ -67,7 +45,7 @@ export default function BuildIntelligencePanel({ workspace, onWorkspace }: { wor
   const copyVendorSearch = async (query: VendorSearchQuery) => {
     setVendorCopyError('');
     try {
-      await copySearchText(query.query);
+      await copyText(query.query, 'Clipboard access was blocked. Select the search text and copy it manually.');
       setCopiedVendor(query.kind);
       window.setTimeout(() => setCopiedVendor((current) => current === query.kind ? null : current), 1400);
     } catch (error) {
