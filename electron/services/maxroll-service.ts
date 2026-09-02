@@ -1,11 +1,13 @@
 import type { PassiveTreeSnapshot } from '../../src/core/passive-data';
+import type { GemAcquisitionSnapshot } from '../../src/core/gem-data';
+import { indexGemData, resolveGemRequirement } from '../../src/core/gem-data';
 import {
   canonicalMaxrollGuideUrl,
   maxrollPlannerIdFromHtml,
   parseMaxrollGuide,
   type MaxrollGuideMetadata,
 } from '../../src/core/maxroll';
-import type { PobBuildSummary } from '../../src/core/pob';
+import type { PobBuildSummary, PobGemSummary, PobSkillGroupSummary, PobStageSummary } from '../../src/core/pob';
 import { readBoundedResponseText } from '../../src/core/security';
 
 const MAX_MAXROLL_GUIDE_BYTES = 4 * 1024 * 1024;
@@ -60,10 +62,50 @@ function importedId(metadata: MaxrollGuideMetadata, importedAt: string): string 
   return `maxroll-${(hash >>> 0).toString(36)}`;
 }
 
+function canonicalizeGem(gem: PobGemSummary, snapshot: GemAcquisitionSnapshot): PobGemSummary {
+  const resolved = resolveGemRequirement({
+    key: gem.skillId ? `skill:${gem.skillId.toLowerCase()}` : `name:${gem.name.toLowerCase()}`,
+    name: gem.name,
+    skillId: gem.skillId,
+    count: 1,
+  }, indexGemData(snapshot));
+  return resolved ? { ...gem, name: resolved.name, skillId: resolved.id } : gem;
+}
+
+function canonicalizeGroups(groups: PobSkillGroupSummary[], snapshot: GemAcquisitionSnapshot): PobSkillGroupSummary[] {
+  const index = indexGemData(snapshot);
+  return groups.map((group) => ({
+    ...group,
+    gems: group.gems.map((gem) => {
+      const resolved = resolveGemRequirement({
+        key: gem.skillId ? `skill:${gem.skillId.toLowerCase()}` : `name:${gem.name.toLowerCase()}`,
+        name: gem.name,
+        skillId: gem.skillId,
+        count: 1,
+      }, index);
+      return resolved ? { ...gem, name: resolved.name, skillId: resolved.id } : gem;
+    }),
+  }));
+}
+
+function canonicalizeStage(stage: PobStageSummary, snapshot: GemAcquisitionSnapshot): PobStageSummary {
+  return stage.skillGroups ? { ...stage, skillGroups: canonicalizeGroups(stage.skillGroups, snapshot) } : stage;
+}
+
+export function canonicalizeMaxrollBuildGems(build: PobBuildSummary, snapshot?: GemAcquisitionSnapshot): PobBuildSummary {
+  if (!snapshot) return build;
+  return {
+    ...build,
+    skillStages: build.skillStages.map((stage) => canonicalizeStage(stage, snapshot)),
+    activeSkillGroups: canonicalizeGroups(build.activeSkillGroups, snapshot),
+  };
+}
+
 export async function importMaxrollGuide(
   input: string,
   appVersion: string,
   passiveSnapshot?: PassiveTreeSnapshot,
+  gemSnapshot?: GemAcquisitionSnapshot,
 ): Promise<ImportedMaxrollBuild> {
   const guideUrl = canonicalMaxrollGuideUrl(input);
   const guideHtml = await fetchMaxrollHtml(guideUrl, 'guide', appVersion, MAX_MAXROLL_GUIDE_BYTES);
@@ -78,7 +120,7 @@ export async function importMaxrollGuide(
     importedAt,
     sourceKind: 'maxroll',
     source: guideUrl,
-    build: parsed.build,
+    build: canonicalizeMaxrollBuildGems(parsed.build, gemSnapshot),
     maxroll: parsed.metadata,
   };
 }
