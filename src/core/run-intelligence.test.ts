@@ -84,7 +84,7 @@ describe('zone-level campaign run tracking', () => {
   });
 
   it('bounds and sanitizes persisted telemetry instead of trusting arbitrary arrays', () => {
-    const source = Array.from({ length: 650 }, (_, index) => ({
+    const source: unknown[] = Array.from({ length: 650 }, (_, index) => ({
       areaId: `zone-${index}`,
       enteredAt: at(0).toISOString(),
       leftAt: at(1).toISOString(),
