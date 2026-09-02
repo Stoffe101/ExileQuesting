@@ -1,3 +1,4 @@
+// Development-only live contract. Delete this probe before opening the pull request.
 import { readFile } from 'node:fs/promises';
 import { importMaxrollGuide } from '../electron/services/maxroll-service';
 import { validateGemAcquisitionSnapshot } from '../src/core/gem-data';
