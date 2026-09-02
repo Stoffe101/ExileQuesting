@@ -25,6 +25,16 @@ export interface LootFilterPlan {
   warnings: string[];
 }
 
+export interface LootFilterStatus {
+  basePath?: string;
+  outputPath?: string;
+  generatedAt?: string;
+  fingerprint?: string;
+  needsReload: boolean;
+  status: 'unconfigured' | 'ready' | 'error';
+  message: string;
+}
+
 const ATTRIBUTE_COLOUR: Record<string, LootSocketColour> = {
   str: 'R',
   strength: 'R',
