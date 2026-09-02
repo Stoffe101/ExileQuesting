@@ -51,12 +51,46 @@ describe('/passives reconciliation', () => {
     expect(expectedCampaignPassivePoints('oak')).toBe(23);
   });
 
+  it('scopes expectations to completed acts during the campaign', () => {
+    expect(expectedCampaignPassivePoints('none', 1)).toBe(3);
+    expect(expectedCampaignPassivePoints('none', 2)).toBe(5);
+    expect(expectedCampaignPassivePoints('alira', 2)).toBe(4);
+    expect(expectedCampaignPassivePoints('none', 5)).toBe(10);
+  });
+
   it('accepts a complete kill-all report', () => {
     const result = reconcilePassivesCommand(fullReport(), 'none');
     expect(result.status).toBe('complete');
     expect(result.missingPoints).toBe(0);
     expect(result.earnedPoints).toBe(24);
     expect(result.missing).toEqual([]);
+  });
+
+  it('does not mark future-act quests missing in a mid-campaign audit', () => {
+    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => quest.act <= 5);
+    const content = [
+      logLine('10 Passive Skill Points from quests:', 4),
+      ...throughActFive.map((quest) => logLine(`(${quest.points} from ${quest.name})`, 5)),
+    ].join('\n');
+    const result = reconcilePassivesCommand(content, 'none', 5);
+    expect(result.status).toBe('complete');
+    expect(result.expectedQuestPoints).toBe(10);
+    expect(result.missing).toEqual([]);
+    expect(result.items.find((item) => item.name === 'The Father of War')?.status).toBe('future');
+    expect(result.message).toContain('Later-act rewards');
+  });
+
+  it('accepts already-earned later rewards without raising the completed-act expectation', () => {
+    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => quest.act <= 5);
+    const content = [
+      logLine('11 Passive Skill Points from quests:', 4),
+      ...throughActFive.map((quest) => logLine(`(${quest.points} from ${quest.name})`, 5)),
+      logLine('(1 from The Father of War)', 6),
+    ].join('\n');
+    const result = reconcilePassivesCommand(content, 'none', 5);
+    expect(result.status).toBe('complete');
+    expect(result.expectedQuestPoints).toBe(10);
+    expect(result.items.find((item) => item.name === 'The Father of War')?.status).toBe('future');
   });
 
   it('identifies the exact missing quest and recovery instructions', () => {
