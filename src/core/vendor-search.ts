@@ -39,6 +39,11 @@ function normalizeLabel(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+function formatSearch(pattern: string): string {
+  const cleaned = pattern.replaceAll('"', '');
+  return /\s/.test(cleaned) ? `"${cleaned}"` : cleaned;
+}
+
 function dedupeAlternatives(alternatives: SearchAlternative[]): SearchAlternative[] {
   const seen = new Set<string>();
   return alternatives.filter((alternative) => {
@@ -53,12 +58,12 @@ function packQuery(kind: VendorSearchKind, label: string, alternatives: SearchAl
   const unique = dedupeAlternatives(alternatives);
   const selected: SearchAlternative[] = [];
   for (const alternative of unique) {
-    const next = [...selected, alternative].map((item) => item.pattern).join('|');
+    const next = formatSearch([...selected, alternative].map((item) => item.pattern).join('|'));
     if (next.length > MAX_VENDOR_SEARCH_CHARS) continue;
     selected.push(alternative);
   }
   if (!selected.length) return undefined;
-  const query = selected.map((item) => item.pattern).join('|');
+  const query = formatSearch(selected.map((item) => item.pattern).join('|'));
   return {
     kind,
     label,
