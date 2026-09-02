@@ -51,11 +51,26 @@ describe('/passives reconciliation', () => {
     expect(expectedCampaignPassivePoints('oak')).toBe(23);
   });
 
-  it('scopes expectations to completed acts during the campaign', () => {
-    expect(expectedCampaignPassivePoints('none', 1)).toBe(3);
+  it('scopes expectations to safe completed-act boundaries during the campaign', () => {
+    expect(expectedCampaignPassivePoints('none', 1)).toBe(2);
     expect(expectedCampaignPassivePoints('none', 2)).toBe(5);
     expect(expectedCampaignPassivePoints('alira', 2)).toBe(4);
     expect(expectedCampaignPassivePoints('none', 5)).toBe(10);
+  });
+
+  it('does not demand The Way Forward until the Act 2 Western Forest objective can safely be complete', () => {
+    const actOneOnly = [
+      logLine('2 Passive Skill Points from quests:', 4),
+      logLine('(1 from The Dweller of the Deep)', 5),
+      logLine('(1 from The Marooned Mariner)', 6),
+    ].join('\n');
+    const actOneAudit = reconcilePassivesCommand(actOneOnly, 'none', 1);
+    expect(actOneAudit.status).toBe('complete');
+    expect(actOneAudit.items.find((item) => item.name === 'The Way Forward')?.status).toBe('future');
+
+    const actTwoAudit = reconcilePassivesCommand(actOneOnly, 'none', 2);
+    expect(actTwoAudit.status).toBe('missing');
+    expect(actTwoAudit.missing.map((item) => item.name)).toContain('The Way Forward');
   });
 
   it('accepts a complete kill-all report', () => {
@@ -67,7 +82,7 @@ describe('/passives reconciliation', () => {
   });
 
   it('does not mark future-act quests missing in a mid-campaign audit', () => {
-    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => quest.act <= 5);
+    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => (quest.auditAct ?? quest.act) <= 5);
     const content = [
       logLine('10 Passive Skill Points from quests:', 4),
       ...throughActFive.map((quest) => logLine(`(${quest.points} from ${quest.name})`, 5)),
@@ -81,7 +96,7 @@ describe('/passives reconciliation', () => {
   });
 
   it('accepts already-earned later rewards without raising the completed-act expectation', () => {
-    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => quest.act <= 5);
+    const throughActFive = CAMPAIGN_PASSIVE_QUESTS.filter((quest) => (quest.auditAct ?? quest.act) <= 5);
     const content = [
       logLine('11 Passive Skill Points from quests:', 4),
       ...throughActFive.map((quest) => logLine(`(${quest.points} from ${quest.name})`, 5)),
