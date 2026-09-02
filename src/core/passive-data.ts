@@ -4,6 +4,12 @@ export interface PassiveNodeRecord {
   id: number;
   name: string;
   kind: PassiveNodeKind;
+  /**
+   * Some GGG entries are passive definitions rather than a fixed base-tree
+   * instance, for example Cluster Jewel notables and mastery effect choices.
+   * They intentionally have no stable group/orbit position.
+   */
+  dynamic?: boolean;
   /** Tree-space coordinates derived from GGG group/orbit geometry. */
   x?: number;
   y?: number;
@@ -92,8 +98,8 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
 
   const nodes: PassiveNodeRecord[] = [];
   const ids = new Set<number>();
-  let mainTreeNodes = 0;
-  let mainTreeGeometryNodes = 0;
+  let staticMainTreeNodes = 0;
+  let staticMainTreeGeometryNodes = 0;
   for (const candidate of source.nodes) {
     const node = record(candidate);
     const nodeKind = kind(node?.kind);
@@ -102,13 +108,16 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
     if (ids.has(id)) return null;
     ids.add(id);
 
+    const dynamic = node.dynamic === true;
+    if (node.dynamic !== undefined && typeof node.dynamic !== 'boolean') return null;
     const x = node.x === undefined ? undefined : finite(node.x);
     const y = node.y === undefined ? undefined : finite(node.y);
     if ((x === undefined) !== (y === undefined)) return null;
     if ((node.x !== undefined && x === undefined) || (node.y !== undefined && y === undefined)) return null;
-    if (nodeKind !== 'ascendancy') {
-      mainTreeNodes += 1;
-      if (x !== undefined) mainTreeGeometryNodes += 1;
+
+    if (nodeKind !== 'ascendancy' && !dynamic) {
+      staticMainTreeNodes += 1;
+      if (x !== undefined) staticMainTreeGeometryNodes += 1;
     }
 
     const group = node.group === undefined ? undefined : safeInteger(node.group, 0, 10_000);
@@ -124,10 +133,15 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
     const icon = node.icon === undefined ? undefined : typeof node.icon === 'string' && node.icon.length <= 512 ? node.icon : undefined;
     if (node.icon !== undefined && icon === undefined) return null;
 
+    // A definition declared dynamic must not masquerade as a fixed base-tree
+    // node. Conversely, a static v2 main-tree node must carry complete geometry.
+    if (schemaVersion === 2 && dynamic && (x !== undefined || group !== undefined || orbit !== undefined || orbitIndex !== undefined)) return null;
+
     nodes.push({
       id,
       name: node.name.trim().slice(0, 160),
       kind: nodeKind,
+      ...(dynamic ? { dynamic: true } : {}),
       ...(x === undefined ? {} : { x, y }),
       ...(group === undefined ? {} : { group }),
       ...(orbit === undefined ? {} : { orbit }),
@@ -142,9 +156,9 @@ export function validatePassiveTreeSnapshot(value: unknown): PassiveTreeSnapshot
   const skillsPerOrbit = source.skillsPerOrbit === undefined ? undefined : boundedIntegerArray(source.skillsPerOrbit, 64, 1, 128);
   const orbitRadii = source.orbitRadii === undefined ? undefined : boundedIntegerArray(source.orbitRadii, 64, 0, 10_000);
   if (schemaVersion === 2) {
-    // Ascendancy subtrees use separate geometry. Require near-complete geometry
-    // for the main passive tree, which is the surface Passive Tree HUD targets.
-    if (!bounds || !skillsPerOrbit || !orbitRadii || mainTreeNodes < 1000 || mainTreeGeometryNodes < Math.floor(mainTreeNodes * 0.98)) return null;
+    // Cluster Jewel/mastery definitions are deliberately dynamic. Every static
+    // node in the ordinary base passive tree must still have real GGG geometry.
+    if (!bounds || !skillsPerOrbit || !orbitRadii || staticMainTreeNodes < 1000 || staticMainTreeGeometryNodes !== staticMainTreeNodes) return null;
   }
 
   return {
@@ -165,5 +179,5 @@ export function indexPassiveNodes(snapshot: PassiveTreeSnapshot): Map<number, Pa
 
 export function hasPassiveTreeGeometry(snapshot?: PassiveTreeSnapshot): snapshot is PassiveTreeSnapshot & Required<Pick<PassiveTreeSnapshot, 'bounds' | 'skillsPerOrbit' | 'orbitRadii'>> {
   if (!snapshot || snapshot.schemaVersion !== 2 || !snapshot.bounds || !snapshot.skillsPerOrbit || !snapshot.orbitRadii) return false;
-  return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && node.x !== undefined && node.y !== undefined);
+  return snapshot.nodes.some((node) => node.kind !== 'ascendancy' && !node.dynamic && node.x !== undefined && node.y !== undefined);
 }
