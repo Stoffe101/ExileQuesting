@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { POB_REPLACEABLE_ITEM_SLOTS, type PobReplaceableItemSlot } from '../core/pob-calculation';
+import type { PobConstraintFindingState } from '../core/pob-constraints';
 import BuildDoctorMetricChanges from './BuildDoctorMetricChanges';
+
+const FINDING_LABELS: Record<PobConstraintFindingState, string> = {
+  broken: 'Broken',
+  repaired: 'Repaired',
+  'weakened-buffer': 'Weaker buffer',
+  'improved-buffer': 'Stronger buffer',
+};
 
 export default function BuildDoctorCandidateItemPanel({ profileId, enabled }: { profileId: string; enabled: boolean }) {
   const [slot, setSlot] = useState<PobReplaceableItemSlot>('Boots');
@@ -67,6 +75,38 @@ export default function BuildDoctorCandidateItemPanel({ profileId, enabled }: { 
             <div><span>{analysis.slot}</span><strong>{analysis.candidateLabel}</strong></div>
             <i>{analysis.changedMetrics.length} reviewed metric{analysis.changedMetrics.length === 1 ? '' : 's'} changed</i>
           </div>
+
+          <section className={`build-doctor-constraint-evidence ${analysis.constraints.status}`} data-testid="candidate-constraint-evidence">
+            <div className="build-doctor-constraint-head">
+              <div>
+                <span>HARD CONSTRAINT CHECK</span>
+                <strong>{analysis.constraints.status === 'verified' ? 'Pinned PoB transition evidence' : 'Constraint verification unavailable'}</strong>
+              </div>
+              {analysis.constraints.status === 'verified' && (
+                <i>{analysis.constraints.findings.filter((finding) => finding.state === 'broken').length} broken</i>
+              )}
+            </div>
+            <p>{analysis.constraints.message}</p>
+            {analysis.constraints.status === 'verified' && analysis.constraints.findings.length > 0 && (
+              <div className="build-doctor-constraint-list">
+                {analysis.constraints.findings.map((finding) => (
+                  <article key={finding.key} className={finding.state}>
+                    <div className="build-doctor-constraint-title">
+                      <strong>{finding.label}</strong>
+                      <span>{FINDING_LABELS[finding.state]}</span>
+                    </div>
+                    <div className="build-doctor-constraint-transition">
+                      <code>{finding.before}</code><i>→</i><code>{finding.after}</code>
+                    </div>
+                    <p>{finding.detail}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+            {analysis.constraints.status === 'verified' && (
+              <small>Constraint adapter {analysis.constraints.kernel.adapterVersion} · PoB {analysis.constraints.kernel.pobCommit.slice(0, 12)}</small>
+            )}
+          </section>
 
           <BuildDoctorMetricChanges
             metrics={analysis.changedMetrics}
