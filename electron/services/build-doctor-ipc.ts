@@ -1,6 +1,10 @@
 import { ipcMain } from 'electron';
 import { analyzeBuildDoctorCandidateItem } from './build-doctor-candidate-item-service';
 import { analyzeBuildDoctorConfigurationDependencies } from './build-doctor-dependency-service';
+import {
+  analyzeBuildDoctorPassiveContribution,
+  listBuildDoctorPassiveContributionCandidates,
+} from './build-doctor-passive-contribution-service';
 import { analyzeBuildDoctorProfile } from './build-doctor-service';
 
 let registered = false;
@@ -12,6 +16,13 @@ function validatedProfileId(profileId: unknown): string {
   return profileId;
 }
 
+function validatedNodeId(nodeId: unknown): number {
+  if (!Number.isSafeInteger(nodeId) || Number(nodeId) <= 0) {
+    throw new Error('Build Doctor passive contribution requires a positive passive node id.');
+  }
+  return Number(nodeId);
+}
+
 export function registerBuildDoctorIpc(): void {
   if (registered) return;
   registered = true;
@@ -21,4 +32,6 @@ export function registerBuildDoctorIpc(): void {
     if (typeof slot !== 'string' || typeof itemText !== 'string') throw new Error('Build Doctor candidate item comparison requires a slot and copied item text.');
     return analyzeBuildDoctorCandidateItem(validatedProfileId(profileId), slot, itemText);
   });
+  ipcMain.handle('build-doctor:passive-candidates', async (_event, profileId: unknown) => listBuildDoctorPassiveContributionCandidates(validatedProfileId(profileId)));
+  ipcMain.handle('build-doctor:passive-contribution', async (_event, profileId: unknown, nodeId: unknown) => analyzeBuildDoctorPassiveContribution(validatedProfileId(profileId), validatedNodeId(nodeId)));
 }

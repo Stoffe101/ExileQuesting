@@ -6,6 +6,7 @@ import { buildPlannerSnapshot, normalizeBuildPlannerState } from '../src/core/bu
 import { readyBuildDoctorSnapshot } from '../src/core/build-doctor';
 import { readyCandidateItemAnalysis } from '../src/core/build-doctor-candidate-item';
 import { measuredConfigurationDependency, pobUptimeEvidence, readyDependencyScan } from '../src/core/build-doctor-dependencies';
+import { readyPassiveContributionAnalysis, type BuildDoctorPassiveCandidateList } from '../src/core/build-doctor-passive-contribution';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
@@ -179,6 +180,47 @@ function candidateAnalysis(now: string) {
   });
 }
 
+function passiveCandidates(): BuildDoctorPassiveCandidateList {
+  return {
+    schemaVersion: 1,
+    status: 'ready',
+    profileId: 'visual-build-doctor',
+    profileName: 'Level 96 Trickster · Build Doctor fixture',
+    treeVersion: '3.29',
+    candidates: [
+      { nodeId: 12345, name: 'Magebane', kind: 'keystone' },
+      { nodeId: 23456, name: 'Inveterate', kind: 'notable' },
+      { nodeId: 34567, name: 'Evasion and Energy Shield', kind: 'normal' },
+    ],
+    message: '3 allocated normal/notable/keystone passive points are available for isolated PoB contribution measurement.',
+  };
+}
+
+function passiveAnalysis(now: string) {
+  const before = baseline();
+  before.requestId = 'visual-passive-before';
+  const after = baseline();
+  after.requestId = 'visual-passive-after';
+  after.offence = { ...after.offence, totalDps: 7_058_088, fullDps: 7_058_088 };
+  after.defence = {
+    ...after.defence,
+    effectiveHitPool: 164_196,
+    spellSuppressionChance: 88,
+    maximumHit: { ...after.defence.maximumHit, physical: 27_203 },
+  };
+  return readyPassiveContributionAnalysis({
+    profileId: 'visual-build-doctor',
+    profileName: 'Level 96 Trickster · Build Doctor fixture',
+    generatedAt: now,
+    node: { nodeId: 23456, name: 'Inveterate', kind: 'notable' },
+    comparison: {
+      perturbations: [{ kind: 'passive-node', operation: 'deallocate', nodeId: 23456 }],
+      before,
+      after,
+    },
+  });
+}
+
 async function waitFor(window: BrowserWindow, expression: string, label: string): Promise<void> {
   const deadline = Date.now() + 12_000;
   while (Date.now() < deadline) {
@@ -247,12 +289,16 @@ async function main(): Promise<void> {
   const snapshot = readyBuildDoctorSnapshot({ profileId: buildProfile.id, profileName: buildProfile.name, generatedAt: now, baseline: baseline(), flaskInspection: utilityInspection() });
   const dependencies = dependencyScan(now);
   const candidate = candidateAnalysis(now);
+  const passiveCandidateList = passiveCandidates();
+  const passive = passiveAnalysis(now);
 
   ipcMain.handle('app:bootstrap', () => state);
   ipcMain.handle('pob:workspace', () => workspace);
   ipcMain.handle('build-doctor:analyze', () => snapshot);
   ipcMain.handle('build-doctor:dependencies', () => dependencies);
   ipcMain.handle('build-doctor:candidate-item', () => candidate);
+  ipcMain.handle('build-doctor:passive-candidates', () => passiveCandidateList);
+  ipcMain.handle('build-doctor:passive-contribution', () => passive);
 
   const window = new BrowserWindow({ show: false, width: 1200, height: 800, backgroundColor: '#090b10', webPreferences: { preload: path.resolve('dist-electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
   await window.loadFile(path.resolve('dist/index.html'));
@@ -297,6 +343,34 @@ async function main(): Promise<void> {
   }
   const dependencyDesktopBytes = await capture(window, 'build-doctor-dependencies-1920x1080.png');
 
+  await waitFor(window, `document.querySelectorAll('#build-doctor-passive-node option').length === 3`, 'Passive Contribution Doctor candidate list');
+  const passiveSubmitted = await window.webContents.executeJavaScript(`(() => {
+    const select = document.querySelector('#build-doctor-passive-node');
+    if (!(select instanceof HTMLSelectElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+    setter?.call(select, '23456');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const button = [...document.querySelectorAll('.build-doctor-passive-contribution button')].find((node) => node.textContent?.includes('Measure selected point in PoB'));
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!passiveSubmitted) throw new Error('Passive Contribution Doctor selection/measurement controls are missing.');
+  await waitFor(window, `document.querySelector('.build-doctor-passive-result')`, 'Passive Contribution Doctor result');
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-passive-contribution')?.scrollIntoView({ block: 'start' })`);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const passiveDesktop = await inspectLayout(window);
+  if (!passiveDesktop.text.includes('Inveterate') || !passiveDesktop.text.includes('Notable · node #23456') || !passiveDesktop.text.includes('PoB damage') || !passiveDesktop.text.includes('-10%')) {
+    throw new Error('Passive Contribution Doctor fixture is missing the deterministic node/offence contribution.');
+  }
+  if (!passiveDesktop.text.includes('Spell suppression') || !passiveDesktop.text.includes('100%') || !passiveDesktop.text.includes('88%') || !passiveDesktop.text.includes('-12 pts')) {
+    throw new Error('Passive Contribution Doctor fixture is missing the suppression contribution.');
+  }
+  if (!passiveDesktop.text.includes('legal connected tree') || !passiveDesktop.text.includes('downstream') || !passiveDesktop.text.includes('efficiency')) {
+    throw new Error('Passive Contribution Doctor fixture lost its isolated-contribution evidence boundary.');
+  }
+  const passiveDesktopBytes = await capture(window, 'build-doctor-passive-contribution-1920x1080.png');
+
   const candidateSubmitted = await window.webContents.executeJavaScript(`(() => {
     const textarea = document.querySelector('.build-doctor-candidate-text');
     if (!(textarea instanceof HTMLTextAreaElement)) return false;
@@ -329,7 +403,16 @@ async function main(): Promise<void> {
 
   window.setSize(1280, 720, false);
   await new Promise((resolve) => setTimeout(resolve, 180));
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-passive-contribution')?.scrollIntoView({ block: 'start' })`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const passiveCompact = await inspectLayout(window);
+  if (passiveCompact.viewportWidth < 1270 || passiveCompact.viewportWidth > 1290 || passiveCompact.viewportHeight < 700 || passiveCompact.viewportHeight > 730) throw new Error(`Passive Contribution Doctor compact smoke rendered at ${passiveCompact.viewportWidth}x${passiveCompact.viewportHeight}; expected approximately 1280x720.`);
+  if (passiveCompact.scrollWidth > passiveCompact.viewportWidth + 2) throw new Error(`Passive Contribution Doctor causes compact horizontal overflow (${passiveCompact.scrollWidth} > ${passiveCompact.viewportWidth}).`);
+  if (!passiveCompact.text.includes('Inveterate') || !passiveCompact.text.includes('Spell suppression') || !passiveCompact.text.includes('legal connected tree')) throw new Error('Passive Contribution Doctor compact evidence is incomplete.');
+  const passiveCompactBytes = await capture(window, 'build-doctor-passive-contribution-1280x720.png');
+
   await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-candidate')?.scrollIntoView({ block: 'start' })`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
   const compact = await inspectLayout(window);
   if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
@@ -341,15 +424,27 @@ async function main(): Promise<void> {
     generatedAt: now,
     desktopBytes,
     dependencyDesktopBytes,
+    passiveDesktopBytes,
     candidateDesktopBytes,
+    passiveCompactBytes,
     compactBytes,
     desktop,
     dependencyDesktop,
+    passiveDesktop,
     candidateDesktop,
+    passiveCompact,
     compact,
   }, null, 2), 'utf8');
   window.destroy();
-  for (const channel of ['app:bootstrap', 'pob:workspace', 'build-doctor:analyze', 'build-doctor:dependencies', 'build-doctor:candidate-item']) ipcMain.removeHandler(channel);
+  for (const channel of [
+    'app:bootstrap',
+    'pob:workspace',
+    'build-doctor:analyze',
+    'build-doctor:dependencies',
+    'build-doctor:candidate-item',
+    'build-doctor:passive-candidates',
+    'build-doctor:passive-contribution',
+  ]) ipcMain.removeHandler(channel);
   app.quit();
 }
 

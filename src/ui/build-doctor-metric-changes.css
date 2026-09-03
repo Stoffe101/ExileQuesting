@@ -1,0 +1,74 @@
+.build-doctor-metric-change-group {
+  margin-top: 11px;
+}
+
+.build-doctor-metric-change-group .section-title {
+  margin-bottom: 6px;
+}
+
+.build-doctor-metric-change-group h4 {
+  margin: 0;
+  font-size: 11px;
+}
+
+.build-doctor-metric-change-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.build-doctor-metric-change-grid article {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 8px;
+  background: rgba(0,0,0,.16);
+}
+
+.build-doctor-metric-change-grid article > span {
+  display: block;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-doctor-metric-change-grid strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-doctor-metric-change-grid strong i {
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+.build-doctor-metric-change-grid small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-doctor-metric-change-grid article.up small {
+  color: #73d9b9;
+}
+
+.build-doctor-metric-change-grid article.down small {
+  color: #f0b96f;
+}
+
+@media (max-width: 1050px) {
+  .build-doctor-metric-change-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .build-doctor-metric-change-grid { grid-template-columns: 1fr; }
+}

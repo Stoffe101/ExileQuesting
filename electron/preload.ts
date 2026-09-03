@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { BuildDoctorSnapshot } from '../src/core/build-doctor';
 import type { BuildDoctorCandidateItemAnalysis } from '../src/core/build-doctor-candidate-item';
 import type { BuildDoctorDependencyScan } from '../src/core/build-doctor-dependencies';
+import type {
+  BuildDoctorPassiveCandidateList,
+  BuildDoctorPassiveContributionAnalysis,
+} from '../src/core/build-doctor-passive-contribution';
 import type { BuildProfile } from '../src/core/build-profiles';
 import type { BuildPlannerSnapshot } from '../src/core/build-planner';
 import type { GemAcquisitionPlan } from '../src/core/gem-acquisition';
@@ -86,6 +90,8 @@ const api = {
   analyzeBuildDoctor: (profileId: string): Promise<BuildDoctorSnapshot> => ipcRenderer.invoke('build-doctor:analyze', profileId),
   analyzeBuildDoctorDependencies: (profileId: string): Promise<BuildDoctorDependencyScan> => ipcRenderer.invoke('build-doctor:dependencies', profileId),
   analyzeBuildDoctorCandidateItem: (profileId: string, slot: string, itemText: string): Promise<BuildDoctorCandidateItemAnalysis> => ipcRenderer.invoke('build-doctor:candidate-item', profileId, slot, itemText),
+  listBuildDoctorPassiveCandidates: (profileId: string): Promise<BuildDoctorPassiveCandidateList> => ipcRenderer.invoke('build-doctor:passive-candidates', profileId),
+  analyzeBuildDoctorPassiveContribution: (profileId: string, nodeId: number): Promise<BuildDoctorPassiveContributionAnalysis> => ipcRenderer.invoke('build-doctor:passive-contribution', profileId, nodeId),
   analyzeGearItem: (input: string): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze', input),
   analyzeClipboardGearItem: (): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze-clipboard'),
   selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
