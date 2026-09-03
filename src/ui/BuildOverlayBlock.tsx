@@ -10,16 +10,17 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
   const passive = coach?.nextPassiveText;
   const gearHint = coach?.gearHints[0];
   const hudMessage = state.passiveTreeHud.message;
+  const hudMessageLower = hudMessage.toLowerCase();
   const passiveHudNeedsSetup = Boolean(
     state.settings.passiveTreeHudEnabled
       && exactPassive
       && state.passiveTreeHud.status !== 'locked'
       && (
         state.passiveTreeHud.status === 'capture-error'
-        || hudMessage.startsWith('One-time calibration required')
-        || hudMessage.startsWith('Calibration ')
-        || hudMessage.startsWith('Passive Tree HUD calibration failed')
-        || hudMessage.includes('press CommandOrControl+Shift+C')
+        || hudMessageLower.includes('anchor')
+        || hudMessageLower.includes('fully zoom out')
+        || hudMessageLower.includes('ctrl+shift+c')
+        || hudMessageLower.includes('commandorcontrol+shift+c')
       )
   );
   const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll || gearHint || stageNeedsReview);
@@ -29,7 +30,7 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
     return (
       <div className={`build-overlay compact ${exactPassive ? 'maxroll-active' : ''}`}>
         <span>{passiveHudNeedsSetup ? 'HUD SETUP' : stageNeedsReview ? 'BUILD REVIEW' : exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
-        <strong>{passiveHudNeedsSetup ? 'Open passive tree · hover class start · Ctrl+Shift+C' : stageNeedsReview ? coach?.stageTitle ?? 'Stage alignment needs review' : exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
+        <strong>{passiveHudNeedsSetup ? 'Fully zoom out · hover class start · Ctrl+Shift+C' : stageNeedsReview ? coach?.stageTitle ?? 'Stage alignment needs review' : exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
       </div>
     );
   }
@@ -64,8 +65,8 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
 
       {passiveHudNeedsSetup && (
         <div className="maxroll-passive-warning">
-          <span>PASSIVE HUD SETUP</span>
-          <strong>The node overlay is waiting for calibration</strong>
+          <span>PASSIVE TARGET LOCK</span>
+          <strong>The exact-node crosshair needs setup or recovery</strong>
           <small>{hudMessage}</small>
         </div>
       )}
