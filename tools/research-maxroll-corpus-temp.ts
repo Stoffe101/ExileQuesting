@@ -3,7 +3,6 @@ import { extractRemixContext, maxrollPlannerIdFromHtml, parseMaxrollGuide } from
 
 const UA = 'ExileQuesting-corpus-research (github.com/Stoffe101/ExileQuesting)';
 const ORIGIN = 'https://maxroll.gg';
-const GUIDE_PREFIX = '/poe/build-guides/';
 const MAX_GUIDES = 220;
 
 async function fetchText(url: string, maxBytes = 12 * 1024 * 1024): Promise<string> {
@@ -85,51 +84,58 @@ async function poolMap<T, R>(items: T[], concurrency: number, fn: (item: T, inde
   return results;
 }
 
-const urls = await discoverGuides();
-console.log(`Discovered ${urls.length} PoE build-guide URLs.`);
+async function main(): Promise<void> {
+  const urls = await discoverGuides();
+  console.log(`Discovered ${urls.length} PoE build-guide URLs.`);
 
-const reports = await poolMap(urls, 4, async (url) => {
-  try {
-    const guideHtml = await fetchText(url, 5 * 1024 * 1024);
-    const plannerId = maxrollPlannerIdFromHtml(guideHtml);
-    let plannerHtml: string | undefined;
-    if (plannerId) {
-      try { plannerHtml = await fetchText(`${ORIGIN}/poe/planner/${plannerId}`); } catch (error) { console.error(`Planner failed ${plannerId}: ${error instanceof Error ? error.message : String(error)}`); }
+  const reports = await poolMap(urls, 4, async (url) => {
+    try {
+      const guideHtml = await fetchText(url, 5 * 1024 * 1024);
+      const plannerId = maxrollPlannerIdFromHtml(guideHtml);
+      let plannerHtml: string | undefined;
+      if (plannerId) {
+        try { plannerHtml = await fetchText(`${ORIGIN}/poe/planner/${plannerId}`); } catch (error) { console.error(`Planner failed ${plannerId}: ${error instanceof Error ? error.message : String(error)}`); }
+      }
+      const parsed = parseMaxrollGuide(url, guideHtml, plannerHtml);
+      const post = postFromHtml(guideHtml);
+      const tips = collectTipCandidates(post);
+      const title = parsed.metadata.guideTitle;
+      const slug = parsed.metadata.guideSlug;
+      const taxonomyBlob = JSON.stringify(post ?? {}).slice(0, 500_000);
+      const levelingSignal = /\blevel(?:ing|ling)\b/i.test(`${title} ${slug} ${taxonomyBlob}`);
+      const twinkSignal = parsed.metadata.mode === 'twink' || /\btwink\b/i.test(`${title} ${slug} ${taxonomyBlob}`);
+      return {
+        ok: true, url, title, slug, mode: parsed.metadata.mode, plannerId,
+        levelingSignal, twinkSignal,
+        treeVersion: parsed.metadata.plannerTreeVersion,
+        compatibility: parsed.metadata.compatibility,
+        passiveOperations: parsed.metadata.passiveOperations.length,
+        skillMilestones: parsed.metadata.skillMilestones,
+        equipmentMilestones: parsed.metadata.equipmentMilestones.map((milestone) => ({ name: milestone.name, items: milestone.itemNames })),
+        alternateSkillPaths: parsed.metadata.alternateSkillPaths,
+        tips,
+      };
+    } catch (error) {
+      return { ok: false, url, error: error instanceof Error ? error.message : String(error) };
     }
-    const parsed = parseMaxrollGuide(url, guideHtml, plannerHtml);
-    const post = postFromHtml(guideHtml);
-    const tips = collectTipCandidates(post);
-    const title = parsed.metadata.guideTitle;
-    const slug = parsed.metadata.guideSlug;
-    const taxonomyBlob = JSON.stringify(post ?? {}).slice(0, 500_000);
-    const levelingSignal = /\blevel(?:ing|ling)\b/i.test(`${title} ${slug} ${taxonomyBlob}`);
-    const twinkSignal = parsed.metadata.mode === 'twink' || /\btwink\b/i.test(`${title} ${slug} ${taxonomyBlob}`);
-    return {
-      ok: true, url, title, slug, mode: parsed.metadata.mode, plannerId,
-      levelingSignal, twinkSignal,
-      treeVersion: parsed.metadata.plannerTreeVersion,
-      compatibility: parsed.metadata.compatibility,
-      passiveOperations: parsed.metadata.passiveOperations.length,
-      skillMilestones: parsed.metadata.skillMilestones,
-      equipmentMilestones: parsed.metadata.equipmentMilestones.map((milestone) => ({ name: milestone.name, items: milestone.itemNames })),
-      alternateSkillPaths: parsed.metadata.alternateSkillPaths,
-      tips,
-    };
-  } catch (error) {
-    return { ok: false, url, error: error instanceof Error ? error.message : String(error) };
-  }
-});
+  });
 
-const relevant = reports.filter((report: any) => report.ok && (report.levelingSignal || report.twinkSignal));
-const summary = {
-  generatedAt: new Date().toISOString(),
-  discovered: urls.length,
-  parsed: reports.filter((report: any) => report.ok).length,
-  failed: reports.filter((report: any) => !report.ok).length,
-  relevant: relevant.length,
-  twink: relevant.filter((report: any) => report.twinkSignal).length,
-  guides: relevant,
-  failures: reports.filter((report: any) => !report.ok),
-};
-await writeFile('maxroll-corpus-report.json', `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-console.log(JSON.stringify({ discovered: summary.discovered, parsed: summary.parsed, failed: summary.failed, relevant: summary.relevant, twink: summary.twink }, null, 2));
+  const relevant = reports.filter((report: any) => report.ok && (report.levelingSignal || report.twinkSignal));
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    discovered: urls.length,
+    parsed: reports.filter((report: any) => report.ok).length,
+    failed: reports.filter((report: any) => !report.ok).length,
+    relevant: relevant.length,
+    twink: relevant.filter((report: any) => report.twinkSignal).length,
+    guides: relevant,
+    failures: reports.filter((report: any) => !report.ok),
+  };
+  await writeFile('maxroll-corpus-report.json', `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  console.log(JSON.stringify({ discovered: summary.discovered, parsed: summary.parsed, failed: summary.failed, relevant: summary.relevant, twink: summary.twink }, null, 2));
+}
+
+void main().catch((error) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  process.exitCode = 1;
+});
