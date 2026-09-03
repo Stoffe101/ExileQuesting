@@ -4,6 +4,7 @@ dist-electron/
 release/
 coverage/
 .tmp/
+.pob-runtime/
 *.log
 .DS_Store
 
