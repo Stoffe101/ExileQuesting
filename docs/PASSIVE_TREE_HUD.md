@@ -1,187 +1,167 @@
 # Passive Tree HUD
 
-Passive Tree HUD is ExileQuesting's visual bridge between build guidance and Path of Exile's in-game passive and Ascendancy trees.
+Passive Tree HUD is ExileQuesting's visual bridge between imported build guidance and Path of Exile's in-game passive tree.
 
-The player-facing goal is simple: when ExileQuesting has passive guidance and the player opens the relevant in-game tree, show the passive decision at the actual node. Keep the marker attached to the visible tree through ordinary pan/zoom changes instead of hard-coding one screen coordinate.
+The v0.2.5 implementation intentionally favors a small, deterministic system over computer-vision-heavy automatic registration. The HUD never moves the cursor, clicks nodes, reads process memory, injects into Path of Exile, or allocates/refunds a passive.
 
-The HUD is guidance only. It never moves the cursor, clicks a node, injects into Path of Exile, reads process memory, allocates/refunds a passive, or generates game input.
+## v0.2.5 behavior
 
-## Visibility and performance contract
+The HUD is hidden unless all of the following are true:
 
-The passive HUD must not behave like a permanent game overlay.
+- Passive Tree HUD is enabled.
+- An active build supplies supported passive guidance.
+- ExileQuesting does not have trusted evidence that zero passive points are available.
+- Path of Exile is running.
+- The current client/display matches a stored calibration.
+- The small, calibrated passive-tree UI check positively matches twice in succession.
 
-When Path of Exile is running but the passive tree is closed, the transparent HUD window remains hidden and the expensive registration path does not run. The service performs only a small, low-frequency Path of Exile **window** thumbnail probe and looks for the structural distribution of passive-tree nodes.
+Merely launching Path of Exile must never make the HUD visible.
 
-Only after that cheap gate says the passive tree is visible does ExileQuesting perform accurate registration. While locked, ordinary pan/zoom changes are handled with a local transform tracker first. Full point-cloud reacquisition is reserved for larger jumps or loss of the previous transform.
+## Why the old registration was removed
 
-The renderer is intentionally static. The target ring, route path and labels have no infinite pulse animation, SVG drop-shadow filter or transition loop. UI state is repainted only when alignment/target state actually changes.
+The v0.2.4 runtime attempted to recognize many circular/radial node candidates across a Path of Exile capture and solve a point-cloud transform from them. That created three practical problems:
 
-This architecture was informed by Exile-UI's current approach at `Lailloken/Exile-UI@3152d169dbbc3dc19308b42ac4b3f45538713070`: Exile-UI checks a tiny resolution-relative `skilltree` screen region before enabling its passive-tree feature. ExileQuesting adopts the cheap-gate-first principle, but keeps its own live GGG-coordinate registration so the player is not tied to Exile-UI's fixed schematic alignment/full-zoom-out workflow.
+1. ordinary gameplay/UI circles could be mistaken for a passive tree;
+2. repeated candidate detection and registration added unnecessary capture/CPU work;
+3. a guessed transform could be confidently wrong, producing severe node misalignment.
 
-## Supported tree scopes
+v0.2.5 removes that runtime path. There is no global radial-node scan and no point-cloud registration loop in `PassiveTreeHudService`.
 
-Passive Tree HUD treats every visible passive-tree canvas as an independently registered scope.
+## Tree-open detection
 
-### Base passive tree
+ExileQuesting now follows the proven Exile-UI pattern: inspect a tiny, client-relative static UI region near the top-center of the PoE 1 passive-tree screen.
 
-All seven base classes use the same data-driven path: Scion, Marauder, Ranger, Witch, Duelist, Templar and Shadow.
+For PoE 1 the normalized reference region is:
 
-Class starts are derived from GGG's current `tree.classes` + `classStartIndex` data. No Ranger-specific start node ID or resolution-specific coordinate table is used. Raw GGG class-start labels are not assumed to be friendly class names; the generator joins the canonical class table instead.
+- x: centered horizontally;
+- y: `0.054 * clientHeight`;
+- width: `clientHeight / 16`;
+- height: `0.02 * clientHeight`.
 
-### Ascendancy trees
+A one-time calibration stores a small grayscale signature from that region. Runtime polling only compares the same tiny sample grid. Two consecutive matches are required before the transparent HUD window is shown. Any mismatch hides the HUD.
 
-Ascendancy visual guidance is supported through local scope registration. GGG's current PoE 3.29 public tree data exposes fixed local group/orbit geometry for every published Ascendancy subtree. The generation-time contract currently resolves 558 fixed Ascendancy nodes across 37 named GGG scopes, with exactly one root per scope and zero missing group/orbit placements in the live probe.
+This screen check answers only one question: "is the calibrated passive-tree UI actually visible?" It does not derive node coordinates.
 
-ExileQuesting does not keep a hand-written list of node screen positions. New fixed GGG scopes using the validated group/orbit contract can flow through the generator without adding a resolution map.
+## Node projection
 
-## Why raw Ascendancy coordinates still work
+Node coordinates come from the bundled GGG passive-tree snapshot. The generator already converts GGG group/orbit/orbit-index data into fixed tree-space x/y coordinates using the same orbit geometry used by other PoE tooling.
 
-Path of Building's current `fix_ascendancy_positions.py` documents that GGG's Ascendancy groups arrive with globally scrambled placement. PoB corrects them by translating each Ascendancy as a whole. That preserves the relative node geometry inside each Ascendancy.
+At the fully zoomed-out PoE 1 tree, Exile-UI's current schematic uses:
 
-ExileQuesting uses that property instead of copying PoB's hard-coded global centres. Registration is scope-local:
+`scale = clientHeight / 10000`
 
-- base target -> base-tree anchors only;
-- Deadeye target -> Deadeye anchors only;
-- Occultist target -> Occultist anchors only;
-- Ascendant target -> Ascendant anchors only;
-- mixed PoB stage -> each represented scope is attempted independently and the currently visible confident match wins.
+v0.2.5 uses the equivalent scale in the Electron overlay's display-independent coordinate space. Translation is calibrated from the real class-start or Ascendancy-start circle under the player's cursor.
 
-The registration solver determines its own scale and translation from the current game window, so the globally scrambled Ascendancy offset is irrelevant to local registration.
-
-## Build-source semantics
-
-The HUD never claims more precision than the imported source contains.
-
-### Maxroll
-
-A Maxroll planner with ordered passive history provides explicit allocate/refund operations. ExileQuesting can show one exact next operation using the node ID and bundled 3.29 identity. If the target belongs to an Ascendancy, the expected registration scope switches to that Ascendancy automatically.
-
-The passive cursor remains independent from character level. Level events can advance skill/gem milestones, but they do not prove passive or Ascendancy allocations.
-
-### Path of Building
-
-PoB tree stages expose allocation sets rather than a trustworthy click-by-click order. ExileQuesting compares the active stage with the previous tree stage and highlights newly-added nodes.
-
-If those additions span base and Ascendancy scopes, ExileQuesting never projects both through one transform. It evaluates each scope independently and renders only the scope that aligns with the tree currently visible on screen. It does not claim a source-authored click order that PoB never encoded.
-
-A future derived-order layer may offer one legal graph path through an unordered stage, but that must be clearly labelled as ExileQuesting-derived and must fail closed around refunds, masteries or ambiguous/special allocation mechanics.
-
-## Passive-point availability
-
-The HUD has explicit `waiting-point` and `waiting-tree` states.
-
-When ExileQuesting can **prove** that zero points are available, the HUD does not probe or render the tree. At the very start of a character, level-earned points plus acknowledged ordered operations can prove this before quest rewards exist.
-
-A `/passives` command report can also provide exact total/allocated point evidence at the moment the report is parsed. That report is a snapshot, not a permanent live counter: Path of Exile does not emit every passive allocation or point gain to `Client.txt`. ExileQuesting therefore must not keep treating a stale zero as authoritative after the game state may have changed.
-
-Unknown is kept distinct from zero. The project will not add process-memory reads simply to obtain a live passive-point counter.
-
-## Geometry source contract
-
-The generator reads the public Path of Exile passive-tree page and extracts `passiveSkillTreeData`.
-
-Schema v2 preserves node identity/kind, group, orbit/orbit index, graph connections, class-start index, Ascendancy name/root flag, fixed x/y coordinates, global base-tree bounds, `skillsPerOrbit` and orbit radii.
-
-Current PoE 3.29 generation contains 3,389 named passive definitions. The base-tree contract includes 2,429 positioned static nodes and 402 explicitly dynamic definitions such as Cluster Jewel/mastery definitions that do not represent one fixed position. Dynamic definitions are never assigned invented HUD coordinates.
-
-A schema-v2 snapshot is rejected when a static base node lacks geometry, one of the seven base starts is missing/ambiguous, or an included Ascendancy scope lacks complete fixed local geometry or exactly one root.
-
-Schema-v1 identity-only data remains readable for textual features, but the visual HUD requires validated schema-v2 geometry.
-
-## Registration architecture
-
-There are no pixel-coordinate tables. Passive Tree HUD maintains tree space from GGG geometry and screen space from the current Path of Exile window capture, then solves:
+The resulting projection is simply:
 
 `screen = tree * scale + offset`
 
-Path of Exile does not normally rotate the tree, so rotation is not included. Multiple expected nodes must agree before a transform is accepted.
+There is no rotation and no guessed registration cloud.
 
-### Cheap tree-open gate
+## One-time calibration
 
-While unlocked, ExileQuesting requests a small PoE window thumbnail and runs a deliberately cheaper radial-node detector. A passive-tree presence gate then requires:
+For v0.2.5, precise visual guidance intentionally targets **Borderless / Windowed Fullscreen** Path of Exile clients. Arbitrary offset bordered-window mode fails closed instead of mapping client coordinates to the whole monitor.
 
-- enough radial candidates;
-- candidates spread across multiple screen regions;
-- meaningful horizontal and vertical span;
-- enough candidates in the client **interior**, so ordinary gameplay HUD circles around the edges cannot activate the tree overlay by themselves.
+To calibrate a base tree:
 
-This gate only answers “does this look structurally like the passive tree?” It never supplies final node coordinates.
+1. Set Path of Exile to Borderless / Windowed Fullscreen.
+2. Open the passive tree.
+3. Fully zoom the passive tree out.
+4. Put the mouse on the character's class-start circle.
+5. Press `Ctrl+Shift+C`.
 
-### Accurate candidate detection
+For an Ascendancy tree, use the same hotkey while hovering that Ascendancy's start/root circle.
 
-After the gate passes, the accurate detector searches the larger game-window capture for repeated radial passive-node geometry at bounded radii using radial contrast/coverage and non-maximum suppression. OCR is not required.
+Calibration is stored per display, DPI/scale configuration and tree scope. It includes the translation, full-zoom scale, capture aspect and the passive-tree UI signature.
 
-The capture targets the Path of Exile window rather than continuously capturing the full desktop. This prevents the passive HUD from paying for unrelated monitor pixels and prevents its own transparent overlay from becoming useful registration evidence.
+If the in-game tree is moved after calibration, hover the start circle and press `Ctrl+Shift+C` again to re-anchor it. This mirrors the practical re-alignment model used by Exile-UI after the in-game tree position resets.
 
-### Scope-aware anchors
+### Calibration hotkeys
 
-Expected anchors come from recent/upcoming ordered operations in the current scope, the current exact target, PoB stage targets in the current scope, same-scope graph neighbours, the appropriate base-class root or the appropriate Ascendancy root.
+- `Ctrl+Shift+C`: recalibrate/recenter at the class or Ascendancy start under the cursor.
+- `Ctrl+Shift+Up`: increase projection scale by 1% around the calibrated anchor.
+- `Ctrl+Shift+Down`: decrease projection scale by 1% around the calibrated anchor.
+- `Ctrl+Shift+0`: clear the current calibration.
 
-Nodes from other scopes are excluded. A Deadeye registration cannot borrow Ranger base-tree nodes to inflate confidence.
+The scale adjustment keys are a diagnostic/fine-tuning escape hatch. The expected normal scale is derived from the full-zoom client height.
 
-### Initial transform fitting
+## Performance contract
 
-A bounded pair-based similarity/RANSAC-style search proposes scale + translation transforms. The best transform is refined from matched visible nodes and rejected when inliers/confidence are insufficient or RMS error is excessive.
+When no supported build/passive point is available, capture work is skipped entirely.
 
-### Local pan/zoom tracking
+When waiting for the tree, the service requests only a small Path of Exile window thumbnail at low frequency. When the tree is visible, it continues the same tiny UI check so the HUD can disappear quickly when the tree closes. It does not run node detection or transform registration every frame.
 
-Once a transform is proven, ExileQuesting does not immediately repeat the full pair search every poll. The tracker evaluates a small set of scale factors near the previous lock and lets anchor/candidate pairs vote for nearby translation offsets. The strongest local hypotheses are refined with the same least-squares transform solver and must still pass inlier/RMS/confidence bounds.
+Renderer state is fingerprinted so unchanged HUD state is not repeatedly sent to the renderer.
 
-Normal pan and modest zoom therefore follow the previous tree cheaply. A large jump, changed viewport or lost lock fails the local tracker and falls back to full registration. If the passive-tree structure disappears, the HUD is hidden instead of leaving a stale marker on normal gameplay.
+## Capture/recording contract
 
-## HUD behavior
+ExileQuesting windows must be recordable by normal capture software such as OBS, Discord and Xbox Game Bar.
 
-Ordered Maxroll guidance can render a high-visibility **static** ring on the exact next base or Ascendancy node, `NEXT PASSIVE` / `REFUND PASSIVE`, node name/kind, operation progress, a scope label such as `Deadeye Ascendancy`, same-scope path preview and an off-screen edge indicator.
+The old Passive Tree HUD enabled Electron `setContentProtection(true)`, which can map to Windows display-affinity/capture exclusion behavior. v0.2.5 installs a capture-safe window policy before the legacy window bootstrap and immediately clears content protection on created ExileQuesting windows.
 
-PoB stages currently highlight newly-added nodes in the currently visible scope with a `POB STAGE PASSIVES` legend. They do not get a fabricated source-authored exact-target ring.
+The HUD remains transparent, always-on-top and click-through, but it is not protected media and must not exclude itself or interfere with game/video capture.
 
-The normal campaign/build overlay remains a separate window.
+## Supported tree scopes
 
-## Resolution, ultrawide and DPI validation
+### Base passive tree
 
-The permanent Windows visual harness covers 1920x1080, 2560x1440, 3440x1440 ultrawide and 3840x2160 at 100%, 125% and 150% forced device scale factors.
+All seven base classes use GGG-derived class starts and fixed node geometry. No class-specific screen-coordinate table is used.
 
-The structural tree-open gate is separately unit-tested at 1920x1080, 2560x1440, 3440x1440 and 5120x1440, plus false-positive layouts made from dense bottom-edge/outer-edge circles.
+### Ascendancy trees
 
-The transform tests cover synthetic pan/zoom without resolution-specific coordinates. Local tracking separately covers stable lock, pan, modest zoom+pan, unrelated candidate fields and a deliberately too-large jump that must fail so full reacquisition can take over.
+Ascendancy nodes use their fixed local GGG geometry and their own root/start anchor. Base-tree and Ascendancy coordinates are never mixed into one projection.
 
-The Windows visual matrix exercises:
+## Build-source semantics
 
-- base exact allocate;
-- base exact refund;
-- base PoB stage;
-- base off-screen target;
-- Ascendancy exact allocate;
-- Ascendancy exact refund;
-- Ascendancy PoB stage;
-- Ascendancy off-screen target.
+### Maxroll
 
-## Display/window assumptions
+Ordered passive history can supply an exact allocate/refund operation, so ExileQuesting can render the exact next fixed node plus nearby route context.
 
-Exact pixel mapping currently targets the display containing the full-screen or borderless Path of Exile client. The capture itself comes from the PoE window and display choice is resolved from the previous lock, aspect ratio and cursor display.
+### Path of Building
 
-A freely resized, offset windowed PoE client does not expose its native window bounds through the current Electron capture contract. ExileQuesting should fail closed or add a reviewed Windows window-bounds seam before claiming exact mapping for arbitrary offset windowed mode.
+PoB stages are allocation sets, not a trustworthy click-by-click order. ExileQuesting therefore highlights the supported stage nodes without inventing a source-authored exact order.
+
+## Passive-point availability
+
+`waiting-point` is distinct from `waiting-tree`.
+
+A current trusted `/passives` snapshot can prove zero unspent points. Very early exact routes can also prove no level-earned point is available yet. In those cases the HUD stays hidden and does not perform window capture work.
+
+Unknown is not treated as zero. ExileQuesting does not add process-memory reads simply to obtain a permanent live point counter.
 
 ## Fail-closed behavior
 
-The HUD hides and reports a reason when there is no supported guidance, a proven zero-point state exists, bundled geometry is corrupt, the target is dynamic/unpositioned, the passive tree is closed, the expected tree cannot produce enough visible candidates, registration confidence is too low, residual error is too high, or game-window capture fails.
+The HUD remains hidden when:
 
-Weak tracking frames never leave a stale marker over ordinary gameplay. Textual Build Coach guidance remains the fallback.
+- the tree signature does not match;
+- calibration is missing or malformed;
+- the PoE client/display aspect no longer matches calibration;
+- the active target has no fixed geometry;
+- a trusted zero-point state exists;
+- the manager is focused;
+- Path of Exile is not running or cannot be captured;
+- the selected mode is outside the v0.2.5 precise-mapping contract.
+
+A hidden HUD is preferred to a plausible-looking marker on the wrong node.
 
 ## Safety boundary
 
-Passive Tree HUD is observation + visualization only. It uses public GGG passive data, the existing user-selected `Client.txt` pipeline, visible game-window capture and transparent click-through rendering.
+Passive Tree HUD is observation + visualization only. It uses public GGG passive data, existing build guidance, visible game-window capture and a transparent click-through Electron window.
 
-It does not read process memory, inject into the game, move the cursor, simulate clicks/keypresses, allocate/refund passives or automate gameplay. ExileQuesting should not describe itself as officially approved or endorsed by Grinding Gear Games.
+It does not read Path of Exile process memory, inject code, synthesize gameplay input, move the cursor, or allocate/refund passives. ExileQuesting does not claim official endorsement by Grinding Gear Games.
 
-## Permanent validation
+## v0.2.5 validation checklist
 
-Coverage includes schema-v1 compatibility, strict v2 geometry, all seven base starts, every bundled fixed GGG Ascendancy scope/root, base/Ascendancy scope separation, real bundled Deadeye local-geometry registration under arbitrary translation, graph/path anchoring, transform solving, simulated pan/zoom/resolutions, tree-open false-positive rejection, local tracking/reacquisition boundaries, off-screen geometry, display mapping, Maxroll exact allocate/refund semantics, PoB unordered stages, static-render budget regression, manager/Gear Coach/overlay visuals, the Passive Tree HUD Windows visual matrix, overlay lifecycle soak, NSIS packaging and a real previous-stable -> candidate updater/relaunch/uninstall rehearsal.
+Before publishing v0.2.5:
 
-## Real-client calibration boundary
-
-Release automation can prove current GGG geometry, the visibility/transform/rejection algorithms, packaged Electron behavior, static renderer rules, resolution/DPI rendering and the updater. It cannot manufacture the exact pixels rendered by the player's Path of Exile client and graphics/UI settings.
-
-The next in-game run is therefore the detector/calibration test for the new cheap tree-open gate and game-window capture path. Expected failure behavior is safe: if live passive-tree rendering does not satisfy the detector thresholds, the HUD stays hidden rather than drawing an unproven marker. Diagnostics then provide a controlled calibration target without changing the underlying build or tree geometry.
-
-Working tree: post-v0.2.3 Passive Tree HUD hardening.
+- typecheck and unit tests pass;
+- deterministic tree-screen-check tests pass;
+- production build passes;
+- packaged Windows app starts successfully;
+- opening PoE without opening the passive tree leaves the HUD hidden;
+- opening the calibrated fully zoomed-out passive tree shows the HUD only after positive confirmation;
+- closing the tree hides the HUD;
+- class-start calibration aligns multiple known route nodes, not only the anchor;
+- DPI/resolution changes invalidate or select the correct calibration instead of silently reusing the wrong one;
+- OBS/Game Bar/Discord capture remain functional with ExileQuesting running;
+- unfinished Build Doctor functionality is not included in the v0.2.5 release branch.
