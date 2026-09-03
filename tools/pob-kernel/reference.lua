@@ -100,6 +100,20 @@ local function selectRaw(source)
     return raw
 end
 
+local function materiallyChangesReviewedMetric(before, after)
+    for _, key in ipairs(keys) do
+        local beforeValue = before[key]
+        local afterValue = after[key]
+        if type(beforeValue) == "number" and type(afterValue) == "number" then
+            local tolerance = math.max(0.05, math.abs(beforeValue) * 0.000001, math.abs(afterValue) * 0.000001)
+            if math.abs(afterValue - beforeValue) > tolerance then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function currentItemForSlot(slotName)
     if not build or not build.itemsTab or not build.itemsTab.slots or not build.itemsTab.items then
         return nil
@@ -142,6 +156,75 @@ local function buildBlankReplacement()
     return nil
 end
 
+local UNSUPPORTED_PASSIVE_NODE_TYPES = {
+    ["ClassStart"] = true,
+    ["AscendClassStart"] = true,
+    ["Mastery"] = true,
+    ["Socket"] = true,
+}
+
+local NODE_TYPE_PRIORITY = {
+    Keystone = 1,
+    Notable = 2,
+    Normal = 3,
+}
+
+local function passiveNodeSupported(node)
+    return type(node) == "table"
+        and not UNSUPPORTED_PASSIVE_NODE_TYPES[node.type]
+        and node.isProxy ~= true
+end
+
+local function passiveCandidates(allocated)
+    local candidates = {}
+    if not build or not build.spec or type(build.spec.nodes) ~= "table" then
+        return candidates
+    end
+    for nodeId, node in pairs(build.spec.nodes) do
+        local numericId = tonumber(nodeId)
+        if numericId and numericId > 0 and numericId == math.floor(numericId)
+            and passiveNodeSupported(node) and (node.alloc == true) == allocated then
+            candidates[#candidates + 1] = {
+                nodeId = numericId,
+                node = node,
+                priority = NODE_TYPE_PRIORITY[node.type] or 4,
+            }
+        end
+    end
+    table.sort(candidates, function(a, b)
+        if a.priority ~= b.priority then
+            return a.priority < b.priority
+        end
+        return a.nodeId < b.nodeId
+    end)
+    return candidates
+end
+
+local function findPassiveOracle(calcFunc, baseOutput, operation)
+    local wantAllocated = operation == "deallocate"
+    local candidates = passiveCandidates(wantAllocated)
+    local attempts = math.min(#candidates, 24)
+    for index = 1, attempts do
+        local candidate = candidates[index]
+        local override = {}
+        if operation == "allocate" then
+            override.addNodes = { [candidate.node] = true }
+        else
+            override.removeNodes = { [candidate.node] = true }
+        end
+        local calcOk, candidateOutput = pcall(calcFunc, override)
+        if calcOk and type(candidateOutput) == "table" and materiallyChangesReviewedMetric(baseOutput, candidateOutput) then
+            return {
+                nodeId = candidate.nodeId,
+                nodeName = type(candidate.node.dn) == "string" and candidate.node.dn or nil,
+                before = selectRaw(baseOutput),
+                after = selectRaw(candidateOutput),
+            }
+        end
+    end
+    return nil
+end
+
 local replacementSlot, replacementItemText, replacementItem = buildBlankReplacement()
 if not replacementSlot then
     io.stderr:write("PoB reference could not find a replaceable equipped item in the fixture.\n")
@@ -163,6 +246,18 @@ if not replacementOk or type(replacementOutput) ~= "table" then
     os.exit(8)
 end
 
+local passiveDeallocate = findPassiveOracle(calcFunc, baseOutput, "deallocate")
+if not passiveDeallocate then
+    io.stderr:write("PoB reference could not find an allocated ordinary passive node with a reviewed measurable effect.\n")
+    os.exit(9)
+end
+
+local passiveAllocate = findPassiveOracle(calcFunc, baseOutput, "allocate")
+if not passiveAllocate then
+    io.stderr:write("PoB reference could not find an unallocated ordinary passive node with a reviewed measurable effect.\n")
+    os.exit(10)
+end
+
 io.stdout:write(SENTINEL .. json.encode({
     raw = selectRaw(output),
     itemReplacement = {
@@ -170,6 +265,10 @@ io.stdout:write(SENTINEL .. json.encode({
         itemText = replacementItemText,
         before = selectRaw(baseOutput),
         after = selectRaw(replacementOutput),
+    },
+    passiveNodes = {
+        deallocate = passiveDeallocate,
+        allocate = passiveAllocate,
     },
 }) .. "\n")
 io.stdout:flush()
