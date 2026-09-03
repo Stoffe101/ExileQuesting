@@ -6,8 +6,24 @@ import {
 } from './pob-calculation';
 import type { BuildDoctorKernelProvenance } from './build-doctor';
 import { reviewedBuildMetrics, type BuildDoctorReviewedMetric } from './build-doctor-reviewed-metrics';
+import { constraintFindings, type PobConstraintComparison, type PobConstraintFinding } from './pob-constraints';
 
-export const BUILD_DOCTOR_CANDIDATE_ITEM_SCHEMA_VERSION = 1;
+export const BUILD_DOCTOR_CANDIDATE_ITEM_SCHEMA_VERSION = 2;
+
+export interface BuildDoctorCandidateConstraintVerified {
+  status: 'verified';
+  kernel: BuildDoctorKernelProvenance;
+  findings: PobConstraintFinding[];
+  message: string;
+}
+
+export interface BuildDoctorCandidateConstraintUnavailable {
+  status: 'unavailable';
+  findings: [];
+  message: string;
+}
+
+export type BuildDoctorCandidateConstraintEvidence = BuildDoctorCandidateConstraintVerified | BuildDoctorCandidateConstraintUnavailable;
 
 export interface BuildDoctorCandidateItemReady {
   schemaVersion: number;
@@ -20,6 +36,7 @@ export interface BuildDoctorCandidateItemReady {
   kernel: BuildDoctorKernelProvenance;
   metrics: BuildDoctorReviewedMetric[];
   changedMetrics: BuildDoctorReviewedMetric[];
+  constraints: BuildDoctorCandidateConstraintEvidence;
   beforeWarnings: string[];
   afterWarnings: string[];
   boundary: string;
@@ -41,8 +58,17 @@ function sameKernel(left: PobCalculationKernelVersion, right: PobCalculationKern
   return left.protocolVersion === right.protocolVersion
     && left.pobRepository === right.pobRepository
     && left.pobCommit === right.pobCommit
+    && left.runtime === right.runtime
     && left.runtimeRevision === right.runtimeRevision
     && left.adapterVersion === right.adapterVersion;
+}
+
+function samePinnedRuntime(left: PobCalculationKernelVersion, right: PobCalculationKernelVersion): boolean {
+  return left.protocolVersion === right.protocolVersion
+    && left.pobRepository === right.pobRepository
+    && left.pobCommit === right.pobCommit
+    && left.runtime === right.runtime
+    && left.runtimeRevision === right.runtimeRevision;
 }
 
 function kernelProvenance(kernel: PobCalculationKernelVersion): BuildDoctorKernelProvenance {
@@ -74,6 +100,11 @@ export function readyCandidateItemAnalysis(input: {
   slot: PobReplaceableItemSlot;
   candidateLabel: string;
   comparison: PobPerturbationComparison;
+  constraint?: {
+    comparison: PobConstraintComparison;
+    kernel: PobCalculationKernelVersion;
+  };
+  constraintUnavailableMessage?: string;
 }): BuildDoctorCandidateItemReady {
   if (!POB_REPLACEABLE_ITEM_SLOTS.includes(input.slot)) throw new Error('Build Doctor candidate item used an unsupported equipment slot.');
   if (input.comparison.perturbations.length !== 1) throw new Error('Build Doctor candidate item comparison requires exactly one PoB perturbation.');
@@ -83,6 +114,31 @@ export function readyCandidateItemAnalysis(input: {
   }
   if (!sameKernel(input.comparison.before.kernel, input.comparison.after.kernel)) {
     throw new Error('Build Doctor candidate item comparison changed PoB kernel provenance between states.');
+  }
+
+  let constraints: BuildDoctorCandidateConstraintEvidence;
+  if (input.constraint) {
+    if (input.constraint.comparison.slot !== input.slot) {
+      throw new Error('Build Doctor constraint comparison does not match the requested candidate equipment slot.');
+    }
+    if (!samePinnedRuntime(input.comparison.before.kernel, input.constraint.kernel)) {
+      throw new Error('Build Doctor constraint evidence does not share the candidate calculation PoB/runtime provenance.');
+    }
+    const findings = constraintFindings(input.constraint.comparison);
+    constraints = {
+      status: 'verified',
+      kernel: kernelProvenance(input.constraint.kernel),
+      findings,
+      message: findings.length
+        ? `${findings.length} PoB-proven constraint transition${findings.length === 1 ? '' : 's'} detected for this replacement.`
+        : 'Pinned PoB found no transition in the currently supported hard-constraint checks.',
+    };
+  } else {
+    constraints = {
+      status: 'unavailable',
+      findings: [],
+      message: (input.constraintUnavailableMessage ?? 'Hard-constraint verification was not available for this calculation.').replace(/\s+/g, ' ').trim().slice(0, 700),
+    };
   }
 
   const metrics = reviewedBuildMetrics(input.comparison.before, input.comparison.after);
@@ -97,9 +153,10 @@ export function readyCandidateItemAnalysis(input: {
     kernel: kernelProvenance(input.comparison.before.kernel),
     metrics,
     changedMetrics: metrics.filter((entry) => entry.changed),
+    constraints,
     beforeWarnings: input.comparison.before.warnings.map((warning) => warning.message),
     afterWarnings: input.comparison.after.warnings.map((warning) => warning.message),
-    boundary: 'This is a deterministic PoB slot-replacement calculation. ExileQuesting has not yet proven item requirements, socket/link migration, reservation changes, trade cost, crafting cost, or coordinated multi-slot/passive transitions for this candidate.',
+    boundary: 'This is a deterministic PoB slot-replacement calculation. Attribute requirements, resistance-cap state and spell-suppression cap state are verified only when the constraint evidence above is available. ExileQuesting has not yet proven socket/link migration, reservation validity, trade cost, crafting cost, or coordinated multi-slot/passive transitions for this candidate.',
   };
 }
 

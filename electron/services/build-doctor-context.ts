@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import type { BuildProfile } from '../../src/core/build-profiles';
 import { loadPobCalculationPayload } from './pob-calculation-payload';
-import { pobKernelBundleRoot, pobKernelRuntimeOptions, validatePobKernelBundle } from './pob-runtime';
+import { pobConstraintRuntimeOptions, pobKernelBundleRoot, pobKernelRuntimeOptions, validatePobKernelBundle } from './pob-runtime';
 import { StateStore } from './state-store';
 
 export type BuildDoctorContextFailureStatus = 'reimport-required' | 'calculation-input-invalid' | 'runtime-unavailable';
@@ -11,6 +11,7 @@ export interface BuildDoctorCalculationContext {
   profile: BuildProfile;
   xml: string;
   runtimeOptions: ReturnType<typeof pobKernelRuntimeOptions>;
+  constraintRuntimeOptions: ReturnType<typeof pobConstraintRuntimeOptions>;
 }
 
 export interface BuildDoctorCalculationContextFailure {
@@ -65,8 +66,14 @@ export async function resolveBuildDoctorCalculationContext(profileId: string): P
       appPath: app.getAppPath(),
       overrideRoot: process.env.EXILEQUESTING_POB_BUNDLE_ROOT,
     });
-    const runtimeOptions = pobKernelRuntimeOptions(await validatePobKernelBundle(bundleRoot));
-    return { ok: true, profile, xml, runtimeOptions };
+    const bundle = await validatePobKernelBundle(bundleRoot);
+    return {
+      ok: true,
+      profile,
+      xml,
+      runtimeOptions: pobKernelRuntimeOptions(bundle),
+      constraintRuntimeOptions: pobConstraintRuntimeOptions(bundle),
+    };
   } catch (error) {
     return {
       ok: false,

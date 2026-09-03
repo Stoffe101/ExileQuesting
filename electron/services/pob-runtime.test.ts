@@ -10,6 +10,7 @@ import {
   POB_KERNEL_LUAJIT_COMMIT,
   POB_KERNEL_LUAJIT_REPOSITORY,
   POB_KERNEL_REPOSITORY,
+  pobConstraintRuntimeOptions,
   pobKernelBundleRoot,
   pobKernelRuntimeOptions,
   validatePobKernelBundle,
@@ -61,7 +62,8 @@ async function fixture(): Promise<string> {
     pobCommit: POB_KERNEL_COMMIT,
     luaJitRepository: POB_KERNEL_LUAJIT_REPOSITORY,
     luaJitCommit: POB_KERNEL_LUAJIT_COMMIT,
-    workerAdapterVersion: '0.5.0',
+    workerAdapterVersion: '0.6.0',
+    constraintAdapterVersion: 'constraint-0.1.0',
     fileCount: treeEntries.length,
     totalBytes: treeEntries.reduce((sum, entry) => sum + entry.buffer.length, 0),
     treeSha256: treeHash(treeEntries),
@@ -83,20 +85,30 @@ describe('PoB runtime bundle', () => {
       .toContain('C:/repo/.pob-runtime');
   });
 
-  it('accepts a correctly pinned bundle and exposes native module/runtime paths', async () => {
+  it('accepts a correctly pinned bundle and exposes both verified worker paths', async () => {
     const root = await fixture();
     const validated = await validatePobKernelBundle(root);
     expect(validated.manifest.pobCommit).toBe(POB_KERNEL_COMMIT);
     expect(validated.manifest.luaJitCommit).toBe(POB_KERNEL_LUAJIT_COMMIT);
+    expect(validated.manifest.constraintAdapterVersion).toBe('constraint-0.1.0');
     const options = pobKernelRuntimeOptions(validated);
     expect(options.runtimeRevision).toBe(POB_KERNEL_LUAJIT_COMMIT);
     expect(options.luaCModulePath).toContain('?.dll');
     expect(options.additionalPathEntries).toEqual([validated.paths.pobRuntimePath]);
+    const constraintOptions = pobConstraintRuntimeOptions(validated);
+    expect(constraintOptions.workerScriptPath).toBe(validated.paths.constraintWorkerScriptPath);
+    expect(constraintOptions.runtimeRevision).toBe(POB_KERNEL_LUAJIT_COMMIT);
   });
 
-  it('fails closed if a critical packaged file is changed after staging', async () => {
+  it('fails closed if the calculation worker is changed after staging', async () => {
     const root = await fixture();
     await writeFile(path.join(root, ...POB_KERNEL_CRITICAL_FILES.worker.split('/')), 'tampered', 'utf8');
+    await expect(validatePobKernelBundle(root)).rejects.toThrow(/SHA-256|wrong size/i);
+  });
+
+  it('fails closed if the constraint worker is changed after staging', async () => {
+    const root = await fixture();
+    await writeFile(path.join(root, ...POB_KERNEL_CRITICAL_FILES.constraintWorker.split('/')), 'tampered', 'utf8');
     await expect(validatePobKernelBundle(root)).rejects.toThrow(/SHA-256|wrong size/i);
   });
 

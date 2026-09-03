@@ -15,6 +15,7 @@ export const POB_KERNEL_CRITICAL_FILES = {
   utf8Module: 'pob/runtime/lua-utf8.dll',
   headlessWrapper: 'pob/src/HeadlessWrapper.lua',
   worker: 'worker.lua',
+  constraintWorker: 'constraint-worker.lua',
   pobLicense: 'licenses/PathOfBuilding-LICENSE.md',
   luaJitLicense: 'licenses/LuaJIT-COPYRIGHT',
 } as const;
@@ -27,6 +28,7 @@ export interface PobKernelBundleManifest {
   luaJitRepository: string;
   luaJitCommit: string;
   workerAdapterVersion: string;
+  constraintAdapterVersion: string;
   fileCount: number;
   totalBytes: number;
   treeSha256: string;
@@ -40,6 +42,7 @@ export interface PobKernelBundlePaths {
   pobSourcePath: string;
   pobRuntimePath: string;
   workerScriptPath: string;
+  constraintWorkerScriptPath: string;
 }
 
 export interface ValidatedPobKernelBundle {
@@ -114,6 +117,7 @@ export function pobKernelBundlePaths(root: string): PobKernelBundlePaths {
     pobSourcePath: path.join(resolvedRoot, 'pob', 'src'),
     pobRuntimePath: path.join(resolvedRoot, 'pob', 'runtime'),
     workerScriptPath: path.join(resolvedRoot, 'worker.lua'),
+    constraintWorkerScriptPath: path.join(resolvedRoot, 'constraint-worker.lua'),
   };
 }
 
@@ -127,6 +131,7 @@ export async function validatePobKernelBundle(root: string): Promise<ValidatedPo
   if (manifest.pobRepository !== POB_KERNEL_REPOSITORY || manifest.pobCommit !== POB_KERNEL_COMMIT) throw new Error('PoB kernel bundle source pin does not match the reviewed ExileQuesting pin.');
   if (manifest.luaJitRepository !== POB_KERNEL_LUAJIT_REPOSITORY || manifest.luaJitCommit !== POB_KERNEL_LUAJIT_COMMIT) throw new Error('PoB kernel bundle LuaJIT pin does not match the reviewed ExileQuesting pin.');
   if (!manifest.workerAdapterVersion?.trim() || manifest.workerAdapterVersion.length > 32) throw new Error('PoB kernel bundle worker adapter version is missing or invalid.');
+  if (!manifest.constraintAdapterVersion?.trim() || manifest.constraintAdapterVersion.length > 32) throw new Error('PoB kernel bundle constraint adapter version is missing or invalid.');
   if (!Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 1 || !Number.isSafeInteger(manifest.totalBytes) || manifest.totalBytes < 1 || !validSha256(manifest.treeSha256)) {
     throw new Error('PoB kernel bundle aggregate provenance is invalid.');
   }
@@ -148,14 +153,22 @@ export async function validatePobKernelBundle(root: string): Promise<ValidatedPo
   return { paths, manifest };
 }
 
-export function pobKernelRuntimeOptions(bundle: ValidatedPobKernelBundle): PobKernelRuntimeOptions {
+function sharedRuntimeOptions(bundle: ValidatedPobKernelBundle, workerScriptPath: string): PobKernelRuntimeOptions {
   const runtimeCPath = `${path.join(bundle.paths.pobRuntimePath, '?.dll')};${path.join(bundle.paths.pobRuntimePath, '?', '?.dll')}`;
   return {
     runtimePath: bundle.paths.runtimePath,
     pobSourcePath: bundle.paths.pobSourcePath,
-    workerScriptPath: bundle.paths.workerScriptPath,
+    workerScriptPath,
     luaCModulePath: runtimeCPath,
     runtimeRevision: bundle.manifest.luaJitCommit,
     additionalPathEntries: [bundle.paths.pobRuntimePath],
   };
+}
+
+export function pobKernelRuntimeOptions(bundle: ValidatedPobKernelBundle): PobKernelRuntimeOptions {
+  return sharedRuntimeOptions(bundle, bundle.paths.workerScriptPath);
+}
+
+export function pobConstraintRuntimeOptions(bundle: ValidatedPobKernelBundle): PobKernelRuntimeOptions {
+  return sharedRuntimeOptions(bundle, bundle.paths.constraintWorkerScriptPath);
 }

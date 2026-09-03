@@ -12,7 +12,7 @@ import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
 import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
 import type { BuildProfile } from '../src/core/build-profiles';
-import type { PobCalculationResult, PobFlaskInspectionResult, PobFlaskProfile, PobPerturbationComparison } from '../src/core/pob-calculation';
+import type { PobCalculationResult, PobConstraintMetrics, PobFlaskInspectionResult, PobFlaskProfile, PobPerturbationComparison } from '../src/core/pob-calculation';
 import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
 
 const output = path.resolve(process.argv[2] || 'artifacts/manager-visual/build-doctor');
@@ -66,6 +66,8 @@ const kernel = {
   runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e',
   adapterVersion: '0.6.0',
 };
+
+const constraintKernel = { ...kernel, adapterVersion: 'constraint-0.1.0' };
 
 function baseline(): PobCalculationResult {
   return {
@@ -153,6 +155,40 @@ function dependencyScan(now: string) {
   });
 }
 
+function candidateConstraints(): { before: PobConstraintMetrics; after: PobConstraintMetrics } {
+  const before: PobConstraintMetrics = {
+    attributes: {
+      strength: { current: 160, required: 155 },
+      dexterity: { current: 180, required: 160 },
+      intelligence: { current: 220, required: 200 },
+    },
+    reservation: { manaUnreserved: 120, manaUnreservedPercent: 10, lifeUnreserved: 3_860, lifeUnreservedPercent: 100 },
+    spellSuppression: { chance: 100, effectiveChance: 100, overCap: 10, cap: 100 },
+    resistances: {
+      fire: { current: 75, total: 110, overCap: 35, missing: 0 },
+      cold: { current: 75, total: 105, overCap: 30, missing: 0 },
+      lightning: { current: 75, total: 103, overCap: 28, missing: 0 },
+      chaos: { current: 42, total: 42, overCap: 0, missing: 33 },
+    },
+  };
+  const after: PobConstraintMetrics = {
+    attributes: {
+      strength: { current: 150, required: 155 },
+      dexterity: { current: 180, required: 160 },
+      intelligence: { current: 220, required: 200 },
+    },
+    reservation: { manaUnreserved: 120, manaUnreservedPercent: 10, lifeUnreserved: 4_060, lifeUnreservedPercent: 100 },
+    spellSuppression: { chance: 92, effectiveChance: 92, overCap: 0, cap: 100 },
+    resistances: {
+      fire: { current: 68, total: 68, overCap: 0, missing: 7 },
+      cold: { current: 75, total: 83, overCap: 8, missing: 0 },
+      lightning: { current: 75, total: 103, overCap: 28, missing: 0 },
+      chaos: { current: 42, total: 42, overCap: 0, missing: 33 },
+    },
+  };
+  return { before, after };
+}
+
 function candidateAnalysis(now: string) {
   const before = baseline();
   before.requestId = 'visual-candidate-before';
@@ -163,9 +199,12 @@ function candidateAnalysis(now: string) {
     ...after.defence,
     life: 4_060,
     spellSuppressionChance: 92,
-    fireResistanceOverCap: 12,
+    fireResistance: 68,
+    fireResistanceOverCap: 0,
+    coldResistanceOverCap: 8,
     maximumHit: { ...after.defence.maximumHit, physical: 31_834 },
   };
+  const constraints = candidateConstraints();
   return readyCandidateItemAnalysis({
     profileId: 'visual-build-doctor',
     profileName: 'Level 96 Trickster · Build Doctor fixture',
@@ -176,6 +215,10 @@ function candidateAnalysis(now: string) {
       perturbations: [{ kind: 'replace-item', slot: 'Boots', itemText: candidateItemText }],
       before,
       after,
+    },
+    constraint: {
+      comparison: { slot: 'Boots', before: constraints.before, after: constraints.after },
+      kernel: constraintKernel,
     },
   });
 }
@@ -391,13 +434,25 @@ async function main(): Promise<void> {
     throw new Error('Candidate Upgrade Doctor fixture is missing the deterministic offence comparison.');
   }
   if (!candidateDesktop.text.includes('Spell suppression') || !candidateDesktop.text.includes('100%') || !candidateDesktop.text.includes('92%') || !candidateDesktop.text.includes('-8 pts')) {
-    throw new Error('Candidate Upgrade Doctor fixture is missing the suppression regression.');
+    throw new Error('Candidate Upgrade Doctor fixture is missing the suppression metric regression.');
   }
-  if (!candidateDesktop.text.includes('Fire overcap') || !candidateDesktop.text.includes('35%') || !candidateDesktop.text.includes('12%') || !candidateDesktop.text.includes('-23 pts')) {
-    throw new Error('Candidate Upgrade Doctor fixture is missing the resistance-overcap regression.');
+  if (!candidateDesktop.text.includes('Fire overcap') || !candidateDesktop.text.includes('35%') || !candidateDesktop.text.includes('0%') || !candidateDesktop.text.includes('-35 pts')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing the resistance-overcap metric regression.');
   }
-  if (!candidateDesktop.text.includes('requirements') || !candidateDesktop.text.includes('reservation') || !candidateDesktop.text.includes('trade cost')) {
-    throw new Error('Candidate Upgrade Doctor fixture lost its unresolved-transition boundary.');
+  if (!candidateDesktop.text.includes('HARD CONSTRAINT CHECK') || !candidateDesktop.text.includes('Pinned PoB transition evidence') || !candidateDesktop.text.includes('3 broken')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing verified hard-constraint summary evidence.');
+  }
+  if (!candidateDesktop.text.includes('Strength') || !candidateDesktop.text.includes('160 / 155 required') || !candidateDesktop.text.includes('150 / 155 required')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing the proven Strength requirement break.');
+  }
+  if (!candidateDesktop.text.includes('Fire resistance') || !candidateDesktop.text.includes('7 missing') || !candidateDesktop.text.includes('Spell suppression cap') || !candidateDesktop.text.includes('92% / 100% cap')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing proven resistance/suppression failures.');
+  }
+  if (!candidateDesktop.text.includes('Cold resistance') || !candidateDesktop.text.includes('Weaker buffer') || !candidateDesktop.text.includes('constraint-0.1.0')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing verified buffer/provenance evidence.');
+  }
+  if (!candidateDesktop.text.includes('reservation validity') || !candidateDesktop.text.includes('trade cost') || !candidateDesktop.text.includes('coordinated')) {
+    throw new Error('Candidate Upgrade Doctor fixture lost its remaining unresolved-transition boundary.');
   }
   const candidateDesktopBytes = await capture(window, 'build-doctor-candidate-1920x1080.png');
 
@@ -417,7 +472,9 @@ async function main(): Promise<void> {
   if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
   if (compact.panelWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor panel exceeds compact viewport (${compact.panelWidth} > ${compact.viewportWidth}).`);
-  if (!compact.text.includes('Storm Pace · Sharkskin Boots') || !compact.text.includes('Spell suppression') || !compact.text.includes('Fire overcap')) throw new Error('Candidate Upgrade Doctor compact evidence is incomplete.');
+  if (!compact.text.includes('Storm Pace · Sharkskin Boots') || !compact.text.includes('HARD CONSTRAINT CHECK') || !compact.text.includes('3 broken') || !compact.text.includes('Strength') || !compact.text.includes('7 missing') || !compact.text.includes('Weaker buffer')) {
+    throw new Error('Candidate Upgrade Doctor compact hard-constraint evidence is incomplete.');
+  }
   const compactBytes = await capture(window, 'build-doctor-candidate-1280x720.png');
 
   await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({
