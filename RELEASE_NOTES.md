@@ -1,19 +1,22 @@
-# ExileQuesting v0.2.3
+# ExileQuesting v0.2.4
 
-This release hardens build-guide support and campaign intelligence around the current Path of Exile 3.29 ecosystem.
+This hotfix rebuilds the Passive Tree HUD around the actual in-game passive-tree lifecycle so it no longer behaves like a permanent full-screen overlay during normal Path of Exile gameplay.
 
-## Highlights
+## Passive Tree HUD fixes
 
-- Audited 109 current Maxroll PoE build-guide URLs, successfully parsing 106 and identifying 103 leveling-relevant guides, including Twink routes.
-- Added Mobalytics PoE1 guide recognition and a safe PoB/POBb.in bridge while direct application fetching remains blocked by Mobalytics.
-- Added deterministic Mobalytics embedded-state parsing for future direct support when a stable public access path exists.
-- Updated build-aware vendor link searches to current compact PoE/poe.re regex forms while retaining the 250-character safety limit.
-- Added explicit Siosa and Lilly campaign checkpoints so gem-progression changes are explained at the moment they matter.
-- Added a scheduled upstream watchdog for representative Maxroll normal/Twink contracts, Mobalytics access changes, and pinned gem/passive data drift.
-- Expanded campaign and provider documentation with a cross-source leveling-guide audit and repeatable future-league maintenance process.
+- The Passive Tree HUD now stays hidden while the in-game passive tree is closed.
+- Normal gameplay uses only a small, low-frequency Path of Exile window probe instead of continuously running full passive-tree registration.
+- Accurate node registration starts only after the passive tree is confidently detected.
+- Once aligned, ordinary pan and zoom changes are followed by a lightweight local transform tracker; expensive full reacquisition is reserved for larger viewport changes or lost locks.
+- Captures target the Path of Exile window rather than continuously processing unrelated desktop pixels.
+- Tree-open detection requires passive-node-like geometry distributed through the client interior, reducing false activation from ordinary HUD circles around the screen edges.
+- The target ring, route path and labels are now static. Infinite pulse animations, SVG drop-shadow effects and other continuous compositor-heavy decoration have been removed.
+- Added explicit waiting states for the tree being closed and for a proven zero-unspent-point state.
 
-## Reliability
+## Compatibility and reliability
 
-The release pipeline validates typechecking, unit tests, bundled gem/passive data, campaign audit/lint/simulation, Pre-playtest Lab controls, manager/Gear Coach/overlay/Passive Tree HUD visuals, overlay lifecycle soak, NSIS packaging, installer verification, and a real previous-stable to current updater handoff with relaunch and post-update smoke testing.
+- Registration remains data-driven from bundled PoE passive-tree geometry, so it is not tied to a single class, build, screen coordinate, resolution or aspect ratio.
+- Automated coverage includes 1920x1080, 2560x1440, 3440x1440 and 5120x1440 tree-presence cases, synthetic pan/zoom tracking, false-positive rejection, static-render regression checks, the Windows Passive Tree HUD visual matrix, NSIS packaging and the previous-stable to candidate updater rehearsal.
+- Weak or ambiguous visual matches fail closed and hide the marker rather than drawing an unproven position.
 
-ExileQuesting remains advisory: it does not inject into Path of Exile, read process memory, or automate game input.
+The HUD remains advisory only. ExileQuesting does not read Path of Exile process memory, inject into the game, move the cursor or automate passive allocation.
