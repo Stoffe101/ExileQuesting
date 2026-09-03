@@ -33,11 +33,20 @@ export const POB_REPLACEABLE_ITEM_SLOTS = [
   'Belt',
 ] as const;
 
+export const POB_FLASK_SLOTS = [
+  'Flask 1',
+  'Flask 2',
+  'Flask 3',
+  'Flask 4',
+  'Flask 5',
+] as const;
+
 export const POB_PASSIVE_NODE_OPERATIONS = ['allocate', 'deallocate'] as const;
 
 export type PobCalculationScenario = typeof POB_SCENARIOS[number];
 export type PobCalculationConfidence = typeof POB_CONFIDENCE_CLASSES[number];
 export type PobReplaceableItemSlot = typeof POB_REPLACEABLE_ITEM_SLOTS[number];
+export type PobFlaskSlot = typeof POB_FLASK_SLOTS[number];
 export type PobPassiveNodeOperation = typeof POB_PASSIVE_NODE_OPERATIONS[number];
 
 export interface PobCalculationKernelVersion {
@@ -158,10 +167,23 @@ export type PobPerturbation =
       nodeId: number;
     }
   | {
+      kind: 'toggle-flask';
+      slot: PobFlaskSlot;
+    }
+  | {
       kind: 'configuration';
       key: string;
       value: boolean | number | string;
     };
+
+export interface PobFlaskStateTransition {
+  kind: 'flask-active';
+  slot: PobFlaskSlot;
+  fromActive: boolean;
+  toActive: boolean;
+}
+
+export type PobPerturbationStateTransition = PobFlaskStateTransition;
 
 export interface PobLoadAndCalculateRequest {
   protocolVersion: number;
@@ -213,6 +235,7 @@ export interface PobPerturbationComparison {
   perturbations: PobPerturbation[];
   before: PobCalculationResult;
   after: PobCalculationResult;
+  stateTransition?: PobPerturbationStateTransition;
 }
 
 export interface PobWorkerPerturbationSuccess {
@@ -311,6 +334,9 @@ function validEnabledPerturbation(perturbation: PobPerturbation): boolean {
       && Number.isSafeInteger(perturbation.nodeId)
       && perturbation.nodeId > 0
       && perturbation.nodeId <= MAX_POB_PASSIVE_NODE_ID;
+  }
+  if (perturbation.kind === 'toggle-flask') {
+    return POB_FLASK_SLOTS.includes(perturbation.slot);
   }
   return false;
 }

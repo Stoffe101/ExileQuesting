@@ -7,8 +7,10 @@ on:
       - 'electron/services/pob-kernel-service.ts'
       - 'src/core/pob-calculation.ts'
       - 'src/core/pob-calculation.test.ts'
+      - 'src/core/pob-flask-perturbation.test.ts'
       - 'tools/pob-kernel/**'
       - 'tools/pob-kernel-parity.ts'
+      - 'tools/pob-flask-parity.ts'
   workflow_dispatch:
 
 permissions:
@@ -68,14 +70,18 @@ jobs:
             exit 1
           fi
           echo "POB_ROOT=$POB_ROOT" >> "$GITHUB_ENV"
-      - name: Build parity harness
-        run: npx esbuild tools/pob-kernel-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-kernel-parity.mjs
+      - name: Build parity harnesses
+        run: |
+          npx esbuild tools/pob-kernel-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-kernel-parity.mjs
+          npx esbuild tools/pob-flask-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-flask-parity.mjs
       - name: Run real headless PoB parity
         run: node .tmp/pob-kernel-parity.mjs
+      - name: Run real headless PoB flask availability parity
+        run: node .tmp/pob-flask-parity.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ExileQuesting-pob-kernel-parity-${{ github.sha }}
-          path: artifacts/pob-kernel/parity.json
+          path: artifacts/pob-kernel/*.json
           if-no-files-found: warn
           retention-days: 30

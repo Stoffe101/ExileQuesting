@@ -62,7 +62,11 @@ export interface BuildMechanicKernelEvidence {
 
 export type BuildMechanicPerturbationSummary =
   | { kind: 'replace-item'; slot: string }
-  | { kind: 'passive-node'; operation: 'allocate' | 'deallocate'; nodeId: number };
+  | { kind: 'passive-node'; operation: 'allocate' | 'deallocate'; nodeId: number }
+  | { kind: 'toggle-flask'; slot: string };
+
+export type BuildMechanicStateTransitionSummary =
+  | { kind: 'flask-active'; slot: string; fromActive: boolean; toActive: boolean };
 
 export interface BuildMechanicEvidence {
   id: string;
@@ -73,6 +77,7 @@ export interface BuildMechanicEvidence {
   source?: string;
   kernel?: BuildMechanicKernelEvidence;
   perturbation?: BuildMechanicPerturbationSummary;
+  stateTransition?: BuildMechanicStateTransitionSummary;
 }
 
 export interface BuildMechanicObservation {
@@ -169,7 +174,32 @@ function perturbationSummary(perturbation: PobPerturbation): BuildMechanicPertur
   if (perturbation.kind === 'passive-node') {
     return { kind: 'passive-node', operation: perturbation.operation, nodeId: perturbation.nodeId };
   }
+  if (perturbation.kind === 'toggle-flask') {
+    return { kind: 'toggle-flask', slot: perturbation.slot };
+  }
   throw new Error(`Mechanic graph extraction does not support ${perturbation.kind} perturbations.`);
+}
+
+function stateTransitionSummary(comparison: PobPerturbationComparison, perturbation: PobPerturbation): BuildMechanicStateTransitionSummary | undefined {
+  const transition = comparison.stateTransition;
+  if (perturbation.kind === 'toggle-flask') {
+    if (!transition || transition.kind !== 'flask-active') {
+      throw new Error('Flask mechanic graph extraction requires an explicit flask-active state transition.');
+    }
+    if (transition.slot !== perturbation.slot || transition.toActive === transition.fromActive) {
+      throw new Error('Flask mechanic graph state transition does not match the perturbation.');
+    }
+    return {
+      kind: 'flask-active',
+      slot: transition.slot,
+      fromActive: transition.fromActive,
+      toActive: transition.toActive,
+    };
+  }
+  if (transition) {
+    throw new Error(`Unexpected state transition ${transition.kind} for ${perturbation.kind} perturbation.`);
+  }
+  return undefined;
 }
 
 function sourceNode(perturbation: PobPerturbation, requestId: string): BuildMechanicNode {
@@ -187,6 +217,14 @@ function sourceNode(perturbation: PobPerturbation, requestId: string): BuildMech
       kind: 'item',
       label: `Candidate ${perturbation.slot} item`,
       metadata: { slot: perturbation.slot, requestId },
+    };
+  }
+  if (perturbation.kind === 'toggle-flask') {
+    return {
+      id: `condition:flask-active:${encoded(perturbation.slot)}`,
+      kind: 'condition',
+      label: `${perturbation.slot} active`,
+      metadata: { slot: perturbation.slot, condition: 'flask-active' },
     };
   }
   throw new Error(`Mechanic graph extraction does not support ${perturbation.kind} perturbations.`);
@@ -235,6 +273,7 @@ export function graphFromPobPerturbation(comparison: PobPerturbationComparison):
 
   const perturbation = comparison.perturbations[0];
   const summary = perturbationSummary(perturbation);
+  const transition = stateTransitionSummary(comparison, perturbation);
   const source = sourceNode(perturbation, comparison.before.requestId);
   const evidenceId = `evidence:pob-perturbation:${encoded(comparison.before.requestId)}:${encoded(source.id)}`;
   const evidence: BuildMechanicEvidence = {
@@ -251,6 +290,7 @@ export function graphFromPobPerturbation(comparison: PobPerturbationComparison):
       adapterVersion: comparison.before.kernel.adapterVersion,
     },
     perturbation: summary,
+    ...(transition ? { stateTransition: transition } : {}),
   };
 
   const nodes = new Map<string, BuildMechanicNode>([[source.id, source]]);
