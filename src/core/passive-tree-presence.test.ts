@@ -18,6 +18,7 @@ describe('passive tree presence gate', () => {
   ])('accepts a distributed passive-node constellation at %sx%s', (width, height) => {
     const presence = passiveTreePresence(treeLike(width, height), width, height);
     expect(presence.visible).toBe(true);
+    expect(presence.interiorCandidates).toBeGreaterThanOrEqual(5);
     expect(presence.occupiedCells).toBeGreaterThanOrEqual(5);
     expect(presence.score).toBeGreaterThan(0.95);
   });
@@ -33,6 +34,22 @@ describe('passive tree presence gate', () => {
     const presence = passiveTreePresence(candidates, width, height);
     expect(presence.visible).toBe(false);
     expect(presence.verticalSpan).toBeLessThan(0.1);
+  });
+
+  it('rejects a dense collection of circular HUD elements that only hugs screen edges', () => {
+    const width = 1920;
+    const height = 1080;
+    const candidates = [
+      ...Array.from({ length: 6 }, (_, index) => ({ x: 40 + index * 330, y: 45, score: 90 - index })),
+      ...Array.from({ length: 6 }, (_, index) => ({ x: 45, y: 170 + index * 145, score: 80 - index })),
+      ...Array.from({ length: 6 }, (_, index) => ({ x: 1870, y: 150 + index * 145, score: 70 - index })),
+      ...Array.from({ length: 6 }, (_, index) => ({ x: 80 + index * 330, y: 1035, score: 60 - index })),
+    ];
+    const presence = passiveTreePresence(candidates, width, height);
+    expect(presence.horizontalSpan).toBeGreaterThan(0.8);
+    expect(presence.verticalSpan).toBeGreaterThan(0.8);
+    expect(presence.interiorCandidates).toBe(0);
+    expect(presence.visible).toBe(false);
   });
 
   it('rejects sparse radial decoration even when it spans the client', () => {
