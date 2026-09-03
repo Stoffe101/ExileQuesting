@@ -13,6 +13,7 @@ export interface PassiveTreeTrackingOptions {
   voteCellPx?: number;
   minimumInliers?: number;
   maximumCandidates?: number;
+  maximumAnchors?: number;
   maximumOffsetShiftPx?: number;
   scaleFactors?: number[];
   hypothesesPerScale?: number;
@@ -25,7 +26,7 @@ export interface PassiveTreeTrackingOptions {
   /**
    * Registration often uses more known PoB nodes than are visible at once.
    * Cap the support denominator so a strong visible constellation is not
-   * punished merely because the full passive tree contains many anchors.
+   * punished merely because the local tracker carries extra nearby anchors.
    */
   confidenceAnchorCap?: number;
 }
@@ -125,14 +126,15 @@ function offsetHypotheses(
  * Track an already-known PoB passive-tree constellation through pan and zoom.
  *
  * This function never decides whether the passive tree is open. The caller must
- * establish that separately. It only solves scale + translation for a known
- * tree against already-detected passive-node centres. This makes it suitable
- * for continuous in-tree tracking without reviving the old gameplay-wide
- * circle detector.
+ * establish that separately. It only solves scale + translation for a bounded,
+ * local tree constellation against already-detected passive-node centres.
+ * Keeping the anchor set local is a correctness boundary: feeding hundreds of
+ * anonymous tree nodes to a dense circle cloud can manufacture plausible but
+ * wrong transforms, which is explicitly rejected here.
  *
  * The same solver can be used in two modes:
  * - a tight, cheap search around the previous frame for normal drag/wheel input;
- * - a wider reacquisition search after a large jump or a reopened tree.
+ * - a wider search of the same known local constellation after a large jump.
  */
 export function trackPassiveTreeRegistration(
   previous: PassiveTreeRegistration,
@@ -140,7 +142,8 @@ export function trackPassiveTreeRegistration(
   rawCandidates: ScreenPoint[],
   options: PassiveTreeTrackingOptions = {},
 ): PassiveTreeRegistration | undefined {
-  if (anchors.length < 3 || rawCandidates.length < 3) return undefined;
+  const maximumAnchors = Math.max(3, Math.trunc(options.maximumAnchors ?? 128));
+  if (anchors.length < 3 || anchors.length > maximumAnchors || rawCandidates.length < 3) return undefined;
   const tolerancePx = Math.max(3, options.tolerancePx ?? 10);
   const voteCellPx = Math.max(3, options.voteCellPx ?? 7);
   const minimumInliers = Math.max(3, Math.min(anchors.length, options.minimumInliers ?? Math.min(6, Math.ceil(anchors.length * 0.3))));
