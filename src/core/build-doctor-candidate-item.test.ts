@@ -4,7 +4,8 @@ import {
   readyCandidateItemAnalysis,
   unavailableCandidateItemAnalysis,
 } from './build-doctor-candidate-item';
-import type { PobCalculationResult, PobPerturbationComparison } from './pob-calculation';
+import type { PobCalculationResult, PobConstraintMetrics, PobPerturbationComparison } from './pob-calculation';
+import type { PobConstraintComparison } from './pob-constraints';
 
 const kernel = {
   protocolVersion: 1,
@@ -14,6 +15,8 @@ const kernel = {
   runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e',
   adapterVersion: '0.6.0',
 };
+
+const constraintKernel = { ...kernel, adapterVersion: 'constraint-0.1.0' };
 
 function result(requestId: string, patch: Partial<PobCalculationResult> = {}): PobCalculationResult {
   return {
@@ -55,6 +58,28 @@ function comparison(before: PobCalculationResult, after: PobCalculationResult): 
   };
 }
 
+function constraints(): PobConstraintMetrics {
+  return {
+    attributes: {
+      strength: { current: 180, required: 155 },
+      dexterity: { current: 160, required: 150 },
+      intelligence: { current: 220, required: 200 },
+    },
+    reservation: { manaUnreserved: 120, manaUnreservedPercent: 10, lifeUnreserved: 4_000, lifeUnreservedPercent: 100 },
+    spellSuppression: { chance: 100, effectiveChance: 100, overCap: 10, cap: 100 },
+    resistances: {
+      fire: { current: 75, total: 105, overCap: 30, missing: 0 },
+      cold: { current: 75, total: 100, overCap: 25, missing: 0 },
+      lightning: { current: 75, total: 95, overCap: 20, missing: 0 },
+      chaos: { current: 20, total: 20, overCap: 0, missing: 55 },
+    },
+  };
+}
+
+function constraintComparison(before = constraints(), after = constraints()): PobConstraintComparison {
+  return { slot: 'Boots', before, after };
+}
+
 describe('Build Doctor candidate item analysis', () => {
   it('preserves exact PoB before/after values across reviewed endgame metrics', () => {
     const before = result('before');
@@ -84,6 +109,45 @@ describe('Build Doctor candidate item analysis', () => {
     expect(analysis.changedMetrics.find((entry) => entry.key === 'spell-suppression')).toMatchObject({ before: 100, after: 92, absoluteChange: -8 });
     expect(analysis.changedMetrics.find((entry) => entry.key === 'fire-overcap')).toMatchObject({ before: 35, after: 12, absoluteChange: -23 });
     expect(analysis.changedMetrics.find((entry) => entry.key === 'physical-max-hit')).toMatchObject({ before: 30_000, after: 33_000 });
+    expect(analysis.constraints.status).toBe('unavailable');
+  });
+
+  it('attaches only PoB-proven hard-constraint transitions from matching runtime provenance', () => {
+    const beforeConstraints = constraints();
+    const afterConstraints = constraints();
+    afterConstraints.attributes.strength = { current: 140, required: 155 };
+    afterConstraints.spellSuppression = { chance: 92, effectiveChance: 92, overCap: 0, cap: 100 };
+    afterConstraints.resistances.fire = { current: 68, total: 68, overCap: 0, missing: 7 };
+
+    const analysis = readyCandidateItemAnalysis({
+      profileId: 'profile', profileName: 'Build', generatedAt: 'x', slot: 'Boots', candidateLabel: 'Candidate',
+      comparison: comparison(result('before'), result('after')),
+      constraint: { comparison: constraintComparison(beforeConstraints, afterConstraints), kernel: constraintKernel },
+    });
+    expect(analysis.constraints.status).toBe('verified');
+    if (analysis.constraints.status !== 'verified') throw new Error('expected verified constraints');
+    expect(analysis.constraints.kernel.adapterVersion).toBe('constraint-0.1.0');
+    expect(analysis.constraints.findings.map((finding) => finding.key)).toEqual(expect.arrayContaining([
+      'strength-requirement', 'fire-resistance-cap', 'spell-suppression-cap',
+    ]));
+    expect(analysis.constraints.findings.filter((finding) => finding.state === 'broken')).toHaveLength(3);
+  });
+
+  it('rejects constraint evidence from a different PoB/runtime or equipment slot', () => {
+    const wrongRuntime = { ...constraintKernel, runtimeRevision: 'other' };
+    expect(() => readyCandidateItemAnalysis({
+      profileId: 'profile', profileName: 'Build', generatedAt: 'x', slot: 'Boots', candidateLabel: 'Candidate',
+      comparison: comparison(result('before'), result('after')),
+      constraint: { comparison: constraintComparison(), kernel: wrongRuntime },
+    })).toThrow(/PoB\/runtime provenance/i);
+
+    const wrongSlot = constraintComparison();
+    wrongSlot.slot = 'Helmet';
+    expect(() => readyCandidateItemAnalysis({
+      profileId: 'profile', profileName: 'Build', generatedAt: 'x', slot: 'Boots', candidateLabel: 'Candidate',
+      comparison: comparison(result('before'), result('after')),
+      constraint: { comparison: wrongSlot, kernel: constraintKernel },
+    })).toThrow(/equipment slot/i);
   });
 
   it('does not invent a relative change percentage from a zero baseline', () => {
@@ -116,7 +180,7 @@ describe('Build Doctor candidate item analysis', () => {
     expect(candidateItemLabel('unstructured')).toBe('Pasted candidate item');
   });
 
-  it('states the unresolved transition constraints rather than presenting the item as a verified upgrade package', () => {
+  it('states the remaining unresolved transition constraints rather than presenting a verified upgrade package', () => {
     const analysis = readyCandidateItemAnalysis({
       profileId: 'profile', profileName: 'Build', generatedAt: '2026-09-03T12:00:00.000Z', slot: 'Boots', candidateLabel: 'Candidate', comparison: comparison(result('before'), result('after')),
     });
