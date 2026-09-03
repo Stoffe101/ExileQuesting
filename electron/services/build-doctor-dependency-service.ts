@@ -4,12 +4,14 @@ import {
   readyDependencyScan,
   unavailableDependencyScan,
   unsupportedConfigurationDependency,
+  type BuildDoctorConfigurationDependency,
   type BuildDoctorDependencyScan,
 } from '../../src/core/build-doctor-dependencies';
 import type { BuildDoctorKernelProvenance } from '../../src/core/build-doctor';
 import type {
   PobCalculationKernelVersion,
   PobCalculationResult,
+  PobPerturbationComparison,
   PobWorkerFlaskInspectionSuccess,
   PobWorkerPerturbationSuccess,
   PobWorkerResponse,
@@ -97,10 +99,10 @@ export async function analyzeBuildDoctorConfigurationDependencies(profileId: str
       });
     }
 
-    const dependencies = [];
+    const dependencies: BuildDoctorConfigurationDependency[] = [];
     let baselineSignature: string | undefined;
     for (const utility of activeUtilities) {
-      let comparison;
+      let comparison: PobPerturbationComparison;
       try {
         comparison = perturbationResponse(await runPobKernelRequest({
           protocolVersion: 1,
