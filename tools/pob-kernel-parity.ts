@@ -6,6 +6,7 @@ import {
   POB_CALCULATION_PROTOCOL_VERSION,
   POB_REPLACEABLE_ITEM_SLOTS,
   type PobCalculationResult,
+  type PobPerturbation,
   type PobReplaceableItemSlot,
   type PobWorkerCalculationSuccess,
   type PobWorkerPerturbationSuccess,
@@ -20,6 +21,7 @@ const PROCESS_TIMEOUT_MS = 45_000;
 const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 type RawOutput = Record<string, number | string | boolean>;
+type PassiveOperation = 'allocate' | 'deallocate';
 
 interface MetricCheck {
   label: string;
@@ -36,8 +38,19 @@ interface MetricComparison {
   passed: boolean;
 }
 
-interface ItemReplacementReport {
-  slot: PobReplaceableItemSlot;
+interface ReferenceComparison {
+  before: RawOutput;
+  after: RawOutput;
+}
+
+interface ReferencePassiveComparison extends ReferenceComparison {
+  nodeId: number;
+  nodeName?: string;
+}
+
+interface PerturbationReport {
+  label: string;
+  perturbation: PobPerturbation;
   beforeComparisons: MetricComparison[];
   afterComparisons: MetricComparison[];
   changedMetrics: string[];
@@ -48,19 +61,19 @@ interface FixtureReport {
   fixture: string;
   expectedSource: string;
   comparisons: MetricComparison[];
-  itemReplacement: ItemReplacementReport;
+  itemReplacement: PerturbationReport;
+  passiveNodes: Record<PassiveOperation, PerturbationReport>;
   passed: boolean;
   elapsedMs: number;
 }
 
 interface ReferencePayload {
   raw: RawOutput;
-  itemReplacement: {
+  itemReplacement: ReferenceComparison & {
     slot: string;
     itemText: string;
-    before: RawOutput;
-    after: RawOutput;
   };
+  passiveNodes: Record<PassiveOperation, ReferencePassiveComparison>;
 }
 
 const FIXTURES = [
@@ -104,6 +117,13 @@ function luaModulePath(pobRoot: string): string {
   ];
   if (process.env.LUA_PATH) paths.push(process.env.LUA_PATH);
   return paths.join(';');
+}
+
+function validReferenceComparison(value: unknown): value is ReferenceComparison {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ReferenceComparison>;
+  return typeof candidate.before === 'object' && candidate.before !== null
+    && typeof candidate.after === 'object' && candidate.after !== null;
 }
 
 async function runReference(
@@ -178,9 +198,17 @@ async function runReference(
           finishError('PoB reference payload did not contain a raw output object.');
           return;
         }
-        if (!payload.itemReplacement || typeof payload.itemReplacement.slot !== 'string' || typeof payload.itemReplacement.itemText !== 'string') {
-          finishError('PoB reference payload did not contain an item-replacement oracle.');
+        if (!payload.itemReplacement || typeof payload.itemReplacement.slot !== 'string'
+          || typeof payload.itemReplacement.itemText !== 'string' || !validReferenceComparison(payload.itemReplacement)) {
+          finishError('PoB reference payload did not contain a valid item-replacement oracle.');
           return;
+        }
+        for (const operation of ['allocate', 'deallocate'] as const) {
+          const passive = payload.passiveNodes?.[operation];
+          if (!validReferenceComparison(passive) || typeof passive.nodeId !== 'number' || !Number.isSafeInteger(passive.nodeId)) {
+            finishError(`PoB reference payload did not contain a valid passive-${operation} oracle.`);
+            return;
+          }
         }
         settled = true;
         resolvePromise(payload);
@@ -235,6 +263,63 @@ function assertKernelProvenance(result: PobCalculationResult): void {
   }
 }
 
+interface RuntimeOptions {
+  runtimePath: string;
+  pobSourcePath: string;
+  workerScriptPath: string;
+  timeoutMs: number;
+  maxOutputBytes: number;
+}
+
+async function evaluatePerturbation(
+  xml: string,
+  fixture: string,
+  requestId: string,
+  perturbation: PobPerturbation,
+  reference: ReferenceComparison,
+  runtimeOptions: RuntimeOptions,
+  label: string,
+): Promise<{ report: PerturbationReport; elapsedMs: number }> {
+  const response = await runPobKernelRequest({
+    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+    requestId,
+    operation: 'calculate-with-perturbations',
+    xml,
+    scenario: { scenario: 'imported', label: `${label}: ${fixture}` },
+    perturbations: [perturbation],
+  }, runtimeOptions);
+
+  if (!response.ok || !('comparison' in response)) {
+    throw new Error(`PoB worker returned a non-perturbation response for ${fixture} (${label}).`);
+  }
+
+  const comparison = (response as PobWorkerPerturbationSuccess).comparison;
+  assertKernelProvenance(comparison.before);
+  assertKernelProvenance(comparison.after);
+  const beforeComparisons = compareRawToNormalized(reference.before, comparison.before);
+  const afterComparisons = compareRawToNormalized(reference.after, comparison.after);
+  if (beforeComparisons.length < 8 || afterComparisons.length < 8) {
+    throw new Error(`${fixture} ${label} exposed too few comparable metrics (before=${beforeComparisons.length}, after=${afterComparisons.length}).`);
+  }
+
+  const changedMetrics = changedReferenceMetrics(reference.before, reference.after);
+  if (changedMetrics.length === 0) {
+    throw new Error(`${fixture} ${label} did not change any reviewed metric; the sensitivity fixture would be vacuous.`);
+  }
+
+  return {
+    report: {
+      label,
+      perturbation,
+      beforeComparisons,
+      afterComparisons,
+      changedMetrics,
+      passed: beforeComparisons.every((entry) => entry.passed) && afterComparisons.every((entry) => entry.passed),
+    },
+    elapsedMs: comparison.after.elapsedMs,
+  };
+}
+
 async function runFixture(
   pobRoot: string,
   runtimePath: string,
@@ -248,7 +333,7 @@ async function runFixture(
     throw new Error(`Reference selected unsupported replacement slot ${reference.itemReplacement.slot} for ${fixture}.`);
   }
   const replacementSlot = reference.itemReplacement.slot as PobReplaceableItemSlot;
-  const runtimeOptions = {
+  const runtimeOptions: RuntimeOptions = {
     runtimePath,
     pobSourcePath: resolve(pobRoot, 'src'),
     workerScriptPath,
@@ -256,7 +341,7 @@ async function runFixture(
     maxOutputBytes: MAX_PROCESS_OUTPUT_BYTES,
   };
 
-  const requestId = `parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 120);
+  const requestId = `parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 112);
   const response = await runPobKernelRequest({
     protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
     requestId,
@@ -276,54 +361,68 @@ async function runFixture(
     throw new Error(`${fixture} exposed only ${comparisons.length} comparable normalized metrics; expected at least 8.`);
   }
 
-  const perturbationResponse = await runPobKernelRequest({
-    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
-    requestId: `${requestId}-item`.slice(0, 128),
-    operation: 'calculate-with-perturbations',
+  const item = await evaluatePerturbation(
     xml,
-    scenario: { scenario: 'imported', label: `PoB item replacement parity: ${fixture}` },
-    perturbations: [{
-      kind: 'replace-item',
-      slot: replacementSlot,
-      itemText: reference.itemReplacement.itemText,
-    }],
-  }, runtimeOptions);
+    fixture,
+    `${requestId}-item`.slice(0, 128),
+    { kind: 'replace-item', slot: replacementSlot, itemText: reference.itemReplacement.itemText },
+    reference.itemReplacement,
+    runtimeOptions,
+    `item replacement (${replacementSlot})`,
+  );
 
-  if (!perturbationResponse.ok || !('comparison' in perturbationResponse)) {
-    throw new Error(`PoB worker returned a non-perturbation response for ${fixture}.`);
-  }
-  const perturbation = (perturbationResponse as PobWorkerPerturbationSuccess).comparison;
-  assertKernelProvenance(perturbation.before);
-  assertKernelProvenance(perturbation.after);
+  const passiveDeallocateReference = reference.passiveNodes.deallocate;
+  const deallocate = await evaluatePerturbation(
+    xml,
+    fixture,
+    `${requestId}-passive-remove`.slice(0, 128),
+    { kind: 'passive-node', operation: 'deallocate', nodeId: passiveDeallocateReference.nodeId },
+    passiveDeallocateReference,
+    runtimeOptions,
+    `passive deallocate ${passiveDeallocateReference.nodeId}${passiveDeallocateReference.nodeName ? ` ${passiveDeallocateReference.nodeName}` : ''}`,
+  );
 
-  const beforeComparisons = compareRawToNormalized(reference.itemReplacement.before, perturbation.before);
-  const afterComparisons = compareRawToNormalized(reference.itemReplacement.after, perturbation.after);
-  if (beforeComparisons.length < 8 || afterComparisons.length < 8) {
-    throw new Error(`${fixture} item replacement exposed too few comparable metrics (before=${beforeComparisons.length}, after=${afterComparisons.length}).`);
-  }
+  const passiveAllocateReference = reference.passiveNodes.allocate;
+  const allocate = await evaluatePerturbation(
+    xml,
+    fixture,
+    `${requestId}-passive-add`.slice(0, 128),
+    { kind: 'passive-node', operation: 'allocate', nodeId: passiveAllocateReference.nodeId },
+    passiveAllocateReference,
+    runtimeOptions,
+    `passive allocate ${passiveAllocateReference.nodeId}${passiveAllocateReference.nodeName ? ` ${passiveAllocateReference.nodeName}` : ''}`,
+  );
 
-  const changedMetrics = changedReferenceMetrics(reference.itemReplacement.before, reference.itemReplacement.after);
-  if (changedMetrics.length === 0) {
-    throw new Error(`${fixture} blank ${replacementSlot} replacement did not change any reviewed metric; the sensitivity fixture would be vacuous.`);
-  }
-
-  const itemReplacement: ItemReplacementReport = {
-    slot: replacementSlot,
-    beforeComparisons,
-    afterComparisons,
-    changedMetrics,
-    passed: beforeComparisons.every((comparison) => comparison.passed)
-      && afterComparisons.every((comparison) => comparison.passed),
+  const passiveNodes = {
+    allocate: allocate.report,
+    deallocate: deallocate.report,
   };
+  const passed = comparisons.every((comparison) => comparison.passed)
+    && item.report.passed
+    && passiveNodes.allocate.passed
+    && passiveNodes.deallocate.passed;
 
   return {
     fixture,
     expectedSource: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',
     comparisons,
-    itemReplacement,
-    passed: comparisons.every((comparison) => comparison.passed) && itemReplacement.passed,
-    elapsedMs: result.elapsedMs + perturbation.after.elapsedMs,
+    itemReplacement: item.report,
+    passiveNodes,
+    passed,
+    elapsedMs: result.elapsedMs + item.elapsedMs + allocate.elapsedMs + deallocate.elapsedMs,
   };
+}
+
+function failedComparisons(report: FixtureReport): MetricComparison[] {
+  return [
+    ...report.comparisons,
+    ...report.itemReplacement.beforeComparisons,
+    ...report.itemReplacement.afterComparisons,
+    ...report.passiveNodes.allocate.beforeComparisons,
+    ...report.passiveNodes.allocate.afterComparisons,
+    ...report.passiveNodes.deallocate.beforeComparisons,
+    ...report.passiveNodes.deallocate.afterComparisons,
+  ].filter((comparison) => !comparison.passed);
 }
 
 async function main(): Promise<void> {
@@ -342,13 +441,9 @@ async function main(): Promise<void> {
     const report = await runFixture(pobRoot, runtimePath, workerScriptPath, referenceScriptPath, fixture);
     reports.push(report);
     console.log(report.passed
-      ? `PASS (${report.comparisons.length} base metrics, ${report.itemReplacement.afterComparisons.length} replacement metrics, changed=${report.itemReplacement.changedMetrics.length})`
+      ? `PASS (${report.comparisons.length} base, item changed=${report.itemReplacement.changedMetrics.length}, passive add changed=${report.passiveNodes.allocate.changedMetrics.length}, passive remove changed=${report.passiveNodes.deallocate.changedMetrics.length})`
       : 'FAIL');
-    for (const failed of [
-      ...report.comparisons,
-      ...report.itemReplacement.beforeComparisons,
-      ...report.itemReplacement.afterComparisons,
-    ].filter((comparison) => !comparison.passed)) {
+    for (const failed of failedComparisons(report)) {
       console.error(`  ${failed.label}: expected=${failed.expected} actual=${failed.actual ?? 'missing'} tolerance=${failed.tolerance}`);
     }
   }
@@ -357,12 +452,12 @@ async function main(): Promise<void> {
   await mkdir(artifactDir, { recursive: true });
   const artifactPath = resolve(artifactDir, 'parity.json');
   await writeFile(artifactPath, `${JSON.stringify({
-    schemaVersion: 3,
+    schemaVersion: 4,
     pobCommit: POB_COMMIT,
     luaJitCommit: LUAJIT_COMMIT,
     generatedAt: new Date().toISOString(),
     runtimePath,
-    oracle: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',
+    oracle: 'fresh pinned-PoB mainOutput + reversible misc-calculator item/passive reference process',
     reports,
     passed: reports.every((report) => report.passed),
   }, null, 2)}\n`, 'utf8');
