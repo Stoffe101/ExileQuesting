@@ -6,7 +6,7 @@
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.5.0"
+local ADAPTER_VERSION = "0.6.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
@@ -207,6 +207,7 @@ local function validRequest(request)
     if request.operation ~= "health"
         and request.operation ~= "load-and-calculate"
         and request.operation ~= "inspect-flasks"
+        and request.operation ~= "inspect-flask-uptime"
         and request.operation ~= "calculate-with-perturbations" then
         return false, "operation", "Unsupported PoB worker operation."
     end
@@ -351,6 +352,123 @@ local function inspectFlasks(request, startedAt)
             kernel = kernelVersion(),
             scenario = safeScenario(request),
             emptyFlaskSlots = emptyFlaskSlots,
+            flasks = flasks,
+            elapsedMs = math.max(0, (os.clock() - startedAt) * 1000),
+        },
+    }
+end
+
+local function stripPobMarkup(value)
+    if type(value) ~= "string" then
+        return ""
+    end
+    local stripped = value:gsub("%^x%x%x%x%x%x%x", "")
+    return stripped:gsub("%^.", "")
+end
+
+local function parseFlaskUptimeLine(line)
+    local plain = stripPobMarkup(line)
+    local averageText, minimumText = plain:match("^Flask uptime:%s*(%d+)%%%s*average,%s*(%d+)%%%s*minimum$")
+    if averageText and minimumText then
+        local average = tonumber(averageText)
+        local minimum = tonumber(minimumText)
+        if average and minimum and average >= 0 and average <= 100 and minimum >= 0 and minimum <= 100 then
+            return true, average, minimum
+        end
+        return false, nil, nil
+    end
+
+    local guaranteedText = plain:match("^Flask uptime:%s*(%d+)%%$")
+    local guaranteed = guaranteedText and tonumber(guaranteedText) or nil
+    if guaranteed == 100 then
+        return true, 100, 100
+    end
+    return false, nil, nil
+end
+
+local function inspectFlaskUptime(request, startedAt)
+    if not build or not build.itemsTab or type(build.itemsTab.AddItemStatDifferences) ~= "function" then
+        return errorResponse(request.requestId, "flask-uptime-unavailable", "PoB did not expose ItemsTab:AddItemStatDifferences for flask uptime inspection.", true)
+    end
+
+    local originalCompare = rawget(build, "AddStatComparesToTooltip")
+    build.AddStatComparesToTooltip = function()
+        return 0
+    end
+
+    local flasks = {}
+    local success, captureError = pcall(function()
+        for index = 1, 5 do
+            local slotName = "Flask " .. index
+            local slot, item = currentItemForSlot(slotName)
+            if type(slot) ~= "table" then
+                error("The loaded build does not expose all five flask slots.")
+            end
+            if type(item) == "table" then
+                if type(item.base) ~= "table" or not item.base.flask then
+                    error("An equipped flask slot contains an item PoB does not classify as a flask.")
+                end
+
+                local lines = {}
+                local tooltip = {
+                    AddLine = function(_, _, text)
+                        if type(text) == "string" then
+                            table.insert(lines, text)
+                        end
+                    end,
+                }
+                build.itemsTab:AddItemStatDifferences(tooltip, item, item.base, slot)
+
+                local uptimeLine = nil
+                for _, line in ipairs(lines) do
+                    if line:find("Flask uptime:", 1, true) then
+                        uptimeLine = line
+                        break
+                    end
+                end
+
+                local supported = false
+                local averagePercent = nil
+                local minimumPercent = nil
+                if uptimeLine then
+                    supported, averagePercent, minimumPercent = parseFlaskUptimeLine(uptimeLine)
+                end
+
+                local entry = {
+                    slot = slotName,
+                    name = tostring(item.title or item.name or item.baseName or slotName),
+                    baseName = tostring(item.baseName or "Unknown Flask"),
+                    active = slot.active == true,
+                    supported = supported,
+                }
+                if uptimeLine then
+                    entry.sourceLine = uptimeLine
+                end
+                if supported then
+                    entry.averagePercent = averagePercent
+                    entry.minimumPercent = minimumPercent
+                end
+                table.insert(flasks, entry)
+            end
+        end
+    end)
+
+    build.AddStatComparesToTooltip = originalCompare
+
+    if not success then
+        return errorResponse(request.requestId, "flask-uptime-capture-failed", tostring(captureError), true)
+    end
+
+    return {
+        protocolVersion = PROTOCOL_VERSION,
+        requestId = request.requestId,
+        ok = true,
+        flaskUptimeInspection = {
+            protocolVersion = PROTOCOL_VERSION,
+            requestId = request.requestId,
+            kernel = kernelVersion(),
+            scenario = safeScenario(request),
+            source = "pob-items-tab-effective-flask-stats",
             flasks = flasks,
             elapsedMs = math.max(0, (os.clock() - startedAt) * 1000),
         },
@@ -555,6 +673,9 @@ local function handle(request)
 
     if request.operation == "inspect-flasks" then
         return inspectFlasks(request, startedAt)
+    end
+    if request.operation == "inspect-flask-uptime" then
+        return inspectFlaskUptime(request, startedAt)
     end
     if request.operation == "calculate-with-perturbations" then
         return evaluateSinglePerturbation(request, startedAt)
