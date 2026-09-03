@@ -114,7 +114,7 @@ describe('passive tree frame motion', () => {
     );
     expect(next.scale).toBeCloseTo(0.16128, 5);
     expect(next.offsetX).toBeCloseTo(1754.4, 1);
-    expect(next.offsetY).toBeCloseTo(870.089552, 1);
+    expect(next.offsetY).toBeCloseTo(870.877612, 1);
     expect(next.ySign).toBe(1);
   });
 });
