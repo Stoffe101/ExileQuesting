@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_POB_PASSIVE_NODE_ID,
   MAX_POB_PERTURBATION_ITEM_TEXT_BYTES,
   POB_CALCULATION_PROTOCOL_VERSION,
   POB_WORKER_SENTINEL,
@@ -100,6 +101,36 @@ describe('PoB calculation protocol', () => {
     })).toBe(true);
   });
 
+  it('accepts bounded passive allocation and deallocation requests', () => {
+    for (const operation of ['allocate', 'deallocate'] as const) {
+      expect(validPobCalculationRequest({
+        protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+        requestId: `passive-${operation}`,
+        operation: 'calculate-with-perturbations',
+        xml: '<PathOfBuilding></PathOfBuilding>',
+        scenario: { scenario: 'custom' },
+        perturbations: [{ kind: 'passive-node', operation, nodeId: 12345 }],
+      })).toBe(true);
+    }
+  });
+
+  it('rejects invalid passive node ids before worker execution', () => {
+    const base = {
+      protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+      requestId: 'bad-passive',
+      operation: 'calculate-with-perturbations' as const,
+      xml: '<PathOfBuilding></PathOfBuilding>',
+      scenario: { scenario: 'custom' as const },
+    };
+
+    for (const nodeId of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, MAX_POB_PASSIVE_NODE_ID + 1]) {
+      expect(validPobCalculationRequest({
+        ...base,
+        perturbations: [{ kind: 'passive-node', operation: 'allocate', nodeId }],
+      })).toBe(false);
+    }
+  });
+
   it('rejects empty, oversized or unsupported replacement-item inputs', () => {
     const base = {
       protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
@@ -135,7 +166,7 @@ describe('PoB calculation protocol', () => {
     const stdout = [
       'Loading main script...',
       'Path of Building console chatter',
-      `${POB_WORKER_SENTINEL}{"protocolVersion":1,"requestId":"health","ok":true,"health":{"status":"ready","kernel":{"protocolVersion":1,"pobRepository":"PathOfBuildingCommunity/PathOfBuilding","pobCommit":"ed354c2f8c42e148bc904c7508dbe851fb2cf952","runtime":"LuaJIT","runtimeRevision":"2460b3ff93a1c955de3d62cfc825de7d68dc272e","adapterVersion":"0.2.0"}}}`,
+      `${POB_WORKER_SENTINEL}{"protocolVersion":1,"requestId":"health","ok":true,"health":{"status":"ready","kernel":{"protocolVersion":1,"pobRepository":"PathOfBuildingCommunity/PathOfBuilding","pobCommit":"ed354c2f8c42e148bc904c7508dbe851fb2cf952","runtime":"LuaJIT","runtimeRevision":"2460b3ff93a1c955de3d62cfc825de7d68dc272e","adapterVersion":"0.3.0"}}}`,
       'more logs',
     ].join('\n');
 
