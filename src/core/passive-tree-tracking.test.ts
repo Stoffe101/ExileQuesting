@@ -112,4 +112,39 @@ describe('passive tree local tracking', () => {
     const jumped: PassiveTreeTransform = { ...base, offsetX: 980, offsetY: 700 };
     expect(trackPassiveTreeRegistration(registration(base), anchors, candidates(jumped))).toBeUndefined();
   });
+
+  it('does not invent a wide reacquisition from a dense unrelated cloud', () => {
+    const manyAnchors: TreePoint[] = Array.from({ length: 220 }, (_, index) => ({
+      id: index + 1,
+      x: ((index * 977) % 18000) - 9000,
+      y: ((index * 1597) % 15000) - 7500,
+    }));
+    const unrelated = Array.from({ length: 130 }, (_, index) => ({
+      x: 25 + ((index * 173 + index * index * 11) % 1850),
+      y: 30 + ((index * 263 + index * index * 7) % 1010),
+      score: 200 - index,
+      radius: 4 + (index % 8),
+    }));
+    const previous: PassiveTreeRegistration = {
+      transform: { scale: 0.1, offsetX: 960, offsetY: 540, ySign: 1 },
+      matches: [], inliers: 0, rms: 0, confidence: 1,
+    };
+    const result = trackPassiveTreeRegistration(previous, manyAnchors, unrelated, {
+      tolerancePx: 18,
+      voteCellPx: 12,
+      minimumInliers: 8,
+      maximumCandidates: 130,
+      maximumOffsetShiftPx: 4000,
+      scaleFactors: [0.26, 0.34, 0.44, 0.56, 0.7, 0.84, 1, 1.2, 1.48, 1.82, 2.25, 2.8, 3.5, 4.4],
+      hypothesesPerScale: 8,
+      minimumScale: 0.004,
+      maximumScale: 1.2,
+      minimumScaleRatio: 0.18,
+      maximumScaleRatio: 5,
+      minimumConfidence: 0.7,
+      maximumRmsRatio: 0.76,
+      confidenceAnchorCap: 18,
+    });
+    expect(result).toBeUndefined();
+  });
 });
