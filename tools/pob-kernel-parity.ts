@@ -28,6 +28,7 @@ interface MetricComparison {
 
 interface FixtureReport {
   fixture: string;
+  expectedSource: string;
   comparisons: MetricComparison[];
   passed: boolean;
   elapsedMs: number;
@@ -65,19 +66,16 @@ const METRICS: MetricCheck[] = [
   { label: 'Chaos resistance', expectedStat: 'ChaosResist', readActual: (result) => result.defence.chaosResistance },
 ];
 
-function xmlPlayerStats(xml: string): Map<string, number> {
+function luaExpectedOutput(luaSource: string): Map<string, number> {
+  const outputStart = luaSource.indexOf('output = {');
+  if (outputStart < 0) throw new Error('PoB generated fixture does not contain an output table.');
+  const outputSource = luaSource.slice(outputStart);
   const stats = new Map<string, number>();
-  for (const tag of xml.matchAll(/<PlayerStat\b[^>]*\/>/g)) {
-    const attributes = new Map<string, string>();
-    for (const attribute of tag[0].matchAll(/([A-Za-z0-9:_-]+)="([^"]*)"/g)) {
-      attributes.set(attribute[1], attribute[2]);
-    }
-    const stat = attributes.get('stat');
-    const value = attributes.get('value');
-    if (!stat || value === undefined) continue;
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) stats.set(stat, numeric);
+  for (const match of outputSource.matchAll(/\["([^"]+)"\]\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/g)) {
+    const numeric = Number(match[2]);
+    if (Number.isFinite(numeric)) stats.set(match[1], numeric);
   }
+  if (!stats.size) throw new Error('PoB generated fixture output table did not contain numeric stats.');
   return stats;
 }
 
@@ -104,7 +102,9 @@ async function runFixture(
   fixture: string,
 ): Promise<FixtureReport> {
   const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
-  const expected = xmlPlayerStats(xml);
+  const expectedSource = fixture.replace(/\.xml$/i, '.lua');
+  const expectedLua = await readFile(resolve(pobRoot, expectedSource), 'utf8');
+  const expected = luaExpectedOutput(expectedLua);
   const requestId = `parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 120);
   const response = await runPobKernelRequest({
     protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
@@ -141,6 +141,7 @@ async function runFixture(
 
   return {
     fixture,
+    expectedSource,
     comparisons,
     passed: comparisons.every((comparison) => comparison.passed),
     elapsedMs: result.elapsedMs,
