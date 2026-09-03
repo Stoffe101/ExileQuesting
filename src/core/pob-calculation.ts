@@ -190,6 +190,27 @@ export interface PobFlaskInspectionResult {
   elapsedMs: number;
 }
 
+export interface PobFlaskUptimeEntry {
+  slot: PobFlaskSlot;
+  name: string;
+  baseName: string;
+  active: boolean;
+  supported: boolean;
+  sourceLine?: string;
+  averagePercent?: number;
+  minimumPercent?: number;
+}
+
+export interface PobFlaskUptimeInspectionResult {
+  protocolVersion: number;
+  requestId: string;
+  kernel: PobCalculationKernelVersion;
+  scenario: PobScenarioConfiguration;
+  source: 'pob-items-tab-effective-flask-stats';
+  flasks: PobFlaskUptimeEntry[];
+  elapsedMs: number;
+}
+
 export type PobPerturbation =
   | {
       kind: 'synthetic-stat';
@@ -247,6 +268,14 @@ export interface PobInspectFlasksRequest {
   scenario: PobScenarioConfiguration;
 }
 
+export interface PobInspectFlaskUptimeRequest {
+  protocolVersion: number;
+  requestId: string;
+  operation: 'inspect-flask-uptime';
+  xml: string;
+  scenario: PobScenarioConfiguration;
+}
+
 export interface PobCalculateWithPerturbationsRequest {
   protocolVersion: number;
   requestId: string;
@@ -265,6 +294,7 @@ export interface PobHealthRequest {
 export type PobCalculationRequest =
   | PobLoadAndCalculateRequest
   | PobInspectFlasksRequest
+  | PobInspectFlaskUptimeRequest
   | PobCalculateWithPerturbationsRequest
   | PobHealthRequest;
 
@@ -307,6 +337,13 @@ export interface PobWorkerFlaskInspectionSuccess {
   flaskInspection: PobFlaskInspectionResult;
 }
 
+export interface PobWorkerFlaskUptimeInspectionSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  flaskUptimeInspection: PobFlaskUptimeInspectionResult;
+}
+
 export interface PobWorkerHealthSuccess {
   protocolVersion: number;
   requestId: string;
@@ -325,6 +362,7 @@ export type PobWorkerResponse =
   | PobWorkerCalculationSuccess
   | PobWorkerPerturbationSuccess
   | PobWorkerFlaskInspectionSuccess
+  | PobWorkerFlaskUptimeInspectionSuccess
   | PobWorkerHealthSuccess
   | PobWorkerFailure;
 
