@@ -11,6 +11,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
   if (!hud.visible || hud.status !== 'locked') return <main className="passive-tree-hud-root" aria-hidden="true" />;
   const target = hud.target;
   const exact = Boolean(target);
+  const calibrated = (hud.confidence ?? 0) >= 0.99;
   const scopeLabel = hud.ascendancyName ? `${hud.ascendancyName} Ascendancy` : `${hud.className ?? 'Passive'} tree`;
 
   return (
@@ -56,12 +57,21 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
         </div>
       )}
 
-      {!exact && hud.path.some((point) => point.state === 'stage') && (
+      {!calibrated && (
+        <div className="passive-stage-legend">
+          <em className="passive-scope-label">{scopeLabel}</em>
+          <span>CALIBRATION REQUIRED</span>
+          <strong>Fully zoom out the in-game tree</strong>
+          <small>Hover the class/Ascendancy start and press Ctrl+Shift+C. Use Ctrl+Shift+↑ / Ctrl+Shift+↓ to match the route dots to the real nodes.</small>
+        </div>
+      )}
+
+      {calibrated && !exact && hud.path.some((point) => point.state === 'stage') && (
         <div className="passive-stage-legend">
           <em className="passive-scope-label">{scopeLabel}</em>
           <span>POB STAGE PASSIVES</span>
           <strong>{hud.path.filter((point) => point.state === 'stage').length} highlighted</strong>
-          <small>PoB supplies the stage set, not an exact click order.</small>
+          <small>PoB supplies the stage set, not a source-authored click order.</small>
         </div>
       )}
     </main>
