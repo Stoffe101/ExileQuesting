@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { BuildDoctorSnapshot } from '../src/core/build-doctor';
+import type { BuildDoctorDependencyScan } from '../src/core/build-doctor-dependencies';
 import type { BuildProfile } from '../src/core/build-profiles';
 import type { BuildPlannerSnapshot } from '../src/core/build-planner';
 import type { GemAcquisitionPlan } from '../src/core/gem-acquisition';
@@ -82,6 +83,7 @@ const api = {
   stepBuildPassive: (profileId: string, delta: number): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('build:passive-step', profileId, delta),
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
   analyzeBuildDoctor: (profileId: string): Promise<BuildDoctorSnapshot> => ipcRenderer.invoke('build-doctor:analyze', profileId),
+  analyzeBuildDoctorDependencies: (profileId: string): Promise<BuildDoctorDependencyScan> => ipcRenderer.invoke('build-doctor:dependencies', profileId),
   analyzeGearItem: (input: string): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze', input),
   analyzeClipboardGearItem: (): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze-clipboard'),
   selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
