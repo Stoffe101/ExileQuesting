@@ -7,6 +7,8 @@ import './ui/gear-coach.css';
 import './ui/build-doctor.css';
 import './ui/build-doctor-dependencies.css';
 import './ui/build-doctor-candidate.css';
+import './ui/build-doctor-metric-changes.css';
+import './ui/build-doctor-passive-contribution.css';
 import './ui/v020.css';
 import './ui/reliability.css';
 import './ui/responsive.css';

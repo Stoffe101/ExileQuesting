@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { BuildDoctorSnapshot } from '../core/build-doctor';
 import BuildDoctorCandidateItemPanel from './BuildDoctorCandidateItemPanel';
 import BuildDoctorDependencyPanel from './BuildDoctorDependencyPanel';
+import BuildDoctorPassiveContributionPanel from './BuildDoctorPassiveContributionPanel';
 
 type BuildWorkspaceState = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
 
@@ -135,6 +136,14 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
               profileId={profile.id}
               enabled={snapshot.status === 'ready'}
               activeUtilityCount={activeUtilityDependencies}
+            />
+          )}
+
+          {profile && (
+            <BuildDoctorPassiveContributionPanel
+              key={`passive-contribution:${profile.id}:${snapshot.generatedAt}`}
+              profileId={profile.id}
+              enabled={snapshot.status === 'ready'}
             />
           )}
 
