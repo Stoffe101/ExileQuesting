@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import BuildDoctorPanel from './BuildDoctorPanel';
 import BuildIntelligencePanel from './BuildIntelligencePanel';
 import GearCoachPanel from './GearCoachPanel';
 
@@ -226,6 +227,7 @@ export default function BuildWorkspace() {
         </section>
       </div>
 
+      {workspace && <BuildDoctorPanel workspace={workspace} />}
       {workspace && <BuildIntelligencePanel workspace={workspace} onWorkspace={setWorkspace} />}
       {workspace && <GearCoachPanel workspace={workspace} />}
     </div>
