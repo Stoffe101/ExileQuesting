@@ -54,7 +54,7 @@ describe('PoB calculation protocol', () => {
     expect(evaluation.delta.effectiveHitPool.percent).toBeCloseTo(5);
   });
 
-  it('accepts bounded calculation requests and rejects oversized mutation batches', () => {
+  it('accepts bounded calculation requests and rejects unsupported or batched perturbations', () => {
     expect(validPobCalculationRequest({
       protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
       requestId: 'base',
@@ -65,15 +65,23 @@ describe('PoB calculation protocol', () => {
 
     expect(validPobCalculationRequest({
       protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
-      requestId: 'mutations',
+      requestId: 'unsupported-single',
       operation: 'calculate-with-perturbations',
       xml: '<PathOfBuilding></PathOfBuilding>',
       scenario: { scenario: 'custom' },
-      perturbations: Array.from({ length: 65 }, (_, index) => ({
-        kind: 'synthetic-stat' as const,
-        stat: 'test',
-        value: index,
-      })),
+      perturbations: [{ kind: 'synthetic-stat', stat: 'test', value: 1 }],
+    })).toBe(false);
+
+    expect(validPobCalculationRequest({
+      protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+      requestId: 'batched-items',
+      operation: 'calculate-with-perturbations',
+      xml: '<PathOfBuilding></PathOfBuilding>',
+      scenario: { scenario: 'custom' },
+      perturbations: [
+        { kind: 'replace-item', slot: 'Helmet', itemText: 'Rarity: RARE\nOne\nIron Hat' },
+        { kind: 'replace-item', slot: 'Gloves', itemText: 'Rarity: RARE\nTwo\nWool Gloves' },
+      ],
     })).toBe(false);
   });
 
