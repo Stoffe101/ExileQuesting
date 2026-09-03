@@ -37,6 +37,8 @@ jobs:
         run: npm run visual:manager
       - name: Render Gear Coach visual smoke
         run: npm run visual:gear
+      - name: Render Build Doctor visual smoke
+        run: npm run visual:doctor
       - uses: actions/upload-artifact@v4
         if: always()
         with:
