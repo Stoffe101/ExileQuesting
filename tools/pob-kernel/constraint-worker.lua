@@ -1,11 +1,12 @@
 -- ExileQuesting narrow Path of Building constraint adapter.
 --
 -- This worker intentionally does not normalize offence/defence calculations.
--- It loads the exact pinned PoB build, applies one reversible item replacement,
--- and returns only constraint-related raw outputs used by Build Doctor.
+-- It loads the exact pinned PoB build, exposes one current-state constraint
+-- snapshot or applies one reversible item replacement, and returns only
+-- constraint-related raw outputs used by Build Doctor.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "constraint-0.1.0"
+local ADAPTER_VERSION = "constraint-0.2.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
@@ -127,7 +128,7 @@ local function validRequest(request)
     if type(request.requestId) ~= "string" or request.requestId == "" or #request.requestId > 128 then
         return false, "request-id", "requestId must be a non-empty string no longer than 128 bytes."
     end
-    if request.operation ~= "health" and request.operation ~= "compare-item-constraints" then
+    if request.operation ~= "health" and request.operation ~= "inspect-build-constraints" and request.operation ~= "compare-item-constraints" then
         return false, "operation", "Unsupported PoB constraint worker operation."
     end
     if request.operation == "health" then
@@ -135,6 +136,9 @@ local function validRequest(request)
     end
     if type(request.xml) ~= "string" or request.xml == "" or #request.xml > 16 * 1024 * 1024 then
         return false, "xml-bounds", "PoB XML must be non-empty and no larger than 16 MiB."
+    end
+    if request.operation == "inspect-build-constraints" then
+        return true
     end
     if type(request.slot) ~= "string" or not REPLACEABLE_ITEM_SLOTS[request.slot] then
         return false, "item-slot-unsupported", "The requested PoB item slot is not enabled for constraint comparison."
@@ -145,13 +149,46 @@ local function validRequest(request)
     return true
 end
 
-local function compareItemConstraints(request)
+local function loadConstraintBuild(request)
     local loadOk, loadError = pcall(loadBuildFromXML, request.xml, "ExileQuesting constraint worker")
     if not loadOk then
-        return errorResponse(request.requestId, "pob-load-failed", tostring(loadError), false)
+        return nil, errorResponse(request.requestId, "pob-load-failed", tostring(loadError), false)
     end
-    if not build or not build.itemsTab or not build.calcsTab or not build.itemsTab.slots or not build.itemsTab.slots[request.slot] then
-        return errorResponse(request.requestId, "item-slot-missing", "The loaded build does not expose the requested equipment slot and calculator.", false)
+    if not build or not build.calcsTab or type(build.calcsTab.GetMiscCalculator) ~= "function" then
+        return nil, errorResponse(request.requestId, "misc-calculator-missing", "The loaded build does not expose the PoB miscellaneous calculator.", true)
+    end
+    local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
+    if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
+        return nil, errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
+    end
+    return { calcFunc = calcFunc, baseOutput = baseOutput }, nil
+end
+
+local function inspectBuildConstraints(request)
+    local loaded, loadError = loadConstraintBuild(request)
+    if not loaded then
+        return loadError
+    end
+    local metrics = constraintSnapshot(loaded.baseOutput)
+    if not metrics then
+        return errorResponse(request.requestId, "constraint-output-missing", "PoB did not expose a current-state constraint output table.", true)
+    end
+    return {
+        protocolVersion = PROTOCOL_VERSION,
+        requestId = request.requestId,
+        ok = true,
+        kernel = kernelVersion(),
+        inspection = { metrics = metrics },
+    }
+end
+
+local function compareItemConstraints(request)
+    local loaded, loadError = loadConstraintBuild(request)
+    if not loaded then
+        return loadError
+    end
+    if not build.itemsTab or not build.itemsTab.slots or not build.itemsTab.slots[request.slot] then
+        return errorResponse(request.requestId, "item-slot-missing", "The loaded build does not expose the requested equipment slot.", false)
     end
 
     local itemOk, replacementItem = pcall(function()
@@ -174,16 +211,12 @@ local function compareItemConstraints(request)
         return errorResponse(request.requestId, "item-slot-incompatible", "The replacement item is not valid for the requested PoB slot in the current build state.", false)
     end
 
-    local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
-    if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
-        return errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
-    end
-    local calcOk, replacementOutput = pcall(calcFunc, { repSlotName = request.slot, repItem = replacementItem })
+    local calcOk, replacementOutput = pcall(loaded.calcFunc, { repSlotName = request.slot, repItem = replacementItem })
     if not calcOk or type(replacementOutput) ~= "table" then
         return errorResponse(request.requestId, "item-replacement-calc-failed", tostring(replacementOutput), true)
     end
 
-    local before = constraintSnapshot(baseOutput)
+    local before = constraintSnapshot(loaded.baseOutput)
     local after = constraintSnapshot(replacementOutput)
     if not before or not after then
         return errorResponse(request.requestId, "constraint-output-missing", "PoB did not expose constraint output tables for both calculation states.", true)
@@ -214,6 +247,9 @@ local function handle(request)
             ok = true,
             health = { status = "ready", kernel = kernelVersion() },
         }
+    end
+    if request.operation == "inspect-build-constraints" then
+        return inspectBuildConstraints(request)
     end
     return compareItemConstraints(request)
 end

@@ -22,7 +22,7 @@ function percent(value: number | undefined): string {
 function statusLabel(snapshot: BuildDoctorSnapshot | null, busy: boolean): string {
   if (busy) return 'calculating';
   if (!snapshot) return 'not run';
-  if (snapshot.status === 'ready') return 'verified baseline';
+  if (snapshot.status === 'ready') return snapshot.integrity?.status === 'attention-required' ? 'attention required' : 'verified baseline';
   if (snapshot.status === 'reimport-required') return 're-import needed';
   if (snapshot.status === 'runtime-unavailable') return 'runtime unavailable';
   if (snapshot.status === 'calculation-input-invalid') return 'input rejected';
@@ -60,6 +60,7 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
   const utilityRows = snapshot?.status === 'ready' ? snapshot.flaskInspection?.flasks ?? [] : [];
   const activeUtilities = useMemo(() => utilityRows.filter((entry) => entry.active).length, [utilityRows]);
   const activeUtilityDependencies = useMemo(() => utilityRows.filter((entry) => entry.active && entry.utility).length, [utilityRows]);
+  const integrity = snapshot?.status === 'ready' ? snapshot.integrity : undefined;
 
   return (
     <section className="panel build-doctor-panel" data-testid="build-doctor-panel">
@@ -70,7 +71,7 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
           <p>Calculate the imported build with the pinned Path of Building kernel, preserve what is actually proven, and surface configuration caveats before recommendations.</p>
         </div>
         <div className="build-doctor-run">
-          <span className={`status-pill ${snapshot?.status === 'ready' ? 'ok' : snapshot && snapshot.status !== 'reimport-required' ? 'warning' : ''}`}>
+          <span className={`status-pill ${snapshot?.status === 'ready' && integrity?.status !== 'attention-required' ? 'ok' : snapshot ? 'warning' : ''}`}>
             <i />{statusLabel(snapshot, busy)}
           </span>
           <button className="primary-button" disabled={!profile || busy} onClick={() => void run()}>
@@ -99,6 +100,38 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
             <article><span>Life / ES</span><strong>{compactNumber(baseline.defence.life)} / {compactNumber(baseline.defence.energyShield)}</strong><small>resources</small></article>
             <article><span>Crit chance</span><strong>{percent(baseline.offence.critChance)}</strong><small>{baseline.offence.mainSkill ?? 'main skill'}</small></article>
           </div>
+
+          {integrity && (
+            <section className={`build-doctor-integrity ${integrity.status}`} data-testid="build-doctor-integrity">
+              <div className="build-doctor-integrity-head">
+                <div>
+                  <span>BASELINE INTEGRITY · PINNED POB</span>
+                  <strong>{integrity.status === 'attention-required' ? 'Current build needs attention' : integrity.status === 'supported-checks-clear' ? 'Supported baseline checks are clear' : 'Baseline integrity unavailable'}</strong>
+                </div>
+                {integrity.status !== 'unavailable' && (
+                  <div className="build-doctor-integrity-counts">
+                    <i>{integrity.warningCount} proven gap{integrity.warningCount === 1 ? '' : 's'}</i>
+                    {integrity.infoCount > 0 && <i>{integrity.infoCount} posture note{integrity.infoCount === 1 ? '' : 's'}</i>}
+                  </div>
+                )}
+              </div>
+              <p>{integrity.message}</p>
+              {integrity.status !== 'unavailable' && integrity.findings.length > 0 && (
+                <div className="build-doctor-integrity-list">
+                  {integrity.findings.map((finding) => (
+                    <article key={finding.key} className={finding.severity}>
+                      <div><strong>{finding.label}</strong><span>{finding.severity === 'warning' ? 'Proven gap' : 'Context'}</span></div>
+                      <code>{finding.value}</code>
+                      <p>{finding.detail}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+              {integrity.status !== 'unavailable' && (
+                <small>Constraint adapter {integrity.kernel.adapterVersion} · current imported PoB state. Partial suppression and chaos resistance remain contextual unless stronger intent/content evidence exists.</small>
+              )}
+            </section>
+          )}
 
           <div className="build-doctor-grid">
             <div className="build-doctor-card">

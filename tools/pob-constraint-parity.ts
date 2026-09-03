@@ -6,13 +6,14 @@ import type { PobKernelRuntimeOptions } from '../electron/services/pob-kernel-se
 import type { PobConstraintMetrics, PobReplaceableItemSlot } from '../src/core/pob-calculation';
 import {
   POB_CONSTRAINT_PROTOCOL_VERSION,
+  type PobConstraintWorkerInspectionSuccess,
   type PobConstraintWorkerSuccess,
 } from '../src/core/pob-constraints';
 import { POB_REPLACEABLE_ITEM_SLOTS } from '../src/core/pob-calculation';
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
-const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.1.0';
+const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.2.0';
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_CONSTRAINT_REFERENCE@@';
 const PROCESS_TIMEOUT_MS = 45_000;
 const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -52,6 +53,7 @@ interface MetricComparison {
 interface FixtureReport {
   fixture: string;
   slot: PobReplaceableItemSlot;
+  baseline: MetricComparison[];
   before: MetricComparison[];
   after: MetricComparison[];
   kernel: { pobCommit: string; runtimeRevision: string; adapterVersion: string };
@@ -186,6 +188,12 @@ function validSlot(value: string): value is PobReplaceableItemSlot {
   return POB_REPLACEABLE_ITEM_SLOTS.includes(value as PobReplaceableItemSlot);
 }
 
+function assertKernel(fixture: string, kernel: { pobCommit: string; runtimeRevision: string; adapterVersion: string }): void {
+  if (kernel.pobCommit !== POB_COMMIT) throw new Error(`${fixture}: worker PoB pin mismatch ${kernel.pobCommit}.`);
+  if (kernel.runtimeRevision !== LUAJIT_COMMIT) throw new Error(`${fixture}: worker LuaJIT pin mismatch ${kernel.runtimeRevision}.`);
+  if (kernel.adapterVersion !== CONSTRAINT_ADAPTER_VERSION) throw new Error(`${fixture}: constraint adapter mismatch ${kernel.adapterVersion}.`);
+}
+
 async function main(): Promise<void> {
   const pobRoot = process.env.POB_ROOT;
   const runtimePath = process.env.POB_LUAJIT;
@@ -209,6 +217,18 @@ async function main(): Promise<void> {
     const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
     if (!validSlot(reference.slot)) throw new Error(`${fixture}: reference selected unsupported slot ${reference.slot}.`);
     const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
+
+    const inspectionResponse = await runPobConstraintRequest({
+      protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
+      requestId: `constraint-baseline-parity-${reports.length + 1}`,
+      operation: 'inspect-build-constraints',
+      xml,
+    }, runtimeOptions);
+    if (!inspectionResponse.ok || !('inspection' in inspectionResponse)) throw new Error(`${fixture}: constraint worker did not return a baseline inspection.`);
+    const inspection = inspectionResponse as PobConstraintWorkerInspectionSuccess;
+    assertKernel(fixture, inspection.kernel);
+    const baseline = compare(reference.before, inspection.inspection.metrics);
+
     const response = await runPobConstraintRequest({
       protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
       requestId: `constraint-parity-${reports.length + 1}`,
@@ -220,17 +240,24 @@ async function main(): Promise<void> {
     if (!response.ok || !('comparison' in response)) throw new Error(`${fixture}: constraint worker did not return a comparison.`);
     const success = response as PobConstraintWorkerSuccess;
     if (success.comparison.slot !== reference.slot) throw new Error(`${fixture}: worker slot ${success.comparison.slot} differs from reference ${reference.slot}.`);
-    if (success.kernel.pobCommit !== POB_COMMIT) throw new Error(`${fixture}: worker PoB pin mismatch ${success.kernel.pobCommit}.`);
-    if (success.kernel.runtimeRevision !== LUAJIT_COMMIT) throw new Error(`${fixture}: worker LuaJIT pin mismatch ${success.kernel.runtimeRevision}.`);
-    if (success.kernel.adapterVersion !== CONSTRAINT_ADAPTER_VERSION) throw new Error(`${fixture}: constraint adapter mismatch ${success.kernel.adapterVersion}.`);
+    assertKernel(fixture, success.kernel);
+
+    if (inspection.kernel.pobCommit !== success.kernel.pobCommit
+      || inspection.kernel.runtimeRevision !== success.kernel.runtimeRevision
+      || inspection.kernel.adapterVersion !== success.kernel.adapterVersion) {
+      throw new Error(`${fixture}: baseline inspection and item comparison reported inconsistent constraint-kernel provenance.`);
+    }
 
     const before = compare(reference.before, success.comparison.before);
     const after = compare(reference.after, success.comparison.after);
-    if (before.length < 18 || after.length < 18) throw new Error(`${fixture}: constraint parity exposed too few comparable raw fields (${before.length}/${after.length}).`);
-    const passed = [...before, ...after].every((entry) => entry.passed);
+    if (baseline.length < 18 || before.length < 18 || after.length < 18) {
+      throw new Error(`${fixture}: constraint parity exposed too few comparable raw fields (${baseline.length}/${before.length}/${after.length}).`);
+    }
+    const passed = [...baseline, ...before, ...after].every((entry) => entry.passed);
     reports.push({
       fixture,
       slot: reference.slot,
+      baseline,
       before,
       after,
       kernel: {
@@ -246,7 +273,7 @@ async function main(): Promise<void> {
   await mkdir(resolve('artifacts/pob-kernel'), { recursive: true });
   await writeFile(output, `${JSON.stringify({
     generatedAt: new Date().toISOString(),
-    expectedSource: 'fresh pinned-PoB raw constraint output + independently discovered reversible item replacement',
+    expectedSource: 'fresh pinned-PoB raw baseline constraint output + independently discovered reversible item replacement',
     pobCommit: POB_COMMIT,
     luaJitCommit: LUAJIT_COMMIT,
     constraintAdapterVersion: CONSTRAINT_ADAPTER_VERSION,
@@ -254,9 +281,13 @@ async function main(): Promise<void> {
     passed: reports.every((report) => report.passed),
   }, null, 2)}\n`, 'utf8');
 
-  const failed = reports.flatMap((report) => [...report.before, ...report.after].filter((entry) => !entry.passed).map((entry) => `${report.fixture}: ${entry.label} expected ${entry.expected}, got ${entry.actual}`));
+  const failed = reports.flatMap((report) => [
+    ...report.baseline.map((entry) => ({ ...entry, phase: 'baseline' })),
+    ...report.before.map((entry) => ({ ...entry, phase: 'before' })),
+    ...report.after.map((entry) => ({ ...entry, phase: 'after' })),
+  ].filter((entry) => !entry.passed).map((entry) => `${report.fixture} ${entry.phase}: ${entry.label} expected ${entry.expected}, got ${entry.actual}`));
   if (failed.length) throw new Error(`PoB constraint parity failed:\n${failed.join('\n')}`);
-  console.log(`PoB constraint parity PASS across ${reports.length} fixtures; report ${output}.`);
+  console.log(`PoB baseline + item constraint parity PASS across ${reports.length} fixtures; report ${output}.`);
 }
 
 main().catch((error: unknown) => {
