@@ -36,27 +36,39 @@ function emptyBuild(className: string) {
   };
 }
 
+function witchMaxrollProfile(): BuildProfile {
+  return {
+    id: 'witch-maxroll', name: 'Witch leveling', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'maxroll',
+    build: emptyBuild('Witch'),
+    maxroll: {
+      guideUrl: 'https://maxroll.gg/poe/build-guides/test-witch', guideTitle: 'Test Witch', guideSlug: 'test-witch', mode: 'league-start',
+      compatibility: 'current', compatibilityMessage: 'current', passiveOperations: [
+        { type: 'allocate', nodeId: 101, checkpoint: 1 },
+        { type: 'allocate', nodeId: 102, checkpoint: 2 },
+      ],
+      skillMilestones: [], equipmentMilestones: [], alternateSkillPaths: [],
+    },
+  };
+}
+
 describe('build-agnostic passive tree guide planning', () => {
-  it('keeps Maxroll ordered history exact for a non-Ranger class', () => {
-    const profile: BuildProfile = {
-      id: 'witch-maxroll', name: 'Witch leveling', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'maxroll',
-      build: emptyBuild('Witch'),
-      maxroll: {
-        guideUrl: 'https://maxroll.gg/poe/build-guides/test-witch', guideTitle: 'Test Witch', guideSlug: 'test-witch', mode: 'league-start',
-        compatibility: 'current', compatibilityMessage: 'current', passiveOperations: [
-          { type: 'allocate', nodeId: 101, checkpoint: 1 },
-          { type: 'allocate', nodeId: 102, checkpoint: 2 },
-        ],
-        skillMilestones: [], equipmentMilestones: [], alternateSkillPaths: [],
-      },
-    };
-    const plan = buildPassiveTreeGuidePlan(profile, undefined, 1, snapshot);
-    expect(plan?.mode).toBe('exact');
-    expect(plan?.className).toBe('Witch');
-    expect(plan?.classStartNodeId).toBe(100);
-    expect(plan?.target?.nodeId).toBe(102);
-    expect(plan?.target?.nodeName).toBe('Mana');
-    expect(plan?.target?.index).toBe(2);
+  it('advances the exact Maxroll target only according to ordered build progression', () => {
+    const profile = witchMaxrollProfile();
+    const first = buildPassiveTreeGuidePlan(profile, undefined, 0, snapshot);
+    const second = buildPassiveTreeGuidePlan(profile, undefined, 1, snapshot);
+    const complete = buildPassiveTreeGuidePlan(profile, undefined, 2, snapshot);
+
+    expect(first?.mode).toBe('exact');
+    expect(first?.className).toBe('Witch');
+    expect(first?.classStartNodeId).toBe(100);
+    expect(first?.target).toMatchObject({ nodeId: 101, nodeName: 'Spell Damage', index: 1, total: 2, checkpoint: 1 });
+
+    expect(second?.classStartNodeId).toBe(100);
+    expect(second?.target).toMatchObject({ nodeId: 102, nodeName: 'Mana', index: 2, total: 2, checkpoint: 2 });
+
+    expect(complete?.classStartNodeId).toBe(100);
+    expect(complete?.target).toBeUndefined();
+    expect(complete?.message).toBe('Passive path complete.');
   });
 
   it('highlights a PoB stage set instead of inventing click order', () => {
@@ -78,6 +90,7 @@ describe('build-agnostic passive tree guide planning', () => {
     expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
     expect(plan?.message).toContain('does not encode click order');
   });
+
   it('falls back to the PoB stage marked active when no explicit planner stage is selected', () => {
     const profile: BuildProfile = {
       id: 'templar-active-fallback', name: 'Templar active fallback', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
@@ -93,5 +106,4 @@ describe('build-agnostic passive tree guide planning', () => {
     expect(plan?.sourceLabel).toContain('Level 20');
     expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
   });
-
 });
