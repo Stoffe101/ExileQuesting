@@ -5,6 +5,12 @@ export const POB_CONSTRAINT_PROTOCOL_VERSION = 1;
 export const POB_CONSTRAINT_WORKER_SENTINEL = '@@EXILEQUESTING_POB_CONSTRAINT@@';
 export const MAX_POB_CONSTRAINT_ITEM_TEXT_BYTES = 128 * 1024;
 
+export interface PobConstraintHealthRequest {
+  protocolVersion: number;
+  requestId: string;
+  operation: 'health';
+}
+
 export interface PobConstraintCompareItemRequest {
   protocolVersion: number;
   requestId: string;
@@ -13,6 +19,8 @@ export interface PobConstraintCompareItemRequest {
   slot: PobReplaceableItemSlot;
   itemText: string;
 }
+
+export type PobConstraintRequest = PobConstraintHealthRequest | PobConstraintCompareItemRequest;
 
 export interface PobConstraintComparison {
   slot: PobReplaceableItemSlot;
@@ -28,6 +36,13 @@ export interface PobConstraintWorkerSuccess {
   comparison: PobConstraintComparison;
 }
 
+export interface PobConstraintWorkerHealthSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  health: { status: 'ready'; kernel: PobCalculationKernelVersion };
+}
+
 export interface PobConstraintWorkerFailure {
   protocolVersion: number;
   requestId?: string;
@@ -35,7 +50,7 @@ export interface PobConstraintWorkerFailure {
   error: { code: string; message: string; retryable: boolean };
 }
 
-export type PobConstraintWorkerResponse = PobConstraintWorkerSuccess | PobConstraintWorkerFailure;
+export type PobConstraintWorkerResponse = PobConstraintWorkerSuccess | PobConstraintWorkerHealthSuccess | PobConstraintWorkerFailure;
 
 export type PobConstraintFindingState = 'broken' | 'repaired' | 'weakened-buffer' | 'improved-buffer';
 export type PobConstraintFindingKind = 'attribute-requirement' | 'resistance-cap' | 'spell-suppression-cap';
@@ -54,12 +69,11 @@ function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
 
-export function validPobConstraintRequest(request: PobConstraintCompareItemRequest): boolean {
-  return request.protocolVersion === POB_CONSTRAINT_PROTOCOL_VERSION
-    && Boolean(request.requestId.trim())
-    && request.requestId.length <= 128
-    && request.operation === 'compare-item-constraints'
-    && Boolean(request.xml.trim())
+export function validPobConstraintRequest(request: PobConstraintRequest): boolean {
+  if (request.protocolVersion !== POB_CONSTRAINT_PROTOCOL_VERSION) return false;
+  if (!request.requestId.trim() || request.requestId.length > 128) return false;
+  if (request.operation === 'health') return true;
+  return Boolean(request.xml.trim())
     && request.xml.length <= 16 * 1024 * 1024
     && POB_REPLACEABLE_ITEM_SLOTS.includes(request.slot)
     && Boolean(request.itemText.trim())
