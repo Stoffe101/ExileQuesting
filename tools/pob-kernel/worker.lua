@@ -6,12 +6,13 @@
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.2.0"
+local ADAPTER_VERSION = "0.3.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
 local SENTINEL = "@@EXILEQUESTING_POB@@"
 local MAX_ITEM_TEXT_BYTES = 128 * 1024
+local MAX_PASSIVE_NODE_ID = 2147483647
 
 local REPLACEABLE_ITEM_SLOTS = {
     ["Weapon 1"] = true,
@@ -209,15 +210,29 @@ local function loadRequestBuild(request)
     return true
 end
 
-local function evaluateItemReplacement(request, startedAt)
-    if type(request.perturbations) ~= "table" or #request.perturbations ~= 1 then
-        return errorResponse(request.requestId, "perturbation-batch-unsupported", "The first sensitivity prototype accepts exactly one perturbation per calculation.", false)
+local function normalizeComparison(request, startedAt, baseOutput, perturbedOutput)
+    local before, beforeError = normalizeOutput(request, startedAt, baseOutput)
+    if not before then
+        return nil, errorResponse(request.requestId, "pob-output-missing", beforeError, true)
+    end
+    local after, afterError = normalizeOutput(request, startedAt, perturbedOutput)
+    if not after then
+        return nil, errorResponse(request.requestId, "pob-output-missing", afterError, true)
     end
 
-    local perturbation = request.perturbations[1]
-    if type(perturbation) ~= "table" or perturbation.kind ~= "replace-item" then
-        return errorResponse(request.requestId, "perturbation-kind-unsupported", "Only replace-item perturbations are enabled in the first sensitivity prototype.", false)
-    end
+    return {
+        protocolVersion = PROTOCOL_VERSION,
+        requestId = request.requestId,
+        ok = true,
+        comparison = {
+            perturbations = request.perturbations,
+            before = before,
+            after = after,
+        },
+    }
+end
+
+local function evaluateItemReplacement(request, startedAt, perturbation)
     if type(perturbation.slot) ~= "string" or not REPLACEABLE_ITEM_SLOTS[perturbation.slot] then
         return errorResponse(request.requestId, "item-slot-unsupported", "The requested PoB item slot is not enabled for replacement sensitivity.", false)
     end
@@ -258,29 +273,84 @@ local function evaluateItemReplacement(request, startedAt)
         repSlotName = perturbation.slot,
         repItem = replacementItem,
     })
-    if not calcOk then
+    if not calcOk or type(replacementOutput) ~= "table" then
         return errorResponse(request.requestId, "item-replacement-calc-failed", tostring(replacementOutput), true)
     end
 
-    local before, beforeError = normalizeOutput(request, startedAt, baseOutput)
-    if not before then
-        return errorResponse(request.requestId, "pob-output-missing", beforeError, true)
+    local response, normalizationError = normalizeComparison(request, startedAt, baseOutput, replacementOutput)
+    return response or normalizationError
+end
+
+local function validPassiveNodeId(nodeId)
+    local finite = finiteNumber(nodeId)
+    return finite ~= nil and finite == math.floor(finite) and finite > 0 and finite <= MAX_PASSIVE_NODE_ID
+end
+
+local function evaluatePassiveNode(request, startedAt, perturbation)
+    if perturbation.operation ~= "allocate" and perturbation.operation ~= "deallocate" then
+        return errorResponse(request.requestId, "passive-operation-unsupported", "Passive-node sensitivity supports only allocate or deallocate.", false)
     end
-    local after, afterError = normalizeOutput(request, startedAt, replacementOutput)
-    if not after then
-        return errorResponse(request.requestId, "pob-output-missing", afterError, true)
+    if not validPassiveNodeId(perturbation.nodeId) then
+        return errorResponse(request.requestId, "passive-node-id", "Passive node id must be a positive bounded integer.", false)
+    end
+    if not build or not build.spec or not build.calcsTab then
+        return errorResponse(request.requestId, "passive-spec-missing", "The loaded build does not expose a passive specification and calculator.", true)
     end
 
-    return {
-        protocolVersion = PROTOCOL_VERSION,
-        requestId = request.requestId,
-        ok = true,
-        comparison = {
-            perturbations = request.perturbations,
-            before = before,
-            after = after,
-        },
-    }
+    local spec = build.spec
+    local allocatedNode = spec.allocNodes and spec.allocNodes[perturbation.nodeId] or nil
+    local node = allocatedNode
+        or (spec.nodes and spec.nodes[perturbation.nodeId])
+        or (spec.tree and spec.tree.nodes and spec.tree.nodes[perturbation.nodeId])
+    if type(node) ~= "table" then
+        return errorResponse(request.requestId, "passive-node-missing", "The requested passive node does not exist in the loaded PoB tree state.", false)
+    end
+
+    local isAllocated = allocatedNode ~= nil
+    if perturbation.operation == "allocate" and isAllocated then
+        return errorResponse(request.requestId, "passive-node-already-allocated", "The requested passive node is already allocated in the loaded build.", false)
+    end
+    if perturbation.operation == "deallocate" and not isAllocated then
+        return errorResponse(request.requestId, "passive-node-not-allocated", "The requested passive node is not allocated in the loaded build.", false)
+    end
+
+    local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
+    if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
+        return errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
+    end
+
+    local override = {}
+    if perturbation.operation == "allocate" then
+        override.addNodes = { [node] = true }
+    else
+        override.removeNodes = { [node] = true }
+    end
+
+    local calcOk, passiveOutput = pcall(calcFunc, override)
+    if not calcOk or type(passiveOutput) ~= "table" then
+        return errorResponse(request.requestId, "passive-node-calc-failed", tostring(passiveOutput), true)
+    end
+
+    local response, normalizationError = normalizeComparison(request, startedAt, baseOutput, passiveOutput)
+    return response or normalizationError
+end
+
+local function evaluateSinglePerturbation(request, startedAt)
+    if type(request.perturbations) ~= "table" or #request.perturbations ~= 1 then
+        return errorResponse(request.requestId, "perturbation-batch-unsupported", "PoB sensitivity currently accepts exactly one perturbation per calculation.", false)
+    end
+
+    local perturbation = request.perturbations[1]
+    if type(perturbation) ~= "table" then
+        return errorResponse(request.requestId, "perturbation-kind-unsupported", "Perturbation must decode to an object.", false)
+    end
+    if perturbation.kind == "replace-item" then
+        return evaluateItemReplacement(request, startedAt, perturbation)
+    end
+    if perturbation.kind == "passive-node" then
+        return evaluatePassiveNode(request, startedAt, perturbation)
+    end
+    return errorResponse(request.requestId, "perturbation-kind-unsupported", "Only replace-item and passive-node perturbations are currently enabled.", false)
 end
 
 local function handle(request)
@@ -308,7 +378,7 @@ local function handle(request)
     end
 
     if request.operation == "calculate-with-perturbations" then
-        return evaluateItemReplacement(request, startedAt)
+        return evaluateSinglePerturbation(request, startedAt)
     end
 
     local result, normalizeError = normalizeOutput(request, startedAt)

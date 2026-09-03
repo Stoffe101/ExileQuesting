@@ -4,7 +4,7 @@
 
 Build Doctor must learn how the **actual imported build** responds to controlled changes instead of assigning universal stat weights. The pinned Path of Building calculation kernel remains authoritative for numerical outcomes; ExileQuesting only derives structured comparisons from those measured states.
 
-The first merged primitive supports one reversible equipment replacement. This follow-up adds the analysis layer needed to turn a sequence of PoB recalculations into a local response surface.
+The first merged primitive supports one reversible equipment replacement. The response-surface layer can then turn sequences of real PoB recalculations into local sensitivity curves and conservative breakpoint candidates.
 
 ## Current boundary
 
@@ -53,12 +53,32 @@ The first analyzer exposes reviewed normalized outputs already present in the ca
 
 Additional axes or outputs should only be added after their PoB normalization and parity behavior are understood.
 
-## Contract hardening in this milestone
+## Enabled perturbations
 
-The TypeScript request validator now matches the actual Lua worker capability: `calculate-with-perturbations` accepts **exactly one** currently enabled `replace-item` perturbation. A single `synthetic-stat`, gem, passive or configuration perturbation is rejected before reaching the worker instead of being mistakenly accepted by the TypeScript boundary and rejected later by Lua.
+The worker still accepts exactly one perturbation per request. Two perturbation families are now enabled:
 
-Those perturbation types remain protocol design placeholders until each one has a real PoB-backed implementation and parity coverage.
+1. `replace-item` uses PoB's own `Item` parser, slot validation and reversible `{ repSlotName, repItem }` calculator override.
+2. `passive-node` resolves one real PoB node and uses the same reversible calculator with either `addNodes` or `removeNodes`.
+
+The passive operation is validated against the imported state: allocating an already allocated node and deallocating an unallocated node fail closed. The worker does not edit `build.spec`, so the imported build remains unchanged.
+
+### Passive-node interpretation boundary
+
+Single-node allocation is a **sensitivity experiment**, not automatically a legal passive-tree recommendation. The calculator can measure what an adjacent unallocated node would do, but Build Doctor must later solve pathing, point cost, refunds, mastery/cluster interactions and whole-build constraints before recommending a transition.
+
+Likewise, removing one node measures dependency on that node. It does not by itself prove that the node can be refunded without disconnecting downstream allocations.
+
+The independent parity oracle deliberately chooses:
+
+- a currently allocated node whose removal changes at least one reviewed metric; and
+- an adjacent currently unallocated node whose addition changes at least one reviewed metric.
+
+For both directions, the reference process calls raw pinned PoB `GetMiscCalculator()` independently. CI compares ExileQuesting's normalized before/after states to those raw results on every parity fixture.
+
+## Contract hardening
+
+Renderer-safe request validation and the Lua adapter expose the same capability set. Unsupported synthetic-stat, gem and configuration perturbations remain protocol design placeholders and are rejected until each has a real PoB-backed implementation plus independent parity coverage.
 
 ## Next engineering step
 
-Build the first controlled scalar sweep against the pinned PoB worker. The preferred first target is a mechanic where upstream PoB exposes a reversible calculator input cleanly and where an independent reference oracle can verify every sampled state. Once that is proven, feed the measured states into this analyzer and add mechanic-specific breakpoint confirmation rather than inferring causes from curve shape alone.
+Use these verified item and passive primitives to begin **mechanic graph extraction** and dependency experiments. In parallel, identify the first clean scalar configuration input that PoB can vary reversibly so the response-surface analyzer can consume real multi-sample sweeps rather than synthetic fixtures. Mechanic-specific breakpoint claims remain blocked until a candidate curve can be tied to reviewed PoB/game evidence.
