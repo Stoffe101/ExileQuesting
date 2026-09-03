@@ -4,12 +4,13 @@ import path from 'node:path';
 import { normalizeCampaign } from '../src/core/campaign';
 import { buildPlannerSnapshot, normalizeBuildPlannerState } from '../src/core/build-planner';
 import { readyBuildDoctorSnapshot } from '../src/core/build-doctor';
+import { measuredConfigurationDependency, readyDependencyScan } from '../src/core/build-doctor-dependencies';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
 import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
 import type { BuildProfile } from '../src/core/build-profiles';
-import type { PobCalculationResult, PobFlaskInspectionResult } from '../src/core/pob-calculation';
+import type { PobCalculationResult, PobFlaskInspectionResult, PobFlaskProfile, PobPerturbationComparison } from '../src/core/pob-calculation';
 import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
 
 const output = path.resolve(process.argv[2] || 'artifacts/manager-visual/build-doctor');
@@ -84,6 +85,52 @@ function utilityInspection(): PobFlaskInspectionResult {
   };
 }
 
+function comparison(flask: PobFlaskProfile, after: PobCalculationResult): PobPerturbationComparison {
+  const before = baseline();
+  before.requestId = `visual-dependency-before-${flask.slot}`;
+  after.requestId = `visual-dependency-after-${flask.slot}`;
+  return {
+    perturbations: [{ kind: 'toggle-flask', slot: flask.slot }],
+    stateTransition: { kind: 'flask-active', slot: flask.slot, fromActive: true, toActive: false },
+    before,
+    after,
+  };
+}
+
+function dependencyScan(now: string) {
+  const inspection = utilityInspection();
+  const diamond = inspection.flasks[0];
+  const granite = inspection.flasks[1];
+
+  const diamondAfter = baseline();
+  diamondAfter.offence = { ...diamondAfter.offence, totalDps: 6_420_000, fullDps: 6_420_000, critChance: 58.1 };
+
+  const graniteAfter = baseline();
+  graniteAfter.defence = {
+    ...graniteAfter.defence,
+    effectiveHitPool: 150_000,
+    armour: 6_900,
+    maximumHit: { ...graniteAfter.defence.maximumHit, physical: 21_000 },
+  };
+
+  return readyDependencyScan({
+    profileId: 'visual-build-doctor',
+    profileName: 'Level 96 Trickster · Build Doctor fixture',
+    generatedAt: now,
+    kernel: {
+      pobRepository: kernel.pobRepository,
+      pobCommit: kernel.pobCommit,
+      runtime: kernel.runtime,
+      runtimeRevision: kernel.runtimeRevision,
+      adapterVersion: kernel.adapterVersion,
+    },
+    dependencies: [
+      measuredConfigurationDependency(diamond, comparison(diamond, diamondAfter)),
+      measuredConfigurationDependency(granite, comparison(granite, graniteAfter)),
+    ],
+  });
+}
+
 async function waitFor(window: BrowserWindow, expression: string, label: string): Promise<void> {
   const deadline = Date.now() + 12_000;
   while (Date.now() < deadline) {
@@ -150,10 +197,12 @@ async function main(): Promise<void> {
     diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
   const snapshot = readyBuildDoctorSnapshot({ profileId: buildProfile.id, profileName: buildProfile.name, generatedAt: now, baseline: baseline(), flaskInspection: utilityInspection() });
+  const dependencies = dependencyScan(now);
 
   ipcMain.handle('app:bootstrap', () => state);
   ipcMain.handle('pob:workspace', () => workspace);
   ipcMain.handle('build-doctor:analyze', () => snapshot);
+  ipcMain.handle('build-doctor:dependencies', () => dependencies);
 
   const window = new BrowserWindow({ show: false, width: 1200, height: 800, backgroundColor: '#090b10', webPreferences: { preload: path.resolve('dist-electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
   await window.loadFile(path.resolve('dist/index.html'));
@@ -165,8 +214,6 @@ async function main(): Promise<void> {
   if (!ran) throw new Error('Build Doctor run button is missing.');
   await waitFor(window, `document.querySelector('.build-doctor-metrics')`, 'Build Doctor ready metrics');
 
-  // GitHub-hosted Windows runners can clamp a BrowserWindow's initial size to the virtual desktop.
-  // Resize after load so the named regression dimensions are the dimensions actually captured.
   window.setSize(1920, 1080, false);
   await new Promise((resolve) => setTimeout(resolve, 180));
   await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-panel')?.scrollIntoView({ block: 'start' })`);
@@ -178,18 +225,43 @@ async function main(): Promise<void> {
   if (!desktop.text.includes('7.84M') || !desktop.text.includes('guard skill') || !desktop.text.includes('ed354c2f8c42')) throw new Error('Build Doctor desktop fixture is missing deterministic metric/caveat/provenance text.');
   const desktopBytes = await capture(window, 'build-doctor-ready-1920x1080.png');
 
+  const dependencyClicked = await window.webContents.executeJavaScript(`(() => {
+    const button = [...document.querySelectorAll('.build-doctor-dependencies button')].find((node) => node.textContent?.includes('Measure 2 active utilities'));
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!dependencyClicked) throw new Error('Build Doctor dependency measurement button is missing.');
+  await waitFor(window, `document.querySelectorAll('.build-doctor-dependency-list article').length === 2`, 'Build Doctor dependency evidence');
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-dependencies')?.scrollIntoView({ block: 'start' })`);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const dependencyDesktop = await inspectLayout(window);
+  if (!dependencyDesktop.text.includes('Diamond Flask') || !dependencyDesktop.text.includes('DPS -18.1%') || !dependencyDesktop.text.includes('Granite Flask') || !dependencyDesktop.text.includes('Phys hit -27.4%')) {
+    throw new Error('Build Doctor dependency fixture is missing measured reversible PoB deltas.');
+  }
+  if (!dependencyDesktop.text.includes('not encounter uptime')) throw new Error('Build Doctor dependency fixture lost its encounter-uptime evidence boundary.');
+  const dependencyDesktopBytes = await capture(window, 'build-doctor-dependencies-1920x1080.png');
+
   window.setSize(1280, 720, false);
   await new Promise((resolve) => setTimeout(resolve, 180));
-  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-panel')?.scrollIntoView({ block: 'start' })`);
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-dependencies')?.scrollIntoView({ block: 'start' })`);
   const compact = await inspectLayout(window);
   if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
   if (compact.panelWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor panel exceeds compact viewport (${compact.panelWidth} > ${compact.viewportWidth}).`);
-  const compactBytes = await capture(window, 'build-doctor-ready-1280x720.png');
+  const compactBytes = await capture(window, 'build-doctor-dependencies-1280x720.png');
 
-  await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: now, desktopBytes, compactBytes, desktop, compact }, null, 2), 'utf8');
+  await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({
+    generatedAt: now,
+    desktopBytes,
+    dependencyDesktopBytes,
+    compactBytes,
+    desktop,
+    dependencyDesktop,
+    compact,
+  }, null, 2), 'utf8');
   window.destroy();
-  for (const channel of ['app:bootstrap', 'pob:workspace', 'build-doctor:analyze']) ipcMain.removeHandler(channel);
+  for (const channel of ['app:bootstrap', 'pob:workspace', 'build-doctor:analyze', 'build-doctor:dependencies']) ipcMain.removeHandler(channel);
   app.quit();
 }
 
