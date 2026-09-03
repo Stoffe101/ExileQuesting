@@ -7,7 +7,11 @@ import {
   passiveHudScopeForNode,
   passiveHudTarget,
   projectPassiveTreePoint,
+  selectPassiveHudAnchors,
+  type PassiveTreeRegistration,
   type PassiveTreeTransform,
+  type ScreenPoint,
+  type TreePoint,
 } from '../../src/core/passive-tree-hud';
 import {
   hasPassiveTreeGeometry,
@@ -26,6 +30,8 @@ import {
   validatePassiveTreeScreenSignature,
   type PassiveTreeScreenSignature,
 } from '../../src/core/passive-tree-screen-check';
+import { trackPassiveTreeRegistration } from '../../src/core/passive-tree-tracking';
+import { detectPassiveTreeNodeCandidates } from '../../src/core/passive-tree-vision';
 
 export interface PassiveTreeHudContext {
   enabled: boolean;
@@ -84,6 +90,7 @@ interface ProjectionContext {
   calibrationKey: string;
   transform: PassiveTreeTransform;
   calibration: StoredCalibration;
+  registration?: PassiveTreeRegistration;
 }
 
 const RECENTER_HOTKEY = 'CommandOrControl+Shift+C';
@@ -93,12 +100,14 @@ const RESET_HOTKEY = 'CommandOrControl+Shift+0';
 const CALIBRATION_FILE = 'passive-tree-hud-calibration.json';
 const HOTKEY_REPAIR_INTERVAL_MS = 2_000;
 const DEFAULT_CAPTURE_WIDTH = 480;
-const DEFAULT_SEARCH_INTERVAL = 850;
-const DEFAULT_LOCKED_INTERVAL = 450;
+const DEFAULT_SEARCH_INTERVAL = 700;
+const DEFAULT_LOCKED_INTERVAL = 180;
 const MIN_SCALE = 0.004;
-const MAX_SCALE = 0.35;
+const MAX_SCALE = 1.2;
 const REQUIRED_TREE_MATCHES = 2;
 const MAX_CAPTURE_ASPECT_DRIFT = 0.06;
+const TRACKING_VIEW_MARGIN = 220;
+const MAX_LOCAL_TRACKING_ANCHORS = 110;
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -159,12 +168,11 @@ function scopeAnchor(snapshot: PassiveTreeSnapshot, guide: PassiveTreeGuidePlan,
 }
 
 /**
- * Exile-UI's PoE 1 schematic uses clientHeight / 10000 at full in-game zoom.
- * Electron overlay coordinates are display-independent pixels, so display
- * height is the matching coordinate-space height for a borderless/fullscreen
- * client. Translation is then established from the actual class-start circle.
+ * Exile-UI's PoE 1 schematic gives us a useful first scale estimate. It is only
+ * a seed now. Live node-constellation tracking immediately replaces it with the
+ * observed pan/zoom transform once the passive tree is visible.
  */
-function fullZoomScale(display: Display): number {
+function seedScale(display: Display): number {
   return clamp(display.bounds.height / 10_000, MIN_SCALE, MAX_SCALE);
 }
 
@@ -214,6 +222,10 @@ function guideTargetIds(guide: PassiveTreeGuidePlan): number[] {
     : guide.stageTargets.map((target) => target.nodeId);
 }
 
+function registrationFromTransform(transform: PassiveTreeTransform): PassiveTreeRegistration {
+  return { transform, matches: [], inliers: 0, rms: 0, confidence: 1 };
+}
+
 export class PassiveTreeHudService {
   private readonly options: Required<Pick<PassiveTreeHudServiceOptions, 'captureWidth' | 'searchIntervalMs' | 'lockedIntervalMs'>> & PassiveTreeHudServiceOptions;
   private stopped = true;
@@ -225,6 +237,7 @@ export class PassiveTreeHudService {
   private state: PassiveTreeHudState = passiveTreeHudIdle(true);
   private lastFingerprint = '';
   private calibrations: Record<string, StoredCalibration> = {};
+  private readonly liveRegistrations = new Map<string, PassiveTreeRegistration>();
   private consecutiveTreeMatches = 0;
 
   constructor(options: PassiveTreeHudServiceOptions) {
@@ -252,6 +265,7 @@ export class PassiveTreeHudService {
     this.stopped = true;
     this.recenterQueued = false;
     this.consecutiveTreeMatches = 0;
+    this.liveRegistrations.clear();
     if (this.timer) clearTimeout(this.timer);
     if (this.hotkeyRepairTimer) clearInterval(this.hotkeyRepairTimer);
     this.timer = undefined;
@@ -328,7 +342,8 @@ export class PassiveTreeHudService {
   private schedule(delay?: number): void {
     if (this.stopped || this.calibrating) return;
     if (this.timer) clearTimeout(this.timer);
-    const interval = delay ?? (this.state.status === 'locked' ? this.options.lockedIntervalMs : this.options.searchIntervalMs);
+    const activelyTracking = this.state.status === 'locked' || this.state.status === 'searching';
+    const interval = delay ?? (activelyTracking ? this.options.lockedIntervalMs : this.options.searchIntervalMs);
     this.timer = setTimeout(() => { void this.poll(); }, interval);
     this.timer.unref?.();
   }
@@ -359,27 +374,34 @@ export class PassiveTreeHudService {
     }
   }
 
-  private projectionContext(context: PassiveTreeHudContext): ProjectionContext | undefined {
+  private projectionContext(context: PassiveTreeHudContext, preferredDisplayId?: string): ProjectionContext | undefined {
     const scopeKey = targetScope(context);
     if (!scopeKey) return undefined;
     const displays = screen.getAllDisplays();
+    const preferredDisplay = preferredDisplayId
+      ? displays.find((display) => String(display.id) === preferredDisplayId)
+      : undefined;
     const cursorDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-    const ordered = [cursorDisplay, ...displays.filter((display) => display.id !== cursorDisplay.id)];
+    const ordered = [preferredDisplay, cursorDisplay, ...displays]
+      .filter((display): display is Display => Boolean(display))
+      .filter((display, index, array) => array.findIndex((candidate) => candidate.id === display.id) === index);
     for (const display of ordered) {
       const key = calibrationKey(display, scopeKey);
       const calibration = this.calibrations[key];
       if (!calibration) continue;
+      const registration = this.liveRegistrations.get(key);
       return {
         display,
         scopeKey,
         calibrationKey: key,
-        transform: {
+        transform: registration?.transform ?? {
           scale: calibration.scale,
           offsetX: calibration.offsetX,
           offsetY: calibration.offsetY,
           ySign: calibration.ySign,
         },
         calibration,
+        registration,
       };
     }
     return undefined;
@@ -488,6 +510,143 @@ export class PassiveTreeHudService {
     };
   }
 
+  private detectDisplayCandidates(capture: PoeWindowCapture, display: Display): ScreenPoint[] {
+    const detected = detectPassiveTreeNodeCandidates(capture.bitmap, capture.capture.width, capture.capture.height, {
+      radii: [3, 4, 5, 6, 8, 10, 12, 15, 18, 22, 26],
+      angularSamples: 12,
+      stride: 4,
+      minimumContrast: 14,
+      minimumCoverage: 0.54,
+      maximumCandidates: 180,
+    });
+    const scaleX = display.bounds.width / capture.capture.width;
+    const scaleY = display.bounds.height / capture.capture.height;
+    const radiusScale = (scaleX + scaleY) / 2;
+    return detected.map((candidate) => ({
+      ...candidate,
+      x: candidate.x * scaleX,
+      y: candidate.y * scaleY,
+      ...(candidate.radius ? { radius: candidate.radius * radiusScale } : {}),
+    }));
+  }
+
+  private guideAnchors(context: PassiveTreeHudContext, scopeKey: PassiveTreeScopeKey): TreePoint[] {
+    const guide = context.guide;
+    const snapshot = context.snapshot;
+    if (!guide || !snapshot) return [];
+    return selectPassiveHudAnchors(
+      snapshot,
+      guide.mode === 'exact' ? guide.operations : [],
+      guide.mode === 'exact' ? guide.cursor : 0,
+      {
+        recentOperations: 10,
+        upcomingOperations: 14,
+        neighbourDepth: 3,
+        maxAnchors: 42,
+        targetNodeIds: guideTargetIds(guide),
+        className: guide.className,
+        classStartNodeId: guide.classStartNodeId,
+        scopeKey,
+      },
+    );
+  }
+
+  private viewportAnchors(context: PassiveTreeHudContext, projection: ProjectionContext): TreePoint[] {
+    const snapshot = context.snapshot;
+    if (!snapshot) return [];
+    const nodes = indexPassiveNodes(snapshot);
+    const width = projection.display.bounds.width;
+    const height = projection.display.bounds.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const visible: Array<{ point: TreePoint; distance: number }> = [];
+    for (const node of nodes.values()) {
+      if (passiveNodeScopeKey(node) !== projection.scopeKey) continue;
+      const point = passiveFixedNodePoint(node);
+      if (!point) continue;
+      const projected = projectPassiveTreePoint(projection.transform, point);
+      if (projected.x < -TRACKING_VIEW_MARGIN || projected.y < -TRACKING_VIEW_MARGIN
+        || projected.x > width + TRACKING_VIEW_MARGIN || projected.y > height + TRACKING_VIEW_MARGIN) continue;
+      visible.push({ point, distance: Math.hypot(projected.x - centerX, projected.y - centerY) });
+    }
+    visible.sort((left, right) => left.distance - right.distance);
+    return visible.slice(0, MAX_LOCAL_TRACKING_ANCHORS).map((entry) => entry.point);
+  }
+
+  private scopeAnchors(context: PassiveTreeHudContext, scopeKey: PassiveTreeScopeKey): TreePoint[] {
+    const snapshot = context.snapshot;
+    if (!snapshot) return [];
+    const result: TreePoint[] = [];
+    for (const node of indexPassiveNodes(snapshot).values()) {
+      if (passiveNodeScopeKey(node) !== scopeKey) continue;
+      const point = passiveFixedNodePoint(node);
+      if (point) result.push(point);
+    }
+    return result;
+  }
+
+  private trackingAnchors(context: PassiveTreeHudContext, projection: ProjectionContext): TreePoint[] {
+    const result: TreePoint[] = [];
+    const seen = new Set<number>();
+    const push = (point: TreePoint) => {
+      if (seen.has(point.id)) return;
+      seen.add(point.id);
+      result.push(point);
+    };
+    for (const point of this.guideAnchors(context, projection.scopeKey)) push(point);
+    for (const point of this.viewportAnchors(context, projection)) push(point);
+    return result.slice(0, MAX_LOCAL_TRACKING_ANCHORS);
+  }
+
+  private trackProjection(context: PassiveTreeHudContext, projection: ProjectionContext, capture: PoeWindowCapture): ProjectionContext | undefined {
+    const candidates = this.detectDisplayCandidates(capture, projection.display);
+    if (candidates.length < 5) return undefined;
+    const previous = projection.registration ?? registrationFromTransform(projection.transform);
+    const displayDiagonal = Math.hypot(projection.display.bounds.width, projection.display.bounds.height);
+    const localAnchors = this.trackingAnchors(context, projection);
+    let registration = trackPassiveTreeRegistration(previous, localAnchors, candidates, {
+      tolerancePx: 16,
+      voteCellPx: 10,
+      minimumInliers: Math.min(6, Math.max(4, localAnchors.length)),
+      maximumCandidates: 160,
+      maximumOffsetShiftPx: Math.max(420, displayDiagonal * 0.42),
+      scaleFactors: [0.64, 0.74, 0.84, 0.92, 0.97, 1, 1.04, 1.1, 1.2, 1.34, 1.52, 1.72],
+      hypothesesPerScale: 5,
+      minimumScale: MIN_SCALE,
+      maximumScale: MAX_SCALE,
+      minimumScaleRatio: 0.52,
+      maximumScaleRatio: 1.9,
+      minimumConfidence: 0.61,
+      maximumRmsRatio: 0.82,
+      confidenceAnchorCap: 16,
+    });
+
+    if (!registration) {
+      const globalAnchors = this.scopeAnchors(context, projection.scopeKey);
+      const minimumInliers = projection.scopeKey === 'base' ? 8 : 5;
+      registration = trackPassiveTreeRegistration(previous, globalAnchors, candidates, {
+        tolerancePx: 18,
+        voteCellPx: 12,
+        minimumInliers,
+        maximumCandidates: 180,
+        maximumOffsetShiftPx: Math.max(1200, displayDiagonal * 1.8),
+        scaleFactors: [0.26, 0.34, 0.44, 0.56, 0.7, 0.84, 1, 1.2, 1.48, 1.82, 2.25, 2.8, 3.5, 4.4],
+        hypothesesPerScale: 8,
+        minimumScale: MIN_SCALE,
+        maximumScale: MAX_SCALE,
+        minimumScaleRatio: 0.18,
+        maximumScaleRatio: 5,
+        minimumConfidence: 0.7,
+        maximumRmsRatio: 0.76,
+        confidenceAnchorCap: 18,
+      });
+    }
+
+    if (!registration) return undefined;
+    this.liveRegistrations.set(projection.calibrationKey, registration);
+    return { ...projection, transform: registration.transform, registration };
+  }
+
   private exactPath(context: PassiveTreeHudContext, projection: ProjectionContext): PassiveTreeHudPathPoint[] {
     const guide = context.guide;
     const snapshot = context.snapshot;
@@ -547,7 +706,7 @@ export class PassiveTreeHudService {
       kind: guide.target.nodeKind,
       x: projectedTarget.x,
       y: projectedTarget.y,
-      markerRadius: clamp(12 + projection.transform.scale * 24, 12, 20),
+      markerRadius: clamp(11 + projection.transform.scale * 42, 12, 30),
       operation: guide.target.type,
       index: guide.target.index,
       total: guide.target.total,
@@ -568,8 +727,10 @@ export class PassiveTreeHudService {
       classStartNodeId: guide.classStartNodeId,
       treeScope: projection.scopeKey === 'base' ? 'base' : 'ascendancy',
       ascendancyName,
-      message: `Passive tree positively matched. Full-zoom calibrated projection active. ${RECENTER_HOTKEY} recentres on the class/Ascendancy start.`,
-      confidence: 1,
+      message: 'Passive tree matched. Live PoB node tracking is following pan and zoom automatically.',
+      confidence: projection.registration?.confidence ?? 1,
+      inliers: projection.registration?.inliers,
+      rms: projection.registration?.rms,
       displayId: projection.display.id,
       displayBounds: { ...projection.display.bounds },
       captureSize: { ...capture.capture },
@@ -599,7 +760,7 @@ export class PassiveTreeHudService {
 
     const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     this.consecutiveTreeMatches = 0;
-    this.emit(this.waitingTreeState(context, 'Calibrating Passive Tree HUD from the visible passive-tree UI...'));
+    this.emit(this.waitingTreeState(context, 'Capturing the one-time passive-tree screen reference...'));
     try {
       // The HUD state above hides our overlay before we take the reference.
       await new Promise((resolve) => setTimeout(resolve, 60));
@@ -621,17 +782,18 @@ export class PassiveTreeHudService {
       }
       const stability = matchPassiveTreeScreenSignature(signature, second.bitmap, second.capture.width, second.capture.height);
       if (!stability.matched) {
-        this.emit(this.waitingTreeState(context, 'Calibration rejected: the top-centre passive-tree UI was not stable. Keep the tree open and fully zoomed out, then try again.'));
+        this.emit(this.waitingTreeState(context, 'Calibration rejected: the top-centre passive-tree UI was not stable. Keep the tree open and try again.'));
         return;
       }
 
       const key = calibrationKey(display, scopeKey);
       const existing = this.calibrations[key];
-      const scale = existing?.scale ?? fullZoomScale(display);
+      const live = this.liveRegistrations.get(key);
+      const scale = clamp(live?.transform.scale ?? existing?.scale ?? seedScale(display), MIN_SCALE, MAX_SCALE);
       const cursor = screen.getCursorScreenPoint();
       const localX = cursor.x - display.bounds.x;
       const localY = cursor.y - display.bounds.y;
-      this.calibrations[key] = {
+      const calibration: StoredCalibration = {
         scale,
         offsetX: localX - anchor.x * scale,
         offsetY: localY - anchor.y * scale,
@@ -640,9 +802,16 @@ export class PassiveTreeHudService {
         screenCheck: signature,
         updatedAt: new Date().toISOString(),
       };
+      this.calibrations[key] = calibration;
+      this.liveRegistrations.set(key, registrationFromTransform({
+        scale: calibration.scale,
+        offsetX: calibration.offsetX,
+        offsetY: calibration.offsetY,
+        ySign: calibration.ySign,
+      }));
       this.consecutiveTreeMatches = REQUIRED_TREE_MATCHES;
       await this.saveCalibrations();
-      this.options.log?.info(`Passive Tree HUD calibrated for ${key} at scale ${scale.toFixed(4)} from ${first.capture.width}x${first.capture.height} capture.`);
+      this.options.log?.info(`Passive Tree HUD reference captured for ${key}; live pan/zoom tracking will solve the active scale and translation.`);
       this.poke();
     } catch (error) {
       if (String(error).includes('POE_NOT_RUNNING')) {
@@ -664,11 +833,16 @@ export class PassiveTreeHudService {
     if (!anchor) return;
     const anchorScreen = projectPassiveTreePoint(projection.transform, anchor);
     const scale = clamp(projection.transform.scale * factor, MIN_SCALE, MAX_SCALE);
-    this.calibrations[projection.calibrationKey] = {
-      ...projection.calibration,
+    const transform: PassiveTreeTransform = {
+      ...projection.transform,
       scale,
       offsetX: anchorScreen.x - anchor.x * scale,
       offsetY: anchorScreen.y - anchor.y * scale,
+    };
+    this.liveRegistrations.set(projection.calibrationKey, registrationFromTransform(transform));
+    this.calibrations[projection.calibrationKey] = {
+      ...projection.calibration,
+      ...transform,
       updatedAt: new Date().toISOString(),
     };
     void this.saveCalibrations();
@@ -680,9 +854,10 @@ export class PassiveTreeHudService {
     const projection = this.projectionContext(context);
     if (!projection) return;
     delete this.calibrations[projection.calibrationKey];
+    this.liveRegistrations.delete(projection.calibrationKey);
     this.consecutiveTreeMatches = 0;
     void this.saveCalibrations();
-    this.emit(this.waitingTreeState(context, `Calibration cleared. Open the passive tree, fully zoom out, hover the class/Ascendancy start circle, then press ${RECENTER_HOTKEY}.`));
+    this.emit(this.waitingTreeState(context, `Screen reference cleared. Open the passive tree, hover the class/Ascendancy start circle once, then press ${RECENTER_HOTKEY}. After that, pan and zoom are tracked automatically.`));
   }
 
   private async poll(): Promise<void> {
@@ -697,22 +872,22 @@ export class PassiveTreeHudService {
         return;
       }
 
-      const projection = this.projectionContext(context);
+      const capture = await this.capturePoeWindow();
+      const projection = this.projectionContext(context, capture.displayId);
       if (!projection) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `One-time calibration required. Use Borderless/Windowed Fullscreen, open the passive tree, fully zoom out, hover the ${context.guide?.className ?? 'class/Ascendancy'} start circle and press ${RECENTER_HOTKEY}.`));
+        this.emit(this.waitingTreeState(context, `One-time screen reference required. Open the passive tree, hover the ${context.guide?.className ?? 'class/Ascendancy'} start circle and press ${RECENTER_HOTKEY}. Normal pan and zoom are automatic after this.`));
         return;
       }
 
-      const capture = await this.capturePoeWindow();
       if (!captureDisplayMatches(capture, projection.display)) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because Path of Exile moved to another display. Hover the class/Ascendancy start and press ${RECENTER_HOTKEY} to recalibrate there.`));
+        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because Path of Exile moved to another display. Hover the class/Ascendancy start once and press ${RECENTER_HOTKEY} on that display.`));
         return;
       }
       if (!captureAspectStable(projection.calibration.captureAspect, capture)) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because the PoE capture shape changed after calibration. Restore Borderless/Windowed Fullscreen or press ${RECENTER_HOTKEY} to recalibrate.`));
+        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because the PoE window shape changed after its screen reference was captured. Press ${RECENTER_HOTKEY} once to refresh the reference.`));
         return;
       }
 
@@ -724,16 +899,22 @@ export class PassiveTreeHudService {
       );
       if (!match.matched) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, 'Path of Exile is running. Waiting for the calibrated passive skill tree UI to be visible.'));
+        this.emit(this.waitingTreeState(context, 'Path of Exile is running. Waiting for the passive skill tree UI to be visible.'));
         return;
       }
 
       this.consecutiveTreeMatches += 1;
       if (this.consecutiveTreeMatches < REQUIRED_TREE_MATCHES) {
-        this.emit(this.waitingTreeState(context, 'Passive-tree UI candidate found; confirming before showing the HUD.', 'searching'));
+        this.emit(this.waitingTreeState(context, 'Passive-tree UI found; confirming before showing the HUD.', 'searching'));
         return;
       }
-      this.emit(this.visibleState(context, projection, capture));
+
+      const tracked = this.trackProjection(context, projection, capture);
+      if (!tracked) {
+        this.emit(this.waitingTreeState(context, 'Passive tree is open. Reacquiring the PoB node constellation after pan/zoom...', 'searching'));
+        return;
+      }
+      this.emit(this.visibleState(context, tracked, capture));
     } catch (error) {
       this.consecutiveTreeMatches = 0;
       if (String(error).includes('POE_NOT_RUNNING')) {
