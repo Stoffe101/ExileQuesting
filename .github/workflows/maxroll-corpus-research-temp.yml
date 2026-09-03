@@ -20,12 +20,19 @@ jobs:
       - run: npm ci
       - name: Inspect current Maxroll leveling corpus
         run: npx esbuild tools/research-maxroll-corpus-temp.ts --bundle --platform=node --format=esm --outfile=.tmp/research-maxroll-corpus-temp.mjs && node .tmp/research-maxroll-corpus-temp.mjs
-      - name: Inspect current Mobalytics build structure
-        run: node tools/research-mobalytics-temp.mjs
-      - uses: actions/upload-artifact@v4
+      - name: Upload Maxroll corpus report
+        uses: actions/upload-artifact@v4
         with:
-          name: build-guide-corpus-reports
-          path: |
-            maxroll-corpus-report.json
-            mobalytics-structure-report.json
+          name: maxroll-corpus-report
+          path: maxroll-corpus-report.json
           if-no-files-found: error
+      - name: Inspect current Mobalytics build structure
+        continue-on-error: true
+        run: node tools/research-mobalytics-temp.mjs
+      - name: Upload Mobalytics structure report when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobalytics-structure-report
+          path: mobalytics-structure-report.json
+          if-no-files-found: ignore
