@@ -4,7 +4,7 @@
 
 Build Doctor must learn how the **actual imported build** responds to controlled changes instead of assigning universal stat weights. The pinned Path of Building calculation kernel remains authoritative for numerical outcomes; ExileQuesting only derives structured comparisons from those measured states.
 
-The first merged primitive supports one reversible equipment replacement. This follow-up adds the analysis layer needed to turn a sequence of PoB recalculations into a local response surface.
+The first merged primitive supports one reversible equipment replacement. The breakpoint-analysis layer turns sequences of PoB recalculations into local response surfaces. The next primitive adds reversible single-node passive allocation/deallocation so Build Doctor can measure passive-tree marginal effects with the same deterministic calculation boundary.
 
 ## Current boundary
 
@@ -18,7 +18,29 @@ The first merged primitive supports one reversible equipment replacement. This f
 - reports large adjacent slope-change candidates using an explicit threshold;
 - fails closed on duplicate axis values, unavailable metrics, non-finite inputs and oversized sample sets.
 
+The calculation worker currently enables exactly one perturbation per request from this reviewed set:
+
+- `replace-item` for bounded core equipment slots;
+- `passive-node` with `allocate` or `deallocate` for one ordinary passive node.
+
 This layer performs **no PoE mechanics simulation of its own**.
+
+## Passive-node sensitivity
+
+Passive sensitivity uses Path of Building's own reversible miscellaneous calculator override with `addNodes` or `removeNodes`. The imported PoB tree is not edited in place.
+
+The first boundary deliberately excludes node classes that need extra semantics before they can be interpreted safely:
+
+- class starts and ascendancy class starts;
+- mastery selectors, because the chosen mastery effect is additional state;
+- jewel sockets, because socket allocation and jewel state are coupled;
+- proxy nodes.
+
+The worker also verifies state consistency. An allocation request fails if the node is already allocated, and a deallocation request fails if the node is not allocated.
+
+A passive-node result is a **marginal calculation**, not a legal-tree recommendation. It answers what PoB calculates when that one node is added or removed from the current state. It does not yet prove that an unallocated node is reachable for one passive point or that removing an allocated node leaves a connected legal tree. Path legality belongs to the later whole-build transition optimizer.
+
+The parity harness independently asks pinned PoB to choose ordinary allocated and unallocated nodes with measurable effects, calculates them directly through PoB's own `CalcOverride`, then verifies ExileQuesting's normalized before/after states for both allocation and deallocation.
 
 ## Breakpoint terminology
 
@@ -53,12 +75,12 @@ The first analyzer exposes reviewed normalized outputs already present in the ca
 
 Additional axes or outputs should only be added after their PoB normalization and parity behavior are understood.
 
-## Contract hardening in this milestone
+## Contract hardening
 
-The TypeScript request validator now matches the actual Lua worker capability: `calculate-with-perturbations` accepts **exactly one** currently enabled `replace-item` perturbation. A single `synthetic-stat`, gem, passive or configuration perturbation is rejected before reaching the worker instead of being mistakenly accepted by the TypeScript boundary and rejected later by Lua.
+The TypeScript request validator is kept aligned with the actual Lua worker capability. `calculate-with-perturbations` accepts **exactly one** enabled perturbation. Unsupported synthetic-stat, gem and configuration placeholders remain rejected before worker execution until each has a real PoB-backed implementation and parity coverage.
 
-Those perturbation types remain protocol design placeholders until each one has a real PoB-backed implementation and parity coverage.
+Passive node ids are required to be positive safe integers within the worker's explicit bound before they cross the process boundary.
 
 ## Next engineering step
 
-Build the first controlled scalar sweep against the pinned PoB worker. The preferred first target is a mechanic where upstream PoB exposes a reversible calculator input cleanly and where an independent reference oracle can verify every sampled state. Once that is proven, feed the measured states into this analyzer and add mechanic-specific breakpoint confirmation rather than inferring causes from curve shape alone.
+Use these deterministic discrete primitives to start extracting mechanic relationships and configuration dependencies. Scalar sweeps should only be added where pinned PoB exposes a reversible calculation input that can be independently parity-tested; curve shape alone must never be promoted into a mechanic claim.
