@@ -5,6 +5,7 @@ import './ui/styles.css';
 import './ui/maxroll.css';
 import './ui/gear-coach.css';
 import './ui/build-doctor.css';
+import './ui/build-doctor-dependencies.css';
 import './ui/v020.css';
 import './ui/reliability.css';
 import './ui/responsive.css';

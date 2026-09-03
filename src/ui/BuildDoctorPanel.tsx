@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { BuildDoctorSnapshot } from '../core/build-doctor';
+import BuildDoctorDependencyPanel from './BuildDoctorDependencyPanel';
 
 type BuildWorkspaceState = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
 
@@ -56,6 +57,7 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
   const maxHits = baseline?.defence.maximumHit;
   const utilityRows = snapshot?.status === 'ready' ? snapshot.flaskInspection?.flasks ?? [] : [];
   const activeUtilities = useMemo(() => utilityRows.filter((entry) => entry.active).length, [utilityRows]);
+  const activeUtilityDependencies = useMemo(() => utilityRows.filter((entry) => entry.active && entry.utility).length, [utilityRows]);
 
   return (
     <section className="panel build-doctor-panel" data-testid="build-doctor-panel">
@@ -125,6 +127,15 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
               <small className="build-doctor-boundary">Enabled does not mean sustainably available while mapping or bossing. Encounter uptime is evaluated separately.</small>
             </div>
           </div>
+
+          {profile && (
+            <BuildDoctorDependencyPanel
+              key={`${profile.id}:${snapshot.generatedAt}`}
+              profileId={profile.id}
+              enabled={snapshot.status === 'ready'}
+              activeUtilityCount={activeUtilityDependencies}
+            />
+          )}
 
           <div className="build-doctor-findings">
             <div className="section-title"><h3>Evidence & caveats</h3><span>{snapshot.findings.length}</span></div>
