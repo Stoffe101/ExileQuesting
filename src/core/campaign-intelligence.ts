@@ -21,8 +21,12 @@ function action(stepId: string, suffix: string, type: RouteAction['type'], title
   };
 }
 
+function routeText(step: CampaignDataset['steps'][number]): string {
+  return `${step.title} ${step.rawLines.join(' ')}`.toLowerCase();
+}
+
 function mentionsKitava(step: CampaignDataset['steps'][number]): boolean {
-  return step.rawLines.some((line) => /\bkitava\b/i.test(line)) || /\bkitava\b/i.test(step.title);
+  return /\bkitava\b/i.test(routeText(step));
 }
 
 function currentCraftingRecipe(value: string | undefined): string | undefined {
@@ -35,11 +39,14 @@ export function buildCampaignIntelligence(dataset: CampaignDataset): CampaignInt
   const actionsByStep: Record<string, RouteAction[]> = {};
   const areas = new Map(dataset.areas.map((area) => [area.id, area]));
   let announcedTownBench = false;
+  let announcedSiosa = false;
+  let announcedLilly = false;
 
   for (const step of dataset.steps) {
     const actions: RouteAction[] = [];
     const area = step.targetAreaId ? areas.get(step.targetAreaId) : undefined;
     const craftingRecipe = currentCraftingRecipe(area?.crafting_recipe);
+    const text = routeText(step);
 
     if (!announcedTownBench && step.act >= 2 && step.targetAreaId?.endsWith('_town')) {
       announcedTownBench = true;
@@ -59,6 +66,28 @@ export function buildCampaignIntelligence(dataset: CampaignDataset): CampaignInt
         'craft',
         `Unlock crafting recipe: ${craftingRecipe}`,
         'This recipe is permanently added to the Crafting Bench when you interact with it in the area.',
+      ));
+    }
+
+    if (!announcedSiosa && /\bsiosa\b/.test(text) && /a_fixture_of_fate|fixture of fate/.test(text)) {
+      announcedSiosa = true;
+      actions.push(action(
+        step.id,
+        'siosa-gems',
+        'gem',
+        'Siosa becomes your early broad gem fallback',
+        'After A Fixture of Fate, Siosa can sell a broad pool of early skill and support gems in the Library. Bring the currency you need into the zone because this vendor is outside town.',
+      ));
+    }
+
+    if (!announcedLilly && /\blilly\b/.test(text) && /fallen_from_grace|fallen from grace/.test(text)) {
+      announcedLilly = true;
+      actions.push(action(
+        step.id,
+        'lilly-gems',
+        'gem',
+        'Lilly becomes your long-term gem vendor',
+        'After Fallen from Grace, Lilly is the main broad gem fallback for later build swaps and can also be used from your hideout. Re-check the active build stage here if several gems change at once.',
       ));
     }
 
