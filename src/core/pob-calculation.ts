@@ -25,6 +25,7 @@ export interface PobCalculationKernelVersion {
   pobRepository: string;
   pobCommit: string;
   runtime: string;
+  runtimeRevision: string;
   adapterVersion: string;
 }
 
