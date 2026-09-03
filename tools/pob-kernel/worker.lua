@@ -9,6 +9,7 @@ local PROTOCOL_VERSION = 1
 local ADAPTER_VERSION = "0.1.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
+local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
 local SENTINEL = "@@EXILEQUESTING_POB@@"
 
 dofile("HeadlessWrapper.lua")
@@ -56,7 +57,8 @@ local function kernelVersion()
         protocolVersion = PROTOCOL_VERSION,
         pobRepository = POB_REPOSITORY,
         pobCommit = POB_COMMIT,
-        runtime = jit and ("LuaJIT " .. tostring(jit.version or "")) or _VERSION,
+        runtime = jit and tostring(jit.version or "LuaJIT") or _VERSION,
+        runtimeRevision = RUNTIME_REVISION,
         adapterVersion = ADAPTER_VERSION,
     }
 end
@@ -88,6 +90,13 @@ local function normalizeOutput(request, startedAt)
         table.insert(warnings, {
             code = "guard-skill-active",
             message = "PoB maximum-hit/EHP outputs include an active guard skill in this imported configuration.",
+            confidence = "verified",
+        })
+    end
+    if RUNTIME_REVISION == "unverified-runtime" then
+        table.insert(warnings, {
+            code = "unverified-runtime",
+            message = "The LuaJIT runtime revision was not supplied, so this calculation cannot claim fully reproducible kernel provenance.",
             confidence = "verified",
         })
     end
