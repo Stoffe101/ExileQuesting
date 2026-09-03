@@ -43,7 +43,8 @@ export class PobKernelWorkerError extends Error {
 
 function defaultLuaModulePath(pobSourcePath: string): string {
   const runtimeLua = resolve(pobSourcePath, '..', 'runtime', 'lua');
-  return `${resolve(runtimeLua, '?.lua')};${resolve(runtimeLua, '?', 'init.lua')}`;
+  const pinnedRuntimePath = `${resolve(runtimeLua, '?.lua')};${resolve(runtimeLua, '?', 'init.lua')}`;
+  return process.env.LUA_PATH ? `${pinnedRuntimePath};${process.env.LUA_PATH}` : pinnedRuntimePath;
 }
 
 function workerFailureError(response: PobWorkerFailure, stdout: string, stderr: string): PobKernelWorkerError {
