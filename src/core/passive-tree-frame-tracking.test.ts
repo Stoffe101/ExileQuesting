@@ -87,6 +87,17 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetY).toBeCloseTo(-8, -0.5);
   });
 
+  it('tracks zoom and pan together while keeping one immutable target space', () => {
+    const previous = treeTexture(width, height);
+    const current = transformed(previous, width, height, 1.06, -7, 4);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height);
+    expect(result).toBeDefined();
+    expect(result!.scale).toBeCloseTo(1.06, 1);
+    expect(result!.offsetX).toBeCloseTo(-7, 0);
+    expect(result!.offsetY).toBeCloseTo(4, 0);
+    expect(result!.inliers).toBeGreaterThanOrEqual(6);
+  });
+
   it('stays locked through a tooltip-like occlusion', () => {
     const previous = treeTexture(width, height);
     const current = transformed(previous, width, height, 1, -10, 6);
