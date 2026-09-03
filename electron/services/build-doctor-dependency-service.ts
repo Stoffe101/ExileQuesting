@@ -1,18 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import {
   measuredConfigurationDependency,
+  pobUptimeEvidence,
   readyDependencyScan,
   unavailableDependencyScan,
   unsupportedConfigurationDependency,
   type BuildDoctorConfigurationDependency,
   type BuildDoctorDependencyScan,
+  type BuildDoctorPobUptimeEvidence,
 } from '../../src/core/build-doctor-dependencies';
 import type { BuildDoctorKernelProvenance } from '../../src/core/build-doctor';
 import type {
   PobCalculationKernelVersion,
   PobCalculationResult,
+  PobFlaskProfile,
+  PobFlaskUptimeEntry,
   PobPerturbationComparison,
   PobWorkerFlaskInspectionSuccess,
+  PobWorkerFlaskUptimeInspectionSuccess,
   PobWorkerPerturbationSuccess,
   PobWorkerResponse,
 } from '../../src/core/pob-calculation';
@@ -22,6 +27,11 @@ import { runPobKernelRequest } from './pob-kernel-service';
 function flaskResponse(response: PobWorkerResponse): PobWorkerFlaskInspectionSuccess {
   if (!response.ok || !('flaskInspection' in response)) throw new Error('PoB worker did not return the requested utility configuration inspection.');
   return response as PobWorkerFlaskInspectionSuccess;
+}
+
+function flaskUptimeResponse(response: PobWorkerResponse): PobWorkerFlaskUptimeInspectionSuccess {
+  if (!response.ok || !('flaskUptimeInspection' in response)) throw new Error('PoB worker did not return the requested utility uptime inspection.');
+  return response as PobWorkerFlaskUptimeInspectionSuccess;
 }
 
 function perturbationResponse(response: PobWorkerResponse): PobWorkerPerturbationSuccess {
@@ -63,6 +73,27 @@ function reviewedBaselineSignature(result: PobCalculationResult): string {
   ]);
 }
 
+function uptimeEvidenceForUtility(
+  utility: PobFlaskProfile,
+  uptimeBySlot: ReadonlyMap<string, PobFlaskUptimeEntry>,
+  inspectionFailure?: string,
+): BuildDoctorPobUptimeEvidence {
+  if (inspectionFailure) {
+    return pobUptimeEvidence(undefined, `PoB uptime inspection was unavailable. ${inspectionFailure}`);
+  }
+  const entry = uptimeBySlot.get(utility.slot);
+  if (!entry) {
+    return pobUptimeEvidence(undefined, `PoB uptime inspection did not return ${utility.slot}.`);
+  }
+  if (entry.slot !== utility.slot
+    || entry.name !== utility.name
+    || entry.baseName !== utility.baseName
+    || entry.active !== utility.active) {
+    return pobUptimeEvidence(undefined, `PoB uptime evidence for ${utility.slot} did not match the independently inspected equipped utility identity/state.`);
+  }
+  return pobUptimeEvidence(entry);
+}
+
 export async function analyzeBuildDoctorConfigurationDependencies(profileId: string): Promise<BuildDoctorDependencyScan> {
   const context = await resolveBuildDoctorCalculationContext(profileId);
   if (!context.ok) {
@@ -99,9 +130,38 @@ export async function analyzeBuildDoctorConfigurationDependencies(profileId: str
       });
     }
 
+    const uptimeBySlot = new Map<string, PobFlaskUptimeEntry>();
+    let uptimeInspectionFailure: string | undefined;
+    let uptimeInspectionKernel: PobCalculationKernelVersion | undefined;
+    try {
+      const uptimeInspection = flaskUptimeResponse(await runPobKernelRequest({
+        protocolVersion: 1,
+        requestId: `doctor-dependency-uptime-${randomUUID()}`,
+        operation: 'inspect-flask-uptime',
+        xml,
+        scenario: {
+          scenario: 'imported',
+          label: 'Imported PoB utility uptime evidence',
+          notes: ['PoB-owned Items tab estimate only; ExileQuesting does not convert this into practical DPS/EHP.'],
+        },
+      }, { ...runtimeOptions, timeoutMs: 45_000 })).flaskUptimeInspection;
+      uptimeInspectionKernel = uptimeInspection.kernel;
+      for (const entry of uptimeInspection.flasks) {
+        if (uptimeBySlot.has(entry.slot)) throw new Error(`PoB uptime inspection returned duplicate ${entry.slot} entries.`);
+        uptimeBySlot.set(entry.slot, entry);
+      }
+    } catch (error) {
+      uptimeInspectionFailure = conciseBuildDoctorError(error);
+    }
+
+    if (uptimeInspectionKernel && !sameKernel(inspection.kernel, uptimeInspectionKernel)) {
+      throw new Error('PoB utility configuration and uptime inspections reported inconsistent kernel provenance.');
+    }
+
     const dependencies: BuildDoctorConfigurationDependency[] = [];
     let baselineSignature: string | undefined;
     for (const utility of activeUtilities) {
+      const uptime = uptimeEvidenceForUtility(utility, uptimeBySlot, uptimeInspectionFailure);
       let comparison: PobPerturbationComparison;
       try {
         comparison = perturbationResponse(await runPobKernelRequest({
@@ -112,7 +172,7 @@ export async function analyzeBuildDoctorConfigurationDependencies(profileId: str
           scenario: {
             scenario: 'imported',
             label: `Imported PoB state without ${utility.slot}`,
-            notes: ['Measured reversible configuration sensitivity only; no encounter availability is inferred.'],
+            notes: ['Measured reversible configuration sensitivity only; PoB uptime evidence is kept separate from output deltas.'],
           },
           perturbations: [{ kind: 'toggle-flask', slot: utility.slot }],
         }, { ...runtimeOptions, timeoutMs: 45_000 })).comparison;
@@ -120,6 +180,7 @@ export async function analyzeBuildDoctorConfigurationDependencies(profileId: str
         dependencies.push(unsupportedConfigurationDependency(
           utility,
           `PoB could not measure this reversible availability change. ${conciseBuildDoctorError(error)}`,
+          uptime,
         ));
         continue;
       }
@@ -133,7 +194,7 @@ export async function analyzeBuildDoctorConfigurationDependencies(profileId: str
         throw new Error('Configuration dependency calculations did not agree on the imported-state baseline for the reviewed outputs.');
       }
 
-      dependencies.push(measuredConfigurationDependency(utility, comparison));
+      dependencies.push(measuredConfigurationDependency(utility, comparison, uptime));
     }
 
     return readyDependencyScan({
