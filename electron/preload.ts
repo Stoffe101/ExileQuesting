@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { BuildDoctorSnapshot } from '../src/core/build-doctor';
+import type { BuildDoctorCandidateItemAnalysis } from '../src/core/build-doctor-candidate-item';
 import type { BuildDoctorDependencyScan } from '../src/core/build-doctor-dependencies';
 import type { BuildProfile } from '../src/core/build-profiles';
 import type { BuildPlannerSnapshot } from '../src/core/build-planner';
@@ -84,6 +85,7 @@ const api = {
   deleteBuildProfile: (id: string): Promise<BuildProfile[]> => ipcRenderer.invoke('pob:delete', id),
   analyzeBuildDoctor: (profileId: string): Promise<BuildDoctorSnapshot> => ipcRenderer.invoke('build-doctor:analyze', profileId),
   analyzeBuildDoctorDependencies: (profileId: string): Promise<BuildDoctorDependencyScan> => ipcRenderer.invoke('build-doctor:dependencies', profileId),
+  analyzeBuildDoctorCandidateItem: (profileId: string, slot: string, itemText: string): Promise<BuildDoctorCandidateItemAnalysis> => ipcRenderer.invoke('build-doctor:candidate-item', profileId, slot, itemText),
   analyzeGearItem: (input: string): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze', input),
   analyzeClipboardGearItem: (): Promise<GearCoachAnalysis> => ipcRenderer.invoke('gear:analyze-clipboard'),
   selectLootFilterBase: (): Promise<BuildWorkspaceResult> => ipcRenderer.invoke('loot:select-base'),
