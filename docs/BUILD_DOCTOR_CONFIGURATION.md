@@ -50,9 +50,43 @@ Configuration Doctor normalizes either toggle direction into the same active con
 
 The report preserves each scenario separately. A mapping calculation and sustained-boss calculation may show different numerical dependence on the same condition without either calculation being treated as uptime evidence.
 
+## PoB flask profiles
+
+Configuration Doctor also needs to know *what PoB itself calculated about the equipped flask* before any uptime interpretation is attempted.
+
+The `inspect-flasks` worker operation exposes a bounded, read-only profile for the five equipped flask slots. It reads processed data directly from pinned PoB rather than parsing tooltip text or reconstructing item rules independently.
+
+For each equipped flask the profile includes:
+
+- slot, name, base name, rarity and imported active state;
+- whether PoB classifies it as a life, mana or utility flask;
+- processed local `flaskData` values where available:
+  - duration;
+  - maximum charges;
+  - charges used;
+  - local charge-gain modifier;
+  - local flask-effect increase;
+- build-level PoB modifier inputs relevant to flask duration, charge consumption, charge gain and effect;
+- PoB modifier inputs for generated charges per second, including generic and life/mana/utility-specific sources;
+- generated charges per empty flask slot;
+- chance not to consume charges, capped at 100% as in the reviewed PoB path;
+- Iron Flask charges generated on Ward Break.
+
+The worker also reports the number of empty flask slots because PoB has mechanics whose generated-charge contribution depends on that count.
+
+These are **inputs and processed PoB state, not a real-combat uptime claim**. The profile contract deliberately contains no `uptime`, `averageUptime`, `minimumUptime` or equivalent field.
+
+### Why we expose inputs before uptime
+
+Pinned PoB already contains a flask-uptime calculation path in `ItemsTab.lua`. It combines processed flask duration and charge cost with charge generation, charge-gain modifiers, chance not to consume charges and interval-aware minimum/average calculations.
+
+ExileQuesting should review and parity-gate that exact upstream behavior before surfacing an uptime result. Reimplementing a similar-looking formula independently would create a second mechanics engine and undermine the Build Doctor evidence model.
+
+The profile milestone therefore gives later Configuration Doctor work the verified ingredients while keeping the interpretation boundary intact.
+
 ## What deterministic sensitivity does not prove
 
-A flask toggle does not prove real combat uptime. Build Doctor must not infer that a flask is permanently available because the PoB checkbox is active.
+A flask toggle or flask profile does not prove real combat uptime. Build Doctor must not infer that a flask is permanently available because the PoB checkbox is active, because charge-generation inputs exist, or because a flask has enough maximum charges for several uses.
 
 PoB perturbation/calculation evidence is therefore not accepted as Configuration Doctor uptime evidence. Availability labels come from a separate reviewed evidence channel.
 
@@ -106,17 +140,21 @@ Later scenario generation may intentionally create different explicit character 
 
 ## Parity
 
-Flask availability has its own real-PoB parity oracle in addition to the existing item/passive parity harness.
+Flask availability and flask-profile inspection share a dedicated real-PoB parity gate in addition to the existing item/passive parity harness.
 
 The independent reference process:
 
 - loads the same pinned upstream PoB fixture directly;
-- scans equipped flask slots;
-- selects a flask whose `toggleFlask` calculation changes at least one reviewed raw metric;
+- reads processed `item.flaskData` and the reviewed `mainEnv.modDB` inputs directly from PoB;
+- records the number of empty flask slots;
+- cross-checks imported slot activity against PoB's active calculation environment;
+- independently selects a flask whose `toggleFlask` calculation changes at least one reviewed raw metric;
 - records the baseline active state and opposite state;
 - records raw before/after PoB outputs.
 
-ExileQuesting independently performs the same slot toggle through its worker. CI compares normalized states and requires the worker's explicit state transition to match the reference. At least one upstream fixture must exercise a measurable flask toggle or the dedicated parity gate fails instead of silently claiming coverage.
+ExileQuesting independently performs `inspect-flasks` and the same slot toggle through its worker. CI compares every exposed profile field and the normalized before/after calculation states. At least one equipped flask and at least one measurable toggle must be exercised across the upstream fixtures or the dedicated gate fails instead of silently claiming coverage.
+
+The worker adapter revision is part of provenance. Advancing the flask inspection contract to adapter `0.5.0` also advances the original base/item/passive parity harness to require `0.5.0`, so older deterministic primitives cannot silently run against a changed adapter.
 
 ## Mechanic graph integration
 
@@ -132,12 +170,13 @@ Configuration Doctor consumes this graph and derives a typed dependency report w
 
 ## Next steps
 
-The next Configuration Doctor work should begin feeding real reviewed mechanic evidence into the availability model and expand through similarly reversible, evidence-backed state changes. Priorities include:
+The next Configuration Doctor work should build on the parity-gated flask profile instead of recreating flask mechanics. Priorities include:
 
-1. flask charge generation and consumption evidence for mapping/boss sustainability;
-2. guard-skill available/unavailable defensive states;
-3. reviewed PoB conditions where both baseline state and transition direction can be proven;
-4. cold-start and low-resource scenario generation;
-5. UI surfacing that shows calculated impact separately from availability confidence.
+1. review and expose PoB's own average/minimum flask-uptime calculation with an independent parity oracle;
+2. distinguish charge generation that depends on mapping kills, boss interactions, Ward Break or other situational events from unconditional generation;
+3. feed only sufficiently supported character-specific results into the availability-evidence model;
+4. add guard-skill available/unavailable defensive states;
+5. add cold-start and low-resource scenario generation;
+6. surface calculated impact, deterministic resource inputs and availability confidence separately in the UI.
 
 Generic arbitrary configuration mutation remains disabled until a safe, parity-testable contract exists.

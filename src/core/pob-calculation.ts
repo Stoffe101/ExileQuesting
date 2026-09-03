@@ -144,6 +144,52 @@ export interface PobCalculationResult {
   elapsedMs: number;
 }
 
+export interface PobFlaskLocalProfile {
+  duration?: number;
+  chargesMax?: number;
+  chargesUsed?: number;
+  chargeGainModifier?: number;
+  effectIncrease?: number;
+}
+
+export interface PobFlaskBuildModifiers {
+  durationIncrease: number;
+  chargesUsedIncrease: number;
+  chargesGainedIncrease: number;
+  effectIncrease: number;
+  magicUtilityEffectIncrease: number;
+  genericChargesGeneratedPerSecond: number;
+  lifeChargesGeneratedPerSecond: number;
+  manaChargesGeneratedPerSecond: number;
+  utilityChargesGeneratedPerSecond: number;
+  chargesGeneratedPerEmptyFlaskPerSecond: number;
+  chanceNotConsumeCharges: number;
+  ironFlaskChargesGeneratedOnWardBreak: number;
+}
+
+export interface PobFlaskProfile {
+  slot: PobFlaskSlot;
+  name: string;
+  baseName: string;
+  rarity: string;
+  active: boolean;
+  life: boolean;
+  mana: boolean;
+  utility: boolean;
+  local: PobFlaskLocalProfile;
+  buildModifiers: PobFlaskBuildModifiers;
+}
+
+export interface PobFlaskInspectionResult {
+  protocolVersion: number;
+  requestId: string;
+  kernel: PobCalculationKernelVersion;
+  scenario: PobScenarioConfiguration;
+  emptyFlaskSlots: number;
+  flasks: PobFlaskProfile[];
+  elapsedMs: number;
+}
+
 export type PobPerturbation =
   | {
       kind: 'synthetic-stat';
@@ -193,6 +239,14 @@ export interface PobLoadAndCalculateRequest {
   scenario: PobScenarioConfiguration;
 }
 
+export interface PobInspectFlasksRequest {
+  protocolVersion: number;
+  requestId: string;
+  operation: 'inspect-flasks';
+  xml: string;
+  scenario: PobScenarioConfiguration;
+}
+
 export interface PobCalculateWithPerturbationsRequest {
   protocolVersion: number;
   requestId: string;
@@ -210,6 +264,7 @@ export interface PobHealthRequest {
 
 export type PobCalculationRequest =
   | PobLoadAndCalculateRequest
+  | PobInspectFlasksRequest
   | PobCalculateWithPerturbationsRequest
   | PobHealthRequest;
 
@@ -245,6 +300,13 @@ export interface PobWorkerPerturbationSuccess {
   comparison: PobPerturbationComparison;
 }
 
+export interface PobWorkerFlaskInspectionSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  flaskInspection: PobFlaskInspectionResult;
+}
+
 export interface PobWorkerHealthSuccess {
   protocolVersion: number;
   requestId: string;
@@ -262,6 +324,7 @@ export interface PobWorkerFailure {
 export type PobWorkerResponse =
   | PobWorkerCalculationSuccess
   | PobWorkerPerturbationSuccess
+  | PobWorkerFlaskInspectionSuccess
   | PobWorkerHealthSuccess
   | PobWorkerFailure;
 

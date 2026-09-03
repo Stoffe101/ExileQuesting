@@ -1,8 +1,9 @@
--- Independent Path of Building flask-availability reference runner.
+-- Independent Path of Building flask reference runner.
 --
 -- This does not use ExileQuesting's worker protocol or normalization. It loads
--- one upstream PoB fixture, finds an equipped flask whose active-state toggle
--- changes a reviewed raw output, and emits the raw before/after calculation.
+-- one upstream PoB fixture, records raw processed flask-profile inputs directly
+-- from PoB, and independently finds a measurable active-state toggle when one
+-- exists.
 
 local SENTINEL = "@@EXILEQUESTING_POB_FLASK_REFERENCE@@"
 
@@ -30,9 +31,14 @@ if not ok then
     os.exit(4)
 end
 
-if not build or not build.itemsTab or not build.calcsTab then
-    io.stderr:write("PoB flask reference did not expose item/calculation tabs.\n")
+if not build or not build.itemsTab or not build.calcsTab or type(build.calcsTab.mainEnv) ~= "table" then
+    io.stderr:write("PoB flask reference did not expose item/calculation state.\n")
     os.exit(5)
+end
+local modDB = build.calcsTab.mainEnv.modDB
+if type(modDB) ~= "table" or type(modDB.Sum) ~= "function" then
+    io.stderr:write("PoB flask reference did not expose its calculation modifier database.\n")
+    os.exit(6)
 end
 
 local keys = {
@@ -61,11 +67,22 @@ local keys = {
     "ChaosResist",
 }
 
+local function finiteNumber(value)
+    if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+        return nil
+    end
+    return value
+end
+
+local function finiteOrZero(value)
+    return finiteNumber(value) or 0
+end
+
 local function selectRaw(source)
     local raw = {}
     for _, key in ipairs(keys) do
-        local value = source[key]
-        if type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge then
+        local value = finiteNumber(source[key])
+        if value ~= nil then
             raw[key] = value
         end
     end
@@ -99,10 +116,80 @@ local function itemForSlot(slotName)
     return slot, items[slot.selItemId]
 end
 
+local function localProfile(item)
+    local flaskData = item and item.flaskData
+    if type(flaskData) ~= "table" then
+        return nil
+    end
+    return {
+        duration = finiteNumber(flaskData.duration),
+        chargesMax = finiteNumber(flaskData.chargesMax),
+        chargesUsed = finiteNumber(flaskData.chargesUsed),
+        chargeGainModifier = finiteNumber(flaskData.gainMod),
+        effectIncrease = finiteNumber(flaskData.effectInc),
+    }
+end
+
+local emptyFlaskSlots = 0
+local profiles = {}
+for index = 1, 5 do
+    local slotName = "Flask " .. index
+    local slot, item = itemForSlot(slotName)
+    if type(slot) ~= "table" then
+        io.stderr:write("PoB flask reference is missing expected slot " .. slotName .. ".\n")
+        os.exit(7)
+    end
+    if type(item) ~= "table" then
+        emptyFlaskSlots = emptyFlaskSlots + 1
+    else
+        if type(item.base) ~= "table" or not item.base.flask then
+            io.stderr:write("PoB flask reference found a non-flask item in " .. slotName .. ".\n")
+            os.exit(8)
+        end
+        local flaskLocal = localProfile(item)
+        if not flaskLocal then
+            io.stderr:write("PoB flask reference found no processed flaskData in " .. slotName .. ".\n")
+            os.exit(9)
+        end
+        local life = item.base.flask.life == true
+        local mana = item.base.flask.mana == true
+        local slotActive = slot.active == true
+        if type(build.calcsTab.mainEnv.flasks) == "table" and (build.calcsTab.mainEnv.flasks[item] == true) ~= slotActive then
+            io.stderr:write("PoB flask reference active-state mismatch in " .. slotName .. ".\n")
+            os.exit(10)
+        end
+        table.insert(profiles, {
+            slot = slotName,
+            name = tostring(item.title or item.name or item.baseName or slotName),
+            baseName = tostring(item.baseName or "Unknown Flask"),
+            rarity = tostring(item.rarity or "UNKNOWN"),
+            active = slotActive,
+            life = life,
+            mana = mana,
+            utility = not life and not mana,
+            ["local"] = flaskLocal,
+            buildModifiers = {
+                durationIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskDuration")),
+                chargesUsedIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskChargesUsed")),
+                chargesGainedIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskChargesGained")),
+                effectIncrease = finiteOrZero(modDB:Sum("INC", { actor = "player" }, "FlaskEffect")),
+                magicUtilityEffectIncrease = finiteOrZero(modDB:Sum("INC", { actor = "player" }, "MagicUtilityFlaskEffect")),
+                genericChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "FlaskChargesGenerated")),
+                lifeChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "LifeFlaskChargesGenerated")),
+                manaChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "ManaFlaskChargesGenerated")),
+                utilityChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "UtilityFlaskChargesGenerated")),
+                chargesGeneratedPerEmptyFlaskPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "FlaskChargesGeneratedPerEmptyFlask")),
+                chanceNotConsumeCharges = math.min(finiteOrZero(modDB:Sum("BASE", nil, "FlaskChanceNotConsumeCharges")), 100),
+                ironFlaskChargesGeneratedOnWardBreak = finiteOrZero(modDB:Sum("BASE", nil, "IronFlaskChargesGeneratedOnWardBreak")),
+            },
+        })
+    end
+end
+
 local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
 if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
     io.stderr:write("PoB flask reference did not expose its miscellaneous calculator.\n")
-    os.exit(6)
+    os.exit(11)
 end
 
 local selected = nil
@@ -111,31 +198,30 @@ for index = 1, 5 do
     local slot, item = itemForSlot(slotName)
     if type(slot) == "table" and type(item) == "table" and type(item.base) == "table" and item.base.flask then
         local fromActive = slot.active == true
-        local mainEnv = build.calcsTab.mainEnv
-        local stateConsistent = true
-        if type(mainEnv) == "table" and type(mainEnv.flasks) == "table" then
-            stateConsistent = (mainEnv.flasks[item] == true) == fromActive
-        end
-        if stateConsistent then
-            local calcOk, toggledOutput = pcall(calcFunc, { toggleFlask = item })
-            if calcOk and type(toggledOutput) == "table" and metricChanged(baseOutput, toggledOutput) then
-                selected = {
-                    slot = slotName,
-                    fromActive = fromActive,
-                    toActive = not fromActive,
-                    before = selectRaw(baseOutput),
-                    after = selectRaw(toggledOutput),
-                }
-                break
-            end
+        local calcOk, toggledOutput = pcall(calcFunc, { toggleFlask = item })
+        if calcOk and type(toggledOutput) == "table" and metricChanged(baseOutput, toggledOutput) then
+            selected = {
+                slot = slotName,
+                fromActive = fromActive,
+                toActive = not fromActive,
+                before = selectRaw(baseOutput),
+                after = selectRaw(toggledOutput),
+            }
+            break
         end
     end
 end
 
-io.stdout:write(SENTINEL .. json.encode(selected and {
-    available = true,
-    toggle = selected,
-} or {
-    available = false,
-}) .. "\n")
+local payload = {
+    available = selected ~= nil,
+    profiles = {
+        emptyFlaskSlots = emptyFlaskSlots,
+        flasks = profiles,
+    },
+}
+if selected then
+    payload.toggle = selected
+end
+
+io.stdout:write(SENTINEL .. json.encode(payload) .. "\n")
 io.stdout:flush()
