@@ -15,7 +15,7 @@ permissions:
 jobs:
   release-windows:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
@@ -84,6 +84,10 @@ jobs:
           path: artifacts/soak/**/*
           if-no-files-found: warn
           retention-days: 30
+      - name: Prepare verified pinned PoB runtime bundle
+        run: npm run prepare:pob-runtime:win
+      - name: Re-run staged PoB runtime health smoke
+        run: npm run smoke:pob-runtime
       - run: npm run dist
       - name: Smoke test real previous-to-release updater handoff
         shell: pwsh
@@ -143,9 +147,16 @@ jobs:
           Start-Sleep -Milliseconds 750
           $updatedRun = Start-Process -FilePath $installedExe -ArgumentList '--smoke-test' -Wait -PassThru
           if ($updatedRun.ExitCode -ne 0) { throw "Updated release smoke test failed with exit code $($updatedRun.ExitCode)." }
+
+          $installedPobRuntime = Join-Path $installDir 'resources\pob-kernel'
+          $installedPobManifest = Join-Path $installedPobRuntime 'manifest.json'
+          if (-not (Test-Path $installedPobManifest)) { throw "Release installation did not contain the PoB kernel manifest at $installedPobManifest." }
+          node .tmp/smoke-pob-runtime.mjs $installedPobRuntime
+          if ($LASTEXITCODE -ne 0) { throw 'Installed release PoB kernel failed the real child-process health smoke.' }
+
           $productVersion = (Get-Item $installedExe).VersionInfo.ProductVersion
           if ($productVersion -notlike "$candidateVersion*") { throw "Updater left product version '$productVersion'; expected $candidateVersion." }
-          Write-Host "Verified release update path: $($previous.tagName) -> $candidateTag ($productVersion)."
+          Write-Host "Verified release update path and installed PoB kernel: $($previous.tagName) -> $candidateTag ($productVersion)."
 
           $uninstaller = Join-Path $installDir "Uninstall ExileQuesting.exe"
           if (Test-Path $uninstaller) {
