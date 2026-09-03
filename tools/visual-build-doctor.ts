@@ -4,7 +4,7 @@ import path from 'node:path';
 import { normalizeCampaign } from '../src/core/campaign';
 import { buildPlannerSnapshot, normalizeBuildPlannerState } from '../src/core/build-planner';
 import { readyBuildDoctorSnapshot } from '../src/core/build-doctor';
-import { measuredConfigurationDependency, readyDependencyScan } from '../src/core/build-doctor-dependencies';
+import { measuredConfigurationDependency, pobUptimeEvidence, readyDependencyScan } from '../src/core/build-doctor-dependencies';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { calculateXpGuidance } from '../src/core/xp';
@@ -49,7 +49,7 @@ const kernel = {
   pobCommit: 'ed354c2f8c42e148bc904c7508dbe851fb2cf952',
   runtime: 'LuaJIT 2.1',
   runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e',
-  adapterVersion: '0.5.0',
+  adapterVersion: '0.6.0',
 };
 
 function baseline(): PobCalculationResult {
@@ -113,6 +113,12 @@ function dependencyScan(now: string) {
     maximumHit: { ...graniteAfter.defence.maximumHit, physical: 21_000 },
   };
 
+  const diamondUptime = pobUptimeEvidence({
+    slot: 'Flask 1', name: 'Diamond Flask', baseName: 'Diamond Flask', active: true, supported: true,
+    sourceLine: '^8Flask uptime: ^778%^8 average, ^760%^8 minimum', averagePercent: 78, minimumPercent: 60,
+  });
+  const graniteUptime = pobUptimeEvidence(undefined, 'Pinned PoB did not expose a supported uptime line for Granite Flask.');
+
   return readyDependencyScan({
     profileId: 'visual-build-doctor',
     profileName: 'Level 96 Trickster · Build Doctor fixture',
@@ -125,8 +131,8 @@ function dependencyScan(now: string) {
       adapterVersion: kernel.adapterVersion,
     },
     dependencies: [
-      measuredConfigurationDependency(diamond, comparison(diamond, diamondAfter)),
-      measuredConfigurationDependency(granite, comparison(granite, graniteAfter)),
+      measuredConfigurationDependency(diamond, comparison(diamond, diamondAfter), diamondUptime),
+      measuredConfigurationDependency(granite, comparison(granite, graniteAfter), graniteUptime),
     ],
   });
 }
@@ -189,7 +195,7 @@ async function main(): Promise<void> {
   const progress = Math.min(6, dataset.steps.length - 1);
   const state: RuntimeState = {
     settings, dataset, sourceStatus: { state: 'current', activeCommit: manifest.commit, checkedAt: now, message: 'Campaign data is current and verified.' }, progress,
-    currentZone: "Karui Shores", currentAreaId: '2_11_endgame_town', currentAreaLevel: 83, characterLevel: 96, xpGuidance: calculateXpGuidance(96, 83),
+    currentZone: 'Karui Shores', currentAreaId: '2_11_endgame_town', currentAreaLevel: 83, characterLevel: 96, xpGuidance: calculateXpGuidance(96, 83),
     rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, new Set()), progressHistory: [], startupReconciliation: { state: 'none' }, logConnected: true,
     logDiagnostics: { path: settings.logPath, fileExists: true, watcherActive: true, pollingActive: true, lastParsedEventAt: now, characterLevel: 96, areaLevel: 83 }, detectionTrace: [],
     runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.3', latestVersion: '0.2.3', message: 'ExileQuesting is up to date.' },
@@ -239,7 +245,12 @@ async function main(): Promise<void> {
   if (!dependencyDesktop.text.includes('Diamond Flask') || !dependencyDesktop.text.includes('DPS -18.1%') || !dependencyDesktop.text.includes('Granite Flask') || !dependencyDesktop.text.includes('Phys hit -27.4%')) {
     throw new Error('Build Doctor dependency fixture is missing measured reversible PoB deltas.');
   }
-  if (!dependencyDesktop.text.includes('not encounter uptime')) throw new Error('Build Doctor dependency fixture lost its encounter-uptime evidence boundary.');
+  if (!dependencyDesktop.text.includes('PoB uptime estimate') || !dependencyDesktop.text.includes('78% avg · 60% min') || !dependencyDesktop.text.includes('unsupported')) {
+    throw new Error('Build Doctor dependency fixture is missing separate supported/unsupported PoB uptime evidence.');
+  }
+  if (!dependencyDesktop.text.includes('not observed encounter uptime') || !dependencyDesktop.text.includes('never multiplied')) {
+    throw new Error('Build Doctor dependency fixture lost its uptime evidence boundary.');
+  }
   const dependencyDesktopBytes = await capture(window, 'build-doctor-dependencies-1920x1080.png');
 
   window.setSize(1280, 720, false);
@@ -249,6 +260,7 @@ async function main(): Promise<void> {
   if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
   if (compact.panelWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor panel exceeds compact viewport (${compact.panelWidth} > ${compact.viewportWidth}).`);
+  if (!compact.text.includes('78% avg · 60% min') || !compact.text.includes('No numerical uptime is inferred.')) throw new Error('Build Doctor compact sustainability evidence is incomplete.');
   const compactBytes = await capture(window, 'build-doctor-dependencies-1280x720.png');
 
   await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({
