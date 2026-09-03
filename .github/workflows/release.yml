@@ -169,19 +169,6 @@ jobs:
           }
           $setup = Get-Item release/ExileQuesting-*-setup.exe
           $checksum = Get-Item "release/$($setup.Name).sha256"
-          $notes = @"
-          ExileQuesting $env:RELEASE_TAG
-
-          v0.2.1 adds the Passive Tree HUD:
-          - Live, click-through guidance over Path of Exile's own passive tree instead of a separate tree viewer.
-          - Exact Maxroll next-passive and refund markers, plus safe unordered PoB stage highlighting.
-          - Data-driven support for all seven base classes and their distinct GGG start nodes.
-          - Scope-local Ascendancy registration using current GGG 3.29 geometry, including all 37 fixed GGG-published scopes in the bundled snapshot.
-          - Pan, zoom, ultrawide, 4K and 100/125/150% DPI-aware placement with off-screen target guidance.
-          - Fail-closed registration: weak or ambiguous visual matches hide the HUD instead of drawing a guessed marker.
-          - No game input automation, process injection or memory reading.
-
-          Windows installer published from the verified ExileQuesting release pipeline.
-          Source build: ${{ github.sha }}
-          "@
+          $notes = (Get-Content RELEASE_NOTES.md -Raw).TrimEnd()
+          $notes += "`r`n`r`nWindows installer published from the verified ExileQuesting release pipeline.`r`nSource build: ${{ github.sha }}"
           gh release create $env:RELEASE_TAG $setup.FullName $checksum.FullName --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "ExileQuesting $env:RELEASE_TAG" --notes $notes
