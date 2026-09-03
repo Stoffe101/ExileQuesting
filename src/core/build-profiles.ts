@@ -1,7 +1,14 @@
 import { normalizeMaxrollMetadata, type MaxrollGuideMetadata } from './maxroll';
-import type { PobBuildSummary, PobInputKind } from './pob';
+import { MAX_POB_XML_BYTES, type PobBuildSummary, type PobInputKind } from './pob';
 
 export type BuildSourceKind = PobInputKind | 'maxroll';
+
+export interface BuildCalculationPayloadReference {
+  schemaVersion: 1;
+  kind: 'pob-xml';
+  bytes: number;
+  sha256: string;
+}
 
 export interface BuildProfile {
   id: string;
@@ -10,6 +17,7 @@ export interface BuildProfile {
   sourceKind: BuildSourceKind;
   source?: string;
   maxroll?: MaxrollGuideMetadata;
+  calculation?: BuildCalculationPayloadReference;
   build: PobBuildSummary;
 }
 
@@ -21,6 +29,16 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function array(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
+}
+
+function normalizeCalculationPayload(value: unknown): BuildCalculationPayloadReference | undefined {
+  const item = record(value);
+  if (!item || item.schemaVersion !== 1 || item.kind !== 'pob-xml') return undefined;
+  const bytes = Number(item.bytes);
+  const sha256 = typeof item.sha256 === 'string' ? item.sha256.toLowerCase() : '';
+  if (!Number.isSafeInteger(bytes) || bytes < 1 || bytes > MAX_POB_XML_BYTES) return undefined;
+  if (!/^[a-f0-9]{64}$/.test(sha256)) return undefined;
+  return { schemaVersion: 1, kind: 'pob-xml', bytes, sha256 };
 }
 
 function normalizePersistedBuild(value: Record<string, unknown>): PobBuildSummary | null {
@@ -63,6 +81,7 @@ export function normalizeBuildProfiles(value: unknown): BuildProfile[] {
     if (!build) continue;
     const maxroll = sourceKind === 'maxroll' ? normalizeMaxrollMetadata(item.maxroll) : undefined;
     if (sourceKind === 'maxroll' && !maxroll) continue;
+    const calculation = normalizeCalculationPayload(item.calculation);
     result.push({
       id: item.id,
       name: typeof item.name === 'string' && item.name.trim()
@@ -72,6 +91,7 @@ export function normalizeBuildProfiles(value: unknown): BuildProfile[] {
       sourceKind,
       source: typeof item.source === 'string' ? item.source.slice(0, 1000) : undefined,
       maxroll,
+      calculation,
       build,
     });
   }

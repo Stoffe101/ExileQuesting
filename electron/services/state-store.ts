@@ -5,6 +5,7 @@ import { normalizeBuildProfiles, type BuildProfile } from '../../src/core/build-
 import { defaultBuildPlannerState, normalizeBuildPlannerState, type BuildPlannerState } from '../../src/core/build-planner';
 import { normalizeProgressDocument, normalizeRewardDocument, normalizeRunDocument, normalizeSettingsDocument, parseBoundedJson, settingsDocument } from '../../src/core/persistence';
 import type { AppSettings, ProgressHistoryEntry, RunHistoryEntry, RunSession } from '../../src/core/types';
+import { persistPendingPobCalculationPayloads, prunePobCalculationPayloads } from './pob-calculation-payload';
 
 const MAX_USER_JSON_BYTES = 4 * 1024 * 1024;
 
@@ -85,7 +86,10 @@ export class StateStore {
   }
 
   async saveBuildProfiles(profiles: BuildProfile[]): Promise<void> {
-    await this.write('build-profiles.json', normalizeBuildProfiles(profiles));
+    const normalized = normalizeBuildProfiles(profiles);
+    await persistPendingPobCalculationPayloads(this.root, normalized);
+    await this.write('build-profiles.json', normalized);
+    await prunePobCalculationPayloads(this.root, normalized);
   }
 
   async loadBuildPlanner(profiles: BuildProfile[]): Promise<BuildPlannerState> {

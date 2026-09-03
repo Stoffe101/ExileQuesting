@@ -1,12 +1,15 @@
+import type { BuildCalculationPayloadReference } from '../../src/core/build-profiles';
 import { isMobalyticsBuildUrl } from '../../src/core/mobalytics';
 import { describePobInput, parsePobInput, parsePobXml, type PobBuildSummary, type PobInputKind } from '../../src/core/pob';
 import { isAllowedDataUrl, MAX_POBBIN_RAW_BYTES, readBoundedResponseText } from '../../src/core/security';
+import { stagePobCalculationPayload } from './pob-calculation-payload';
 
 export interface ImportedPobBuild {
   id: string;
   importedAt: string;
   sourceKind: PobInputKind;
   source?: string;
+  calculation: BuildCalculationPayloadReference;
   build: PobBuildSummary;
 }
 
@@ -16,6 +19,7 @@ export async function importPobBuild(input: string, appVersion: string): Promise
   if (isMobalyticsBuildUrl(input.trim())) throw new Error(MOBALYTICS_POB_BRIDGE_MESSAGE);
   const descriptor = describePobInput(input);
   let build: PobBuildSummary;
+  let calculationXml: string;
   if (descriptor.kind === 'pobbin') {
     if (!descriptor.pobbinRawUrl || !isAllowedDataUrl(descriptor.pobbinRawUrl)) throw new Error('The pobb.in raw URL failed the data-source allowlist.');
     const response = await fetch(descriptor.pobbinRawUrl, {
@@ -27,24 +31,30 @@ export async function importPobBuild(input: string, appVersion: string): Promise
     const raw = (await readBoundedResponseText(response, MAX_POBBIN_RAW_BYTES)).trim();
     if (!raw) throw new Error('pobb.in returned an empty build.');
     const parsed = await parsePobInput(raw);
-    if (!parsed.build) throw new Error('pobb.in raw data did not resolve to a Path of Building build.');
+    if (!parsed.build || !parsed.xml) throw new Error('pobb.in raw data did not resolve to a complete Path of Building build.');
     build = parsed.build;
+    calculationXml = parsed.xml;
   } else if (descriptor.kind === 'xml') {
-    build = parsePobXml(descriptor.value);
+    calculationXml = descriptor.value;
+    build = parsePobXml(calculationXml);
   } else {
     const parsed = await parsePobInput(descriptor.value);
-    if (!parsed.build) throw new Error('PoB export code did not produce a build.');
+    if (!parsed.build || !parsed.xml) throw new Error('PoB export code did not produce a complete Path of Building build.');
     build = parsed.build;
+    calculationXml = parsed.xml;
   }
   const importedAt = new Date().toISOString();
   const identity = `${build.className ?? 'Unknown'}:${build.ascendancy ?? ''}:${build.level ?? 0}:${importedAt}`;
   let hash = 2166136261;
   for (let index = 0; index < identity.length; index += 1) { hash ^= identity.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  const id = `pob-${(hash >>> 0).toString(36)}`;
+  const calculation = stagePobCalculationPayload(id, calculationXml);
   return {
-    id: `pob-${(hash >>> 0).toString(36)}`,
+    id,
     importedAt,
     sourceKind: descriptor.kind,
     source: descriptor.kind === 'pobbin' ? descriptor.value : undefined,
+    calculation,
     build,
   };
 }
