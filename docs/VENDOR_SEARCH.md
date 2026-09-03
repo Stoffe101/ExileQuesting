@@ -4,9 +4,11 @@ ExileQuesting can turn the active Build Profile stage into short Path of Exile v
 
 The goal is not to replace general-purpose regex generators. It is to answer a narrower question during leveling: **“what should I search this vendor for right now for this build?”**
 
+The September 2026 leveling-guide audit found vendor checks, movement-speed boots, links and vendor regexes repeatedly across current Maxroll and Mobalytics leveling material, so this stays a first-class campaign feature rather than a hidden utility.
+
 ## Workflow
 
-1. Import/select a PoB or Maxroll Build Profile.
+1. Import/select a PoB or Maxroll Build Profile. A Mobalytics build can enter through its PoB/POBb.in export.
 2. Let ExileQuesting select or manually choose the current build stage.
 3. Open **Build Planner → Build intelligence**.
 4. Under **Vendor search · active stage**, copy the relevant generated search.
@@ -19,22 +21,31 @@ ExileQuesting never focuses the game, types, pastes, clicks, buys or sends simul
 The equipment search is assembled in priority order from conservative campaign signals that ExileQuesting already knows:
 
 - the highest active-stage link target of 3 links or more;
-- movement speed, because movement-speed boots remain a high-value leveling check;
+- movement-speed boots, because movement speed is one of the most consistently valuable campaign upgrades;
 - non-unique active-stage equipment bases exposed by the current PoB/guide stage.
 
 Weapon/offhand/quiver bases are packed before boots, then body armour and other armour slots. Lower-priority alternatives are omitted if necessary to stay inside the search-box limit.
+
+### Current PoE link-search forms
+
+The link fragment is kept deliberately small and is regression-tested against the current PoE1 vendor-search forms used by poe.re:
+
+```text
+3L  -\w-
+4L  -\w-.-
+5L  (-\w){4}
+6L  (-\w){5}
+```
+
+A request above six links is capped at the six-link expression because ordinary equipment cannot provide a larger linked group. Two-link searches are deliberately skipped because they create too much noise for too little campaign value.
+
+The search is about the linked group, not a required colour sequence.
 
 ### PoE 3.29 socket semantics
 
 ExileQuesting does **not** require particular socket colours for the vendor search. In PoE 3.29 every gem can be placed into every equipment socket colour; matching non-white colours are an optional gem-quality bonus instead of a compatibility gate.
 
-For a link target of `N >= 3`, the generated search uses a conservative tooltip expression shaped like:
-
-```text
-sockets: ([rgbw]-){N-1}[rgbw]
-```
-
-This checks for a linked group containing at least the requested number of normal equipment sockets. Two-link searches are deliberately skipped because they create too much noise for too little campaign value.
+This is why older leveling regex advice that treats colours as a hard usability requirement is not copied blindly into the current planner.
 
 ## Gem vendor scan
 
@@ -44,9 +55,9 @@ The gem search is more selective than “all gems in the stage.” A gem is incl
 - its preferred acquisition source for the active stage is a **vendor**;
 - the task is not unresolved or unavailable.
 
-Quest rewards and starting gems therefore do not clutter the vendor search.
+Quest rewards and starting gems therefore do not clutter the vendor search. Duplicate gem names are removed before packing.
 
-Duplicate gem names are removed before packing.
+The gem-acquisition planner also understands Siosa and Lilly as conservative cross-class fallbacks. Their campaign unlocks are surfaced separately so a build swap does not look mysteriously unavailable before the relevant quest is complete.
 
 ## Regex safety and the 250-character limit
 
@@ -61,6 +72,12 @@ The planner packs higher-priority alternatives first and reports when lower-prio
 The alternatives are joined with regex OR semantics. A highlighted vendor item can therefore match **any** included target. A gear search that contains a link expression, `movement speed`, and two base names is intentionally broad enough to scan a vendor page quickly.
 
 A highlighted item is not automatically an upgrade. Gear Coach remains the place to evaluate an actual copied candidate against the active build stage and, when supplied, the currently equipped item.
+
+## Why ExileQuesting does not copy guide regexes verbatim
+
+Current leveling guides often publish compact author-specific regexes. Those are useful evidence, but they may mix build-specific damage modifiers, gem names, old socket assumptions and a particular author's priorities.
+
+ExileQuesting instead derives the current search from normalized build facts and keeps the underlying PoE search syntax independently regression-tested. That makes a new build or league update much less dependent on one hard-coded guide string.
 
 ## Clipboard behavior
 
@@ -82,10 +99,12 @@ Vendor search does not:
 - paste automatically;
 - buy items;
 - claim that every highlighted item is an upgrade;
-- attempt general-purpose regex minimisation or reproduce third-party regex-generator implementations.
+- reproduce a third-party regex generator implementation.
 
 The feature is deliberately a stage-aware planning layer built from ExileQuesting's own normalized build data.
 
-## Live-play validation
+## Validation and drift monitoring
 
-The expression planner is regression-tested for packing, escaping, quoted-search formatting, task selection, deduplication and the 250-character ceiling. The first live campaign playtest should additionally verify the rendered vendor-search behavior against the current Path of Exile client UI and capture any tooltip/search-language changes as versioned regression cases.
+The expression planner is regression-tested for link patterns, packing, escaping, quoted-search formatting, task selection, deduplication and the 250-character ceiling.
+
+The broader companion-upstream monitor separately watches build-guide contracts and pinned PoE data. The first live campaign playtest should still verify rendered vendor-search behavior against the current Path of Exile client UI because the game client's search-language behavior is the final authority.
