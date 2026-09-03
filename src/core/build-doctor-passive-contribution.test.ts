@@ -85,6 +85,18 @@ describe('Build Doctor passive contribution evidence', () => {
     expect(analysis.changedMetrics.find((metric) => metric.key === 'life')).toMatchObject({ before: 4_000, after: 3_800, absoluteChange: -200 });
   });
 
+  it('preserves PoB warnings from both states instead of stripping calculation context', () => {
+    const before = result('before');
+    before.warnings = [{ code: 'guard-skill-active', message: 'Guard skill is active in the imported state.', confidence: 'verified' }];
+    const after = result('after', 900_000, 3_800);
+    after.warnings = [{ code: 'passive-state-warning', message: 'PoB exposed a warning after the isolated node change.', confidence: 'high' }];
+    const analysis = readyPassiveContributionAnalysis({
+      profileId: 'profile', profileName: 'Build', generatedAt: 'x', node: { nodeId: 20, name: 'Big Notable', kind: 'notable' }, comparison: comparison(20, before, after),
+    });
+    expect(analysis.beforeWarnings).toEqual(['Guard skill is active in the imported state.']);
+    expect(analysis.afterWarnings).toEqual(['PoB exposed a warning after the isolated node change.']);
+  });
+
   it('rejects the wrong node id, allocation direction, or changed kernel provenance', () => {
     const wrongNode = comparison(10);
     expect(() => readyPassiveContributionAnalysis({
