@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-03T13:48:00Z",
+  "sources": [
+    {
+      "id": "mobalytics-dante-cast-on-ward-break-reliquarian-329",
+      "kind": "creator-guide",
+      "title": "3.29 Cast on Ward Break Reliquarian",
+      "url": "https://mobalytics.gg/poe/builds/cast-on-ward-break-reliquarian",
+      "creator": "Dante00151",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:40:00Z",
+      "lastReviewedAt": "2026-09-03T13:40:00Z",
+      "notes": "Ward-trigger benchmark. The reviewed guide revolves around Ynda's Stand plus a high-armour/evasion body armour and states Cast on Ward Break gains 5% cooldown recovery rate per 100 Ward."
+    },
+    {
+      "id": "mobalytics-bigducks-spark-archmage-hierophant-329",
+      "kind": "creator-guide",
+      "title": "3.29 Max Block Spark Archmage Hierophant",
+      "url": "https://mobalytics.gg/poe/builds/bigducks-spark-archmage-heirophant",
+      "creator": "Big Ducks",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:40:00Z",
+      "lastReviewedAt": "2026-09-03T13:40:00Z",
+      "notes": "Mana-stacking benchmark where Archmage supplies most damage, Mind Over Matter supplies much of defence, Arcane Cloak contributes to both, and the endgame Spark transition waits for Widowhail plus Rearguard."
+    },
+    {
+      "id": "mobalytics-fastaf-flicker-reliquarian-329",
+      "kind": "creator-guide",
+      "title": "3.29 Flicker Reliquarian",
+      "url": "https://mobalytics.gg/poe/profile/fastaf/builds/flicker-reliquarian",
+      "creator": "FastAF",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:41:00Z",
+      "lastReviewedAt": "2026-09-03T13:41:00Z",
+      "notes": "Charge-sustain/endgame benchmark. The guide explicitly calls its Diamond Shrine belt mandatory and advertises permanent Frenzy/permanent Flicker through Terminus Est."
+    },
+    {
+      "id": "mobalytics-pohx-righteous-fire-chieftain-329",
+      "kind": "creator-guide",
+      "title": "3.29 Pohx Righteous Fire Chieftain",
+      "url": "https://mobalytics.gg/poe/builds/pohx-righteous-fire-chieftain",
+      "creator": "Pohx",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:41:00Z",
+      "lastReviewedAt": "2026-09-03T13:41:00Z",
+      "notes": "Current RF benchmark with map-clear focus, Fire Trap single target, later block transition, 90%+ resistance/block/recovery/large-regeneration defensive framing and explicitly weak boss damage relative to mapping."
+    },
+    {
+      "id": "poevault-poeguy-shrapnel-ballista-hierophant-329",
+      "kind": "creator-guide",
+      "title": "POEGuy Shrapnel Ballista Hierophant 3.29",
+      "url": "https://www.poe-vault.com/guides/shrapnel-ballista-hierophant-build-guide",
+      "creator": "POEGuy",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:42:00Z",
+      "lastReviewedAt": "2026-09-03T13:42:00Z",
+      "notes": "Late-endgame Strength-stacking ballista benchmark. Guide states level 94 / roughly 150 Divine transition floor, +1 Shrapnel Ballista per 200 Strength from Replica Iron Commander, 2000 Strength minimum, mandatory Strength+Accuracy Split Personality jewels, and several named common mistakes."
+    },
+    {
+      "id": "synthetic-build-doctor-adversarial-329-03",
+      "kind": "synthetic",
+      "title": "Build Doctor 3.29 adversarial mutations derived from reviewed references",
+      "patches": ["3.29"],
+      "usePolicy": "derived-facts-only",
+      "firstReviewedAt": "2026-09-03T13:43:00Z",
+      "lastReviewedAt": "2026-09-03T13:43:00Z",
+      "notes": "Deliberately broken benchmark states. These are not claimed player builds; each mutation encodes a failure mode Build Doctor should detect or conservatively explain using deterministic PoB evidence plus its cited reviewed reference."
+    }
+  ],
+  "cases": [
+    {
+      "id": "dante-cowb-reliquarian-329-endgame",
+      "kind": "build",
+      "label": "Cast on Ward Break Reliquarian Ward/CDR trigger engine",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-dante-cast-on-ward-break-reliquarian-329", "pob-community"],
+      "className": "Scion",
+      "ascendancy": "Reliquarian",
+      "mainSkills": ["Cast on Ward Break Support"],
+      "deliveryMethods": ["trigger"],
+      "scalingAxes": ["ward", "cooldown-recovery", "trigger-rate", "armour-stacking"],
+      "defenceLayers": ["ward"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"],
+      "budgetTier": "high-investment",
+      "notes": "The trigger engine couples a defensive resource to trigger cadence: more Ward gives Cast on Ward Break cooldown recovery, while Ynda's Stand and a high-defence chest create the Ward foundation."
+    },
+    {
+      "id": "bigducks-spark-archmage-hiero-329-endgame",
+      "kind": "build",
+      "label": "Spark of the Nova Archmage Hierophant mana/block endgame",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-bigducks-spark-archmage-hierophant-329", "pob-community"],
+      "className": "Templar",
+      "ascendancy": "Hierophant",
+      "mainSkills": ["Spark of the Nova", "Archmage Support", "Arcane Cloak"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["mana-stacking", "cast-speed", "projectile-behaviour", "crit"],
+      "defenceLayers": ["mana-as-defence", "energy-shield", "block", "guard-skill"],
+      "playstyleTraits": ["ranged", "stationary", "active-damage", "high-coverage"],
+      "contentTargets": ["general-mapping", "eight-mod-mapping", "pinnacle-bosses"],
+      "budgetTier": "established",
+      "notes": "Mana is a coupled resource: Archmage provides most damage while Mind Over Matter provides much of defence. Arcane Cloak is also described as materially boosting both offence and defence."
+    },
+    {
+      "id": "fastaf-flicker-reliquarian-329-endgame",
+      "kind": "build",
+      "label": "Flicker Reliquarian permanent-charge endgame",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-fastaf-flicker-reliquarian-329", "pob-community"],
+      "className": "Scion",
+      "ascendancy": "Reliquarian",
+      "mainSkills": ["Flicker Strike"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["weapon-damage", "attack-speed", "crit", "charges"],
+      "defenceLayers": ["life", "block"],
+      "playstyleTraits": ["melee", "mobile", "instant-damage", "charge-dependent"],
+      "contentTargets": ["general-mapping", "uber-bosses"],
+      "budgetTier": "high-investment",
+      "notes": "The reviewed build explicitly advertises permanent Frenzy/permanent Flicker and calls its Diamond Shrine belt mandatory. Charge sustain is therefore an enabling condition, not cosmetic peak configuration."
+    },
+    {
+      "id": "pohx-rf-chieftain-329-established",
+      "kind": "build",
+      "label": "Pohx Righteous Fire Chieftain established mapping state",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-pohx-righteous-fire-chieftain-329", "pob-community"],
+      "className": "Marauder",
+      "ascendancy": "Chieftain",
+      "mainSkills": ["Righteous Fire", "Fire Trap"],
+      "deliveryMethods": ["non-ailment-dot", "direct-hit"],
+      "scalingAxes": ["gem-level", "dot-multiplier", "resistance-reduction"],
+      "defenceLayers": ["life", "block", "max-resistance", "endurance-charges", "regeneration", "recovery-on-block"],
+      "playstyleTraits": ["mobile", "passive-damage", "high-coverage"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"],
+      "budgetTier": "established",
+      "notes": "The guide emphasizes mapping, recovery/tankiness and Fire Trap for single target, while explicitly describing boss damage as a weakness and not recommending Ubers."
+    },
+    {
+      "id": "poeguy-shrapnel-ballista-hiero-329-late-endgame",
+      "kind": "build",
+      "label": "Shrapnel Ballista Hierophant 2000+ Strength late-endgame package",
+      "patch": "3.29",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329", "pob-community"],
+      "className": "Templar",
+      "ascendancy": "Hierophant",
+      "mainSkills": ["Shrapnel Ballista"],
+      "deliveryMethods": ["totem", "direct-hit"],
+      "scalingAxes": ["attributes", "weapon-damage", "accuracy-stacking"],
+      "defenceLayers": ["life", "evasion", "block", "suppression", "regeneration", "ailment-immunity"],
+      "playstyleTraits": ["ranged", "passive-damage", "high-boss-uptime"],
+      "contentTargets": ["nightmare-maps", "uber-bosses", "simulacrum"],
+      "budgetTier": "high-investment",
+      "notes": "Strength simultaneously adds damage/tankiness and creates discrete +1 totem thresholds every 200 Strength through Replica Iron Commander. The guide explicitly requires at least 2000 Strength."
+    },
+    {
+      "id": "cowb-ward-loss-breakpoint-329-negative",
+      "kind": "mutation",
+      "label": "Broken Cast on Ward Break state: Ward loss crosses trigger cadence",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-dante-cast-on-ward-break-reliquarian-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "dante-cowb-reliquarian-329-endgame",
+      "mainSkills": ["Cast on Ward Break Support"],
+      "deliveryMethods": ["trigger"],
+      "scalingAxes": ["ward", "cooldown-recovery", "trigger-rate"],
+      "defenceLayers": ["ward"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"],
+      "mutation": {
+        "category": "ward-cdr-breakpoint",
+        "expectedFailure": "A Ward reduction can lower Cast on Ward Break cooldown recovery because the reviewed support gains 5% CDR per 100 Ward; Build Doctor must recalculate trigger cadence and expose discontinuities instead of assigning a linear Ward weight."
+      }
+    },
+    {
+      "id": "cowb-enabling-ward-package-removed-329-negative",
+      "kind": "mutation",
+      "label": "Broken Cast on Ward Break state: Ward-enabling package removed",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-dante-cast-on-ward-break-reliquarian-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "dante-cowb-reliquarian-329-endgame",
+      "mainSkills": ["Cast on Ward Break Support"],
+      "deliveryMethods": ["trigger"],
+      "scalingAxes": ["ward", "armour-stacking", "cooldown-recovery"],
+      "defenceLayers": ["ward"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["general-mapping"],
+      "mutation": {
+        "category": "enabling-item-package",
+        "expectedFailure": "Removing Ynda's Stand or the high-armour/evasion body-armour foundation dismantles the reviewed Ward engine; an item-by-item DPS comparison must not treat those slots as independent generic stat sticks."
+      }
+    },
+    {
+      "id": "spark-archmage-mana-cut-329-negative",
+      "kind": "mutation",
+      "label": "Broken Archmage state: large mana loss disguised by another gain",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-bigducks-spark-archmage-hierophant-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "bigducks-spark-archmage-hiero-329-endgame",
+      "mainSkills": ["Spark of the Nova", "Archmage Support"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["mana-stacking", "cast-speed"],
+      "defenceLayers": ["mana-as-defence", "guard-skill"],
+      "playstyleTraits": ["ranged", "active-damage"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"],
+      "mutation": {
+        "category": "coupled-offence-defence-resource",
+        "expectedFailure": "A transition that materially lowers mana can damage both Archmage offence and Mind Over Matter defence, with Arcane Cloak also coupled to the resource. Build Doctor must re-solve both sides together."
+      }
+    },
+    {
+      "id": "spark-premature-endgame-swap-329-negative",
+      "kind": "mutation",
+      "label": "Broken progression state: premature Spark endgame transition",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-bigducks-spark-archmage-hierophant-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "bigducks-spark-archmage-hiero-329-endgame",
+      "mainSkills": ["Spark of the Nova"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["mana-stacking", "projectile-behaviour"],
+      "defenceLayers": ["mana-as-defence", "block"],
+      "playstyleTraits": ["ranged", "active-damage", "high-coverage"],
+      "contentTargets": ["early-maps"],
+      "mutation": {
+        "category": "premature-progression-transition",
+        "expectedFailure": "The reviewed progression waits for Widowhail and Rearguard before the Spark swap; forcing the destination skill before its equipment foundation should be diagnosed as a package/transition problem rather than a weak-skill problem."
+      }
+    },
+    {
+      "id": "flicker-charge-sustain-removed-329-negative",
+      "kind": "mutation",
+      "label": "Broken Flicker state: configured permanent charge sustain is not available",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-fastaf-flicker-reliquarian-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "fastaf-flicker-reliquarian-329-endgame",
+      "mainSkills": ["Flicker Strike"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["charges", "attack-speed"],
+      "defenceLayers": ["life", "block"],
+      "playstyleTraits": ["melee", "mobile", "charge-dependent"],
+      "contentTargets": ["general-mapping", "uber-bosses"],
+      "mutation": {
+        "category": "charge-sustain",
+        "expectedFailure": "The reviewed build explicitly relies on permanent Frenzy/permanent Flicker. A peak PoB state that assumes charges without a functioning sustain engine must be classified as conditional/unproven rather than sustained damage."
+      }
+    },
+    {
+      "id": "flicker-mandatory-belt-removed-329-negative",
+      "kind": "mutation",
+      "label": "Broken Flicker state: reviewed mandatory belt removed",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-fastaf-flicker-reliquarian-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "fastaf-flicker-reliquarian-329-endgame",
+      "mainSkills": ["Flicker Strike"],
+      "deliveryMethods": ["direct-hit"],
+      "scalingAxes": ["charges", "weapon-damage"],
+      "defenceLayers": ["life", "block"],
+      "playstyleTraits": ["melee", "mobile", "charge-dependent"],
+      "contentTargets": ["uber-bosses"],
+      "mutation": {
+        "category": "enabling-item",
+        "expectedFailure": "The creator explicitly marks the Diamond Shrine belt mandatory. Candidate Upgrade Doctor should not call a belt replacement safe merely because local DPS/EHP deltas look attractive when a reviewed enabling condition is removed."
+      }
+    },
+    {
+      "id": "rf-defence-recovery-stripped-329-negative",
+      "kind": "mutation",
+      "label": "Hostile RF transition: damage gain strips core tankiness/recovery package",
+      "patch": "3.29",
+      "sourceIds": ["mobalytics-pohx-righteous-fire-chieftain-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "pohx-rf-chieftain-329-established",
+      "mainSkills": ["Righteous Fire", "Fire Trap"],
+      "deliveryMethods": ["non-ailment-dot", "direct-hit"],
+      "scalingAxes": ["dot-multiplier"],
+      "defenceLayers": ["max-resistance", "block", "regeneration", "recovery-on-block"],
+      "playstyleTraits": ["mobile", "passive-damage"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"],
+      "mutation": {
+        "category": "defensive-package-regression",
+        "expectedFailure": "The reviewed RF build's identity includes 90%+ resistances, block, recovery and large regeneration. A damage-positive transition that strips those layers must remain a multiobjective tradeoff, not a generic upgrade."
+      }
+    },
+    {
+      "id": "shrapnel-strength-threshold-lost-329-negative",
+      "kind": "mutation",
+      "label": "Broken Shrapnel Ballista state: Strength drops below reviewed threshold/totem breakpoint",
+      "patch": "3.29",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "poeguy-shrapnel-ballista-hiero-329-late-endgame",
+      "mainSkills": ["Shrapnel Ballista"],
+      "deliveryMethods": ["totem", "direct-hit"],
+      "scalingAxes": ["attributes"],
+      "defenceLayers": ["life", "regeneration"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["uber-bosses", "simulacrum"],
+      "mutation": {
+        "category": "attribute-breakpoint",
+        "expectedFailure": "The guide requires at least 2000 Strength and Replica Iron Commander adds one Shrapnel Ballista per 200 Strength. Strength loss can therefore cross discrete totem-count thresholds in addition to ordinary scalar losses."
+      }
+    },
+    {
+      "id": "shrapnel-accuracy-jewels-removed-329-negative",
+      "kind": "mutation",
+      "label": "Broken Shrapnel Ballista state: mandatory accuracy support removed",
+      "patch": "3.29",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "poeguy-shrapnel-ballista-hiero-329-late-endgame",
+      "mainSkills": ["Shrapnel Ballista"],
+      "deliveryMethods": ["totem", "direct-hit"],
+      "scalingAxes": ["attributes", "accuracy-stacking"],
+      "defenceLayers": ["life", "evasion", "block"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["nightmare-maps", "uber-bosses"],
+      "mutation": {
+        "category": "accuracy-requirement",
+        "expectedFailure": "The guide calls Strength+Accuracy Split Personality jewels mandatory for capping hit chance. Removing them can turn nominal attack scaling into dead/partially effective damage and must be rechecked through PoB hit chance."
+      }
+    },
+    {
+      "id": "shrapnel-iron-will-removed-329-negative",
+      "kind": "mutation",
+      "label": "Broken Shrapnel Ballista state: Iron Will omitted",
+      "patch": "3.29",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329", "synthetic-build-doctor-adversarial-329-03"],
+      "parentCaseId": "poeguy-shrapnel-ballista-hiero-329-late-endgame",
+      "mainSkills": ["Shrapnel Ballista"],
+      "deliveryMethods": ["totem", "direct-hit"],
+      "scalingAxes": ["attributes", "weapon-damage"],
+      "defenceLayers": ["life", "regeneration"],
+      "playstyleTraits": ["ranged", "passive-damage"],
+      "contentTargets": ["uber-bosses"],
+      "mutation": {
+        "category": "enabling-passive",
+        "expectedFailure": "The guide lists omitting Iron Will as a common mistake that drastically reduces damage. Passive Contribution Doctor should be able to expose the local loss while higher-level diagnosis preserves the reviewed mechanic relationship."
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "cowb-ward-cdr-coupling-329",
+      "summary": "In the reviewed Cast on Ward Break build, Ward is not only a defence layer: Cast on Ward Break gains 5% cooldown recovery per 100 Ward, so Ward changes alter trigger cadence and can create breakpoint-like response rather than a simple defensive delta.",
+      "sourceIds": ["mobalytics-dante-cast-on-ward-break-reliquarian-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "deliveryMethods": ["trigger"],
+      "scalingAxes": ["ward", "cooldown-recovery", "trigger-rate"],
+      "defenceLayers": ["ward"]
+    },
+    {
+      "id": "spark-archmage-mana-coupled-resource-329",
+      "summary": "The reviewed Spark Archmage setup uses mana as a coupled offensive and defensive resource: Archmage provides most damage, Mind Over Matter provides much of defence, and Arcane Cloak materially affects both.",
+      "sourceIds": ["mobalytics-bigducks-spark-archmage-hierophant-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Spark of the Nova", "Archmage Support", "Arcane Cloak"],
+      "scalingAxes": ["mana-stacking"],
+      "defenceLayers": ["mana-as-defence", "guard-skill"]
+    },
+    {
+      "id": "spark-endgame-transition-package-329",
+      "summary": "The reviewed progression does not force Spark from the start; it reaches maps through other skills and transitions when Widowhail and Rearguard are available, making the destination build a coordinated package rather than a skill-only swap.",
+      "sourceIds": ["mobalytics-bigducks-spark-archmage-hierophant-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Spark of the Nova"],
+      "scalingAxes": ["projectile-behaviour", "mana-stacking"],
+      "defenceLayers": ["block"]
+    },
+    {
+      "id": "flicker-charge-sustain-is-enabling-329",
+      "summary": "The reviewed Flicker Reliquarian explicitly advertises permanent Frenzy/permanent Flicker and names an equipment piece as mandatory, so sustained charge availability and enabling items must be validated before treating a peak configured state as practical damage.",
+      "sourceIds": ["mobalytics-fastaf-flicker-reliquarian-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Flicker Strike"],
+      "scalingAxes": ["charges"],
+      "playstyleTraits": ["charge-dependent"]
+    },
+    {
+      "id": "rf-mapping-vs-bossing-profile-329",
+      "summary": "The reviewed Righteous Fire Chieftain is explicitly map-clear focused, uses Fire Trap for single target, frames tankiness around high resistance/block/recovery/regeneration, and warns that boss damage is weak and Ubers are not advised. Content-fit diagnosis should preserve that asymmetry.",
+      "sourceIds": ["mobalytics-pohx-righteous-fire-chieftain-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Righteous Fire", "Fire Trap"],
+      "defenceLayers": ["max-resistance", "block", "regeneration", "recovery-on-block"],
+      "contentTargets": ["general-mapping", "pinnacle-bosses"]
+    },
+    {
+      "id": "shrapnel-strength-totem-thresholds-329",
+      "summary": "The reviewed Shrapnel Ballista build requires at least 2000 Strength and gains +1 Shrapnel Ballista per 200 Strength from Replica Iron Commander, making Strength both a coupled offence/defence axis and a discrete totem-count breakpoint source.",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Shrapnel Ballista"],
+      "deliveryMethods": ["totem"],
+      "scalingAxes": ["attributes"],
+      "defenceLayers": ["life", "regeneration"]
+    },
+    {
+      "id": "shrapnel-common-mistakes-mechanic-validation-329",
+      "summary": "The reviewed Shrapnel Ballista guide explicitly identifies missing Iron Will, missing Strength+Accuracy Split Personality jewels, insufficient Strength and insufficient Pierce as common mistakes, providing adversarial labels for mechanic/enabling-condition diagnosis.",
+      "sourceIds": ["poevault-poeguy-shrapnel-ballista-hierophant-329"],
+      "patches": ["3.29"],
+      "confidence": "reviewed-expert",
+      "mainSkills": ["Shrapnel Ballista"],
+      "scalingAxes": ["attributes", "accuracy-stacking", "projectile-behaviour"]
+    }
+  ]
+}
