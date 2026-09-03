@@ -3,6 +3,7 @@ import {
   type PobCalculationDelta,
   type PobFlaskProfile,
   type PobFlaskSlot,
+  type PobFlaskUptimeEntry,
   type PobMetricDelta,
   type PobPerturbationComparison,
 } from './pob-calculation';
@@ -10,11 +11,31 @@ import type { BuildDoctorKernelProvenance } from './build-doctor';
 
 export const BUILD_DOCTOR_DEPENDENCY_SCHEMA_VERSION = 1;
 
-export interface BuildDoctorMeasuredDependency {
-  status: 'measured';
+export interface BuildDoctorPobUptimeEstimate {
+  status: 'estimated';
+  source: 'pob-items-tab-effective-flask-stats';
+  averagePercent: number;
+  minimumPercent: number;
+  sourceLine: string;
+}
+
+export interface BuildDoctorPobUptimeUnsupported {
+  status: 'unsupported';
+  source: 'pob-items-tab-effective-flask-stats';
+  message: string;
+}
+
+export type BuildDoctorPobUptimeEvidence = BuildDoctorPobUptimeEstimate | BuildDoctorPobUptimeUnsupported;
+
+interface BuildDoctorDependencyIdentity {
   slot: PobFlaskSlot;
   name: string;
   kind: 'utility-availability';
+  pobUptime: BuildDoctorPobUptimeEvidence;
+}
+
+export interface BuildDoctorMeasuredDependency extends BuildDoctorDependencyIdentity {
+  status: 'measured';
   evidence: 'pob-reversible-toggle';
   fromActive: true;
   toActive: false;
@@ -22,11 +43,8 @@ export interface BuildDoctorMeasuredDependency {
   strongestObservedRelativeChangePercent?: number;
 }
 
-export interface BuildDoctorUnsupportedDependency {
+export interface BuildDoctorUnsupportedDependency extends BuildDoctorDependencyIdentity {
   status: 'unsupported';
-  slot: PobFlaskSlot;
-  name: string;
-  kind: 'utility-availability';
   evidence: 'not-measured';
   message: string;
 }
@@ -64,6 +82,38 @@ function relativeCandidates(delta: PobCalculationDelta): PobMetricDelta[] {
   ];
 }
 
+function cleanMessage(message: string, fallback: string): string {
+  return message.replace(/\s+/g, ' ').trim().slice(0, 500) || fallback;
+}
+
+function validUptimePercent(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+export function pobUptimeEvidence(
+  entry: PobFlaskUptimeEntry | undefined,
+  unavailableMessage = 'Pinned PoB did not expose a supported uptime estimate for this utility.',
+): BuildDoctorPobUptimeEvidence {
+  if (entry?.supported === true
+    && validUptimePercent(entry.averagePercent)
+    && validUptimePercent(entry.minimumPercent)
+    && typeof entry.sourceLine === 'string'
+    && entry.sourceLine.trim()) {
+    return {
+      status: 'estimated',
+      source: 'pob-items-tab-effective-flask-stats',
+      averagePercent: entry.averagePercent,
+      minimumPercent: entry.minimumPercent,
+      sourceLine: entry.sourceLine,
+    };
+  }
+  return {
+    status: 'unsupported',
+    source: 'pob-items-tab-effective-flask-stats',
+    message: cleanMessage(unavailableMessage, 'Pinned PoB uptime evidence is unavailable for this utility.'),
+  };
+}
+
 export function strongestObservedRelativeChangePercent(delta: PobCalculationDelta): number | undefined {
   const values = relativeCandidates(delta)
     .map((entry) => entry.percent)
@@ -75,6 +125,7 @@ export function strongestObservedRelativeChangePercent(delta: PobCalculationDelt
 export function measuredConfigurationDependency(
   flask: Pick<PobFlaskProfile, 'slot' | 'name' | 'active' | 'utility'>,
   comparison: PobPerturbationComparison,
+  uptime: BuildDoctorPobUptimeEvidence = pobUptimeEvidence(undefined),
 ): BuildDoctorMeasuredDependency {
   if (!flask.utility || !flask.active) throw new Error('Build Doctor dependency measurement requires an active utility flask from the inspected PoB state.');
   if (comparison.perturbations.length !== 1) throw new Error('Build Doctor dependency measurement requires exactly one reversible perturbation.');
@@ -100,6 +151,7 @@ export function measuredConfigurationDependency(
     fromActive: true,
     toActive: false,
     delta,
+    pobUptime: uptime,
     strongestObservedRelativeChangePercent: strongestObservedRelativeChangePercent(delta),
   };
 }
@@ -107,6 +159,7 @@ export function measuredConfigurationDependency(
 export function unsupportedConfigurationDependency(
   flask: Pick<PobFlaskProfile, 'slot' | 'name'>,
   message: string,
+  uptime: BuildDoctorPobUptimeEvidence = pobUptimeEvidence(undefined),
 ): BuildDoctorUnsupportedDependency {
   return {
     status: 'unsupported',
@@ -114,7 +167,8 @@ export function unsupportedConfigurationDependency(
     name: flask.name,
     kind: 'utility-availability',
     evidence: 'not-measured',
-    message: message.replace(/\s+/g, ' ').trim().slice(0, 500) || 'PoB could not measure this configuration dependency.',
+    message: cleanMessage(message, 'PoB could not measure this configuration dependency.'),
+    pobUptime: uptime,
   };
 }
 
@@ -156,6 +210,7 @@ export function readyDependencyScan(input: {
   const dependencies = rankConfigurationDependencies(input.dependencies);
   const measured = dependencies.filter((entry) => entry.status === 'measured').length;
   const unsupported = dependencies.length - measured;
+  const uptimeEstimated = dependencies.filter((entry) => entry.pobUptime.status === 'estimated').length;
   return {
     schemaVersion: BUILD_DOCTOR_DEPENDENCY_SCHEMA_VERSION,
     profileId: input.profileId,
@@ -163,7 +218,7 @@ export function readyDependencyScan(input: {
     generatedAt: input.generatedAt,
     status: 'ready',
     message: dependencies.length
-      ? `${measured} active utility configuration ${measured === 1 ? 'dependency was' : 'dependencies were'} measured by reversible PoB calculation${unsupported ? `; ${unsupported} remained unsupported` : ''}. Ranking reflects only the largest observed relative change among reviewed outputs, not encounter uptime or build quality.`
+      ? `${measured} active utility configuration ${measured === 1 ? 'dependency was' : 'dependencies were'} measured by reversible PoB calculation${unsupported ? `; ${unsupported} remained unsupported` : ''}. PoB exposed an average/minimum uptime estimate for ${uptimeEstimated}/${dependencies.length}. Ranking reflects only the largest observed relative change among reviewed outputs; uptime estimates are shown separately and are not multiplied into practical DPS/EHP.`
       : 'No active utility configuration dependencies required measurement in the imported PoB state.',
     kernel: input.kernel,
     dependencies,
