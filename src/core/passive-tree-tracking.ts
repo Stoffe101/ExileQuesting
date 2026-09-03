@@ -16,6 +16,18 @@ export interface PassiveTreeTrackingOptions {
   maximumOffsetShiftPx?: number;
   scaleFactors?: number[];
   hypothesesPerScale?: number;
+  minimumScale?: number;
+  maximumScale?: number;
+  minimumScaleRatio?: number;
+  maximumScaleRatio?: number;
+  minimumConfidence?: number;
+  maximumRmsRatio?: number;
+  /**
+   * Registration often uses more known PoB nodes than are visible at once.
+   * Cap the support denominator so a strong visible constellation is not
+   * punished merely because the full passive tree contains many anchors.
+   */
+  confidenceAnchorCap?: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -52,12 +64,23 @@ function nearestUniqueMatches(
   return matches;
 }
 
-function registrationConfidence(matches: PassiveTreeMatch[], anchorCount: number, tolerancePx: number): number {
+function registrationConfidence(
+  matches: PassiveTreeMatch[],
+  anchorCount: number,
+  tolerancePx: number,
+  confidenceAnchorCap: number,
+): number {
   if (!matches.length || !anchorCount) return 0;
   const rms = Math.sqrt(matches.reduce((sum, match) => sum + match.distance * match.distance, 0) / matches.length);
-  const ratio = matches.length / anchorCount;
+  const effectiveAnchorCount = Math.max(matches.length, Math.min(anchorCount, confidenceAnchorCap));
+  const ratio = matches.length / effectiveAnchorCount;
   const residual = 1 - clamp(rms / Math.max(1, tolerancePx), 0, 1);
-  return clamp(ratio * 0.72 + residual * 0.28, 0, 1);
+  const xs = matches.map((match) => match.tree.x);
+  const ys = matches.map((match) => match.tree.y);
+  const spreadX = Math.max(...xs) - Math.min(...xs);
+  const spreadY = Math.max(...ys) - Math.min(...ys);
+  const spread = clamp(Math.hypot(spreadX, spreadY) / 1800, 0.2, 1);
+  return clamp(ratio * 0.52 + residual * 0.33 + spread * 0.15, 0, 1);
 }
 
 interface OffsetVote {
@@ -99,12 +122,17 @@ function offsetHypotheses(
 }
 
 /**
- * Track an already-registered passive tree through ordinary pan/zoom changes.
+ * Track an already-known PoB passive-tree constellation through pan and zoom.
  *
- * This deliberately searches only near the previous transform. A large jump or
- * unrelated screen fails closed so the caller can fall back to the slower full
- * point-cloud registration. No game state or input is read here, only node
- * centres from the current screen capture.
+ * This function never decides whether the passive tree is open. The caller must
+ * establish that separately. It only solves scale + translation for a known
+ * tree against already-detected passive-node centres. This makes it suitable
+ * for continuous in-tree tracking without reviving the old gameplay-wide
+ * circle detector.
+ *
+ * The same solver can be used in two modes:
+ * - a tight, cheap search around the previous frame for normal drag/wheel input;
+ * - a wider reacquisition search after a large jump or a reopened tree.
  */
 export function trackPassiveTreeRegistration(
   previous: PassiveTreeRegistration,
@@ -116,11 +144,18 @@ export function trackPassiveTreeRegistration(
   const tolerancePx = Math.max(3, options.tolerancePx ?? 10);
   const voteCellPx = Math.max(3, options.voteCellPx ?? 7);
   const minimumInliers = Math.max(3, Math.min(anchors.length, options.minimumInliers ?? Math.min(6, Math.ceil(anchors.length * 0.3))));
-  const maximumCandidates = Math.max(minimumInliers, Math.min(120, options.maximumCandidates ?? 72));
+  const maximumCandidates = Math.max(minimumInliers, Math.min(220, options.maximumCandidates ?? 96));
   const maximumOffsetShiftPx = Math.max(20, options.maximumOffsetShiftPx ?? 180);
-  const factors = (options.scaleFactors ?? [0.9, 0.94, 0.97, 1, 1.03, 1.06, 1.1])
-    .filter((factor) => Number.isFinite(factor) && factor > 0.75 && factor < 1.3);
-  const hypothesesPerScale = Math.max(1, Math.min(8, options.hypothesesPerScale ?? 3));
+  const minimumScale = Math.max(0.0001, options.minimumScale ?? 0.002);
+  const maximumScale = Math.max(minimumScale * 1.01, options.maximumScale ?? 2);
+  const minimumScaleRatio = Math.max(0.05, options.minimumScaleRatio ?? 0.72);
+  const maximumScaleRatio = Math.max(minimumScaleRatio * 1.01, options.maximumScaleRatio ?? 1.38);
+  const minimumConfidence = clamp(options.minimumConfidence ?? 0.62, 0, 1);
+  const maximumRmsRatio = Math.max(0.1, options.maximumRmsRatio ?? 0.82);
+  const confidenceAnchorCap = Math.max(minimumInliers, Math.trunc(options.confidenceAnchorCap ?? 14));
+  const factors = (options.scaleFactors ?? [0.82, 0.9, 0.96, 1, 1.04, 1.1, 1.22])
+    .filter((factor) => Number.isFinite(factor) && factor > 0.05 && factor < 8);
+  const hypothesesPerScale = Math.max(1, Math.min(12, options.hypothesesPerScale ?? 4));
   const candidates = [...rawCandidates]
     .filter((candidate) => Number.isFinite(candidate.x) && Number.isFinite(candidate.y))
     .sort((left, right) => (right.score ?? 0) - (left.score ?? 0))
@@ -129,6 +164,7 @@ export function trackPassiveTreeRegistration(
   let best: PassiveTreeRegistration | undefined;
   for (const factor of factors) {
     const scale = previous.transform.scale * factor;
+    if (scale < minimumScale || scale > maximumScale) continue;
     const hypotheses = offsetHypotheses(
       anchors,
       candidates,
@@ -145,18 +181,18 @@ export function trackPassiveTreeRegistration(
         offsetY: hypothesis.offsetY,
         ySign: previous.transform.ySign,
       };
-      const proposalMatches = nearestUniqueMatches(proposal, anchors, candidates, tolerancePx * 1.45);
+      const proposalMatches = nearestUniqueMatches(proposal, anchors, candidates, tolerancePx * 1.5);
       if (proposalMatches.length < minimumInliers) continue;
       const refined = solvePassiveTreeTransform(proposalMatches, previous.transform.ySign);
-      if (!refined) continue;
+      if (!refined || refined.scale < minimumScale || refined.scale > maximumScale) continue;
       const scaleRatio = refined.scale / previous.transform.scale;
-      if (scaleRatio < 0.86 || scaleRatio > 1.14) continue;
+      if (scaleRatio < minimumScaleRatio || scaleRatio > maximumScaleRatio) continue;
       if (Math.abs(refined.offsetX - previous.transform.offsetX) > maximumOffsetShiftPx
         || Math.abs(refined.offsetY - previous.transform.offsetY) > maximumOffsetShiftPx) continue;
       const matches = nearestUniqueMatches(refined, anchors, candidates, tolerancePx);
       if (matches.length < minimumInliers) continue;
       const rms = Math.sqrt(matches.reduce((sum, match) => sum + match.distance * match.distance, 0) / matches.length);
-      const confidence = registrationConfidence(matches, anchors.length, tolerancePx);
+      const confidence = registrationConfidence(matches, anchors.length, tolerancePx, confidenceAnchorCap);
       const result: PassiveTreeRegistration = {
         transform: refined,
         matches,
@@ -173,6 +209,6 @@ export function trackPassiveTreeRegistration(
     }
   }
 
-  if (!best || best.confidence < 0.62 || best.rms > tolerancePx * 0.82) return undefined;
+  if (!best || best.confidence < minimumConfidence || best.rms > tolerancePx * maximumRmsRatio) return undefined;
   return best;
 }
