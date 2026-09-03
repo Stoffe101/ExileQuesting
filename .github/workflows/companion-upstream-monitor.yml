@@ -1,0 +1,40 @@
+name: Companion upstream compatibility monitor
+
+on:
+  schedule:
+    - cron: "53 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - id: companions
+        name: Check Maxroll, Mobalytics and pinned game-data sources
+        run: npx esbuild tools/check-companion-upstreams.ts --bundle --platform=node --format=esm --outfile=.tmp/check-companion-upstreams.mjs && node .tmp/check-companion-upstreams.mjs
+      - name: Open compatibility review issue
+        if: steps.companions.outputs.review == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINGERPRINT: ${{ steps.companions.outputs.fingerprint }}
+          REASON: ${{ steps.companions.outputs.reason }}
+        shell: bash
+        run: |
+          title="Companion upstream compatibility review $FINGERPRINT"
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq 'length')
+          if [ "$existing" = "0" ]; then
+            gh issue create \
+              --title "$title" \
+              --body "One or more build-guide/game-data contracts need review: **$REASON**.\n\nOpen the workflow summary for the exact provider/source findings: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\n\nNo production data or adapter is advanced automatically. Keep the last verified Maxroll fixtures, Mobalytics PoB bridge, and pinned PoE datasets active until the review is complete."
+          fi
