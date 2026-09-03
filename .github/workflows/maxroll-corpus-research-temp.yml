@@ -36,3 +36,5 @@ jobs:
           name: mobalytics-structure-report
           path: mobalytics-structure-report.json
           if-no-files-found: ignore
+      - name: Exercise permanent companion upstream monitor
+        run: npx esbuild tools/check-companion-upstreams.ts --bundle --platform=node --format=esm --outfile=.tmp/check-companion-upstreams.mjs && node .tmp/check-companion-upstreams.mjs
