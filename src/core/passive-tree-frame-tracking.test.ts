@@ -127,6 +127,7 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetX).toBeCloseTo(offset.x, -0.5);
     expect(result!.offsetY).toBeCloseTo(offset.y, -0.5);
     expect(result!.inliers).toBeGreaterThanOrEqual(7);
+    expect(result!.confidence).toBeGreaterThan(0.75);
   });
 
   it('tracks an aggressive zoom-out without confusing it with a pan', () => {
