@@ -60,8 +60,9 @@ const MAX_FEATURES = 42;
 const HYPOTHESIS_FEATURES = 26;
 const MIN_TEXTURE = 22;
 const MATCH_ERROR_LIMIT = 32;
-const NORMAL_SCALE_FACTORS = [0.64, 0.72, 0.8, 0.88, 0.94, 1, 1.06, 1.14, 1.24, 1.36, 1.5, 1.64, 1.76];
-const WIDE_SCALE_FACTORS = [0.48, 0.56, 0.64, 0.74, 0.84, 0.92, 1, 1.08, 1.18, 1.3, 1.44, 1.6, 1.78, 1.98, 2.18];
+const NORMAL_SCALE_FACTORS = [0.64, 0.72, 0.8, 0.88, 0.94, 1, 1.06, 1.14, 1.24, 1.36, 1.5, 1.62, 1.64, 1.76];
+const WIDE_SCALE_FACTORS = [0.48, 0.56, 0.64, 0.74, 0.84, 0.92, 1, 1.08, 1.18, 1.3, 1.44, 1.6, 1.62, 1.78, 1.98, 2.18];
+const REFINED_HYPOTHESES = 3;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -362,7 +363,7 @@ function solveScaleHypothesis(
   return motion;
 }
 
-function refineBestHypothesis(
+function refineHypothesis(
   previous: GrayFrame,
   current: GrayFrame,
   allFeatures: FeaturePoint[],
@@ -439,36 +440,43 @@ export function trackPassiveTreeFrameMotion(
 
   const hypothesisFeatures = features.slice(0, Math.min(features.length, HYPOTHESIS_FEATURES));
   const scaleFactors = options.wide ? WIDE_SCALE_FACTORS : NORMAL_SCALE_FACTORS;
-  let best: WorkingMotion | undefined;
-  let bestScore = -1;
+  const seeds: Array<{ motion: WorkingMotion; score: number }> = [];
   for (const scale of scaleFactors) {
     if (scale === 1) continue;
-    const candidate = solveScaleHypothesis(previous, current, hypothesisFeatures, scale, searchRadius);
-    if (!candidate) continue;
-    const score = hypothesisScore(candidate, hypothesisFeatures.length);
-    if (!best || score > bestScore
-      || (Math.abs(score - bestScore) < 1e-6 && candidate.inliers.length > best.inliers.length)) {
-      best = candidate;
-      bestScore = score;
+    const motion = solveScaleHypothesis(previous, current, hypothesisFeatures, scale, searchRadius);
+    if (!motion) continue;
+    seeds.push({ motion, score: hypothesisScore(motion, hypothesisFeatures.length) });
+  }
+  if (!seeds.length) return undefined;
+
+  seeds.sort((left, right) => right.score - left.score || right.motion.inliers.length - left.motion.inliers.length || left.motion.rms - right.motion.rms);
+  let selected: WorkingMotion | undefined;
+  let selectedConfidence = -1;
+  for (const seed of seeds.slice(0, REFINED_HYPOTHESES)) {
+    const refined = refineHypothesis(previous, current, features, seed.motion, searchRadius);
+    if (!refined) continue;
+    const confidence = confidenceForMotion(refined, features.length, Boolean(options.wide));
+    if (!selected || confidence > selectedConfidence
+      || (Math.abs(confidence - selectedConfidence) < 1e-6 && refined.inliers.length > selected.inliers.length)
+      || (Math.abs(confidence - selectedConfidence) < 1e-6 && refined.inliers.length === selected.inliers.length && refined.rms < selected.rms)) {
+      selected = refined;
+      selectedConfidence = confidence;
     }
   }
-  if (!best) return undefined;
+  if (!selected) return undefined;
 
-  const refined = refineBestHypothesis(previous, current, features, best, searchRadius);
-  if (!refined) return undefined;
   const minimumInliers = Math.max(6, Math.trunc(options.minimumInliers ?? Math.max(7, Math.ceil(features.length * 0.28))));
-  if (refined.inliers.length < minimumInliers) return undefined;
-  const confidence = confidenceForMotion(refined, features.length, Boolean(options.wide));
+  if (selected.inliers.length < minimumInliers) return undefined;
   const minimumConfidence = clamp(options.minimumConfidence ?? (options.wide ? 0.55 : 0.6), 0, 1);
-  if (confidence < minimumConfidence) return undefined;
+  if (selectedConfidence < minimumConfidence) return undefined;
 
   return {
-    scale: refined.scale,
-    offsetX: refined.offsetX * previous.scaleX,
-    offsetY: refined.offsetY * previous.scaleY,
-    confidence,
-    inliers: refined.inliers.length,
-    rms: refined.rms * (previous.scaleX + previous.scaleY) / 2,
+    scale: selected.scale,
+    offsetX: selected.offsetX * previous.scaleX,
+    offsetY: selected.offsetY * previous.scaleY,
+    confidence: selectedConfidence,
+    inliers: selected.inliers.length,
+    rms: selected.rms * (previous.scaleX + previous.scaleY) / 2,
   };
 }
 
