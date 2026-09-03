@@ -371,7 +371,7 @@ local function evaluateFlaskToggle(request, startedAt, perturbation)
     if type(item) ~= "table" then
         return errorResponse(request.requestId, "flask-slot-empty", "The requested PoB flask slot has no equipped item.", false)
     end
-    if type(item.base) ~= "table" or item.base.flask ~= true then
+    if type(item.base) ~= "table" or not item.base.flask then
         return errorResponse(request.requestId, "flask-item-unsupported", "The equipped item in the requested slot is not a PoB flask item.", false)
     end
     if not build.calcsTab or type(build.calcsTab.GetMiscCalculator) ~= "function" then
