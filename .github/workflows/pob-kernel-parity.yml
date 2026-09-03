@@ -11,6 +11,7 @@ on:
       - 'tools/pob-kernel/**'
       - 'tools/pob-kernel-parity.ts'
       - 'tools/pob-flask-parity.ts'
+      - 'tools/pob-flask-uptime-probe.ts'
   workflow_dispatch:
 
 permissions:
@@ -74,10 +75,13 @@ jobs:
         run: |
           npx esbuild tools/pob-kernel-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-kernel-parity.mjs
           npx esbuild tools/pob-flask-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-flask-parity.mjs
+          npx esbuild tools/pob-flask-uptime-probe.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-flask-uptime-probe.mjs
       - name: Run real headless PoB parity
         run: node .tmp/pob-kernel-parity.mjs
       - name: Run real headless PoB flask availability parity
         run: node .tmp/pob-flask-parity.mjs
+      - name: Probe pinned PoB flask uptime method directly
+        run: node .tmp/pob-flask-uptime-probe.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
