@@ -117,6 +117,18 @@ describe('passive tree frame motion', () => {
     expect(result!.inliers).toBeGreaterThanOrEqual(7);
   });
 
+  it('tracks a 1.76x burst without letting repeated tree artwork steal the transform', () => {
+    const previous = treeTexture(width, height, 0.31);
+    const offset = centreZoomOffset(width, height, 1.76, -7, -1);
+    const current = transformed(previous, width, height, 1.76, offset.x, offset.y);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height, { wide: true, searchRadiusPx: 104 });
+    expect(result).toBeDefined();
+    expect(result!.scale).toBeCloseTo(1.76, 1);
+    expect(result!.offsetX).toBeCloseTo(offset.x, -0.5);
+    expect(result!.offsetY).toBeCloseTo(offset.y, -0.5);
+    expect(result!.inliers).toBeGreaterThanOrEqual(7);
+  });
+
   it('tracks an aggressive zoom-out without confusing it with a pan', () => {
     const previous = treeTexture(width, height);
     const offset = centreZoomOffset(width, height, 0.64, 7, -4);
@@ -144,6 +156,7 @@ describe('passive tree frame motion', () => {
     const previous = treeTexture(width, height, 0);
     const unrelated = treeTexture(width, height, 2.37);
     expect(trackPassiveTreeFrameMotion(previous, unrelated, width, height)).toBeUndefined();
+    expect(trackPassiveTreeFrameMotion(previous, unrelated, width, height, { wide: true, searchRadiusPx: 104, minimumConfidence: 0.55 })).toBeUndefined();
   });
 
   it('composes pan and zoom onto the immutable PoB tree transform', () => {
