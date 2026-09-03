@@ -109,7 +109,7 @@ local selected = nil
 for index = 1, 5 do
     local slotName = "Flask " .. index
     local slot, item = itemForSlot(slotName)
-    if type(slot) == "table" and type(item) == "table" and type(item.base) == "table" and item.base.flask == true then
+    if type(slot) == "table" and type(item) == "table" and type(item.base) == "table" and item.base.flask then
         local fromActive = slot.active == true
         local mainEnv = build.calcsTab.mainEnv
         local stateConsistent = true
