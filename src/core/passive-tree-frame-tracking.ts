@@ -354,9 +354,17 @@ function solveScaleHypothesis(
   features: FeaturePoint[],
   scale: number,
   searchRadius: number,
+  centeredZoom = false,
 ): WorkingMotion | undefined {
+  // A real PoE wheel zoom is overwhelmingly a scale around the tree viewport
+  // centre plus a comparatively small residual pan. Constraining scale
+  // hypotheses to that neighborhood prevents repeated passive-tree artwork
+  // elsewhere on the screen from becoming a false correspondence. Scale=1
+  // keeps the broad search because ordinary drag-panning can legitimately move
+  // much farther between captures.
+  const preferredOffset = centeredZoom ? { x: 0, y: 0 } : undefined;
   const matches = features
-    .map((feature) => matchFeatureAtScale(previous, current, feature, scale, searchRadius))
+    .map((feature) => matchFeatureAtScale(previous, current, feature, scale, searchRadius, preferredOffset))
     .filter((match): match is FeatureMatch => Boolean(match));
   const motion = dominantTranslation(matches, scale, 6);
   if (!motion || !hasUsefulSpread(motion, previous.width, previous.height)) return undefined;
@@ -389,7 +397,10 @@ function confidenceForMotion(motion: WorkingMotion, availableFeatures: number, w
   const coverage = motion.inliers.length / Math.max(1, availableFeatures);
   const residualConfidence = 1 - clamp(motion.rms / (wide ? 6 : 5), 0, 1);
   const matchQuality = 1 - clamp(motion.meanPatchError / MATCH_ERROR_LIMIT, 0, 1);
-  return clamp(coverage * 0.58 + residualConfidence * 0.27 + matchQuality * 0.15, 0, 1);
+  // Large legitimate zooms naturally throw some source features outside the
+  // viewport, so raw coverage should not dominate confidence. Geometric
+  // residual and patch agreement become stronger evidence in that case.
+  return clamp(coverage * 0.5 + residualConfidence * 0.32 + matchQuality * 0.18, 0, 1);
 }
 
 /**
@@ -443,7 +454,7 @@ export function trackPassiveTreeFrameMotion(
   const seeds: Array<{ motion: WorkingMotion; score: number }> = [];
   for (const scale of scaleFactors) {
     if (scale === 1) continue;
-    const motion = solveScaleHypothesis(previous, current, hypothesisFeatures, scale, searchRadius);
+    const motion = solveScaleHypothesis(previous, current, hypothesisFeatures, scale, searchRadius, true);
     if (!motion) continue;
     seeds.push({ motion, score: hypothesisScore(motion, hypothesisFeatures.length) });
   }
