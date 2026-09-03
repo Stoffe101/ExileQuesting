@@ -52,6 +52,13 @@ function transformed(source: Uint8Array, width: number, height: number, scale: n
   return result;
 }
 
+function centreZoomOffset(width: number, height: number, scale: number, panX = 0, panY = 0): { x: number; y: number } {
+  return {
+    x: ((width - 1) / 2) * (1 - scale) + panX,
+    y: ((height - 1) / 2) * (1 - scale) + panY,
+  };
+}
+
 function occlude(bitmap: Uint8Array, width: number, x0: number, y0: number, x1: number, y1: number): void {
   for (let y = y0; y < y1; y += 1) {
     for (let x = x0; x < x1; x += 1) {
@@ -87,7 +94,7 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetY).toBeCloseTo(-8, -0.5);
   });
 
-  it('tracks zoom and pan together while keeping one immutable target space', () => {
+  it('tracks modest zoom and pan together while keeping one immutable target space', () => {
     const previous = treeTexture(width, height);
     const current = transformed(previous, width, height, 1.06, -7, 4);
     const result = trackPassiveTreeFrameMotion(previous, current, width, height);
@@ -96,6 +103,30 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetX).toBeCloseTo(-7, 0);
     expect(result!.offsetY).toBeCloseTo(4, 0);
     expect(result!.inliers).toBeGreaterThanOrEqual(6);
+  });
+
+  it('tracks an aggressive 1.62x centre zoom plus pan like the real-client recording', () => {
+    const previous = treeTexture(width, height);
+    const offset = centreZoomOffset(width, height, 1.62, -6, -2);
+    const current = transformed(previous, width, height, 1.62, offset.x, offset.y);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height);
+    expect(result).toBeDefined();
+    expect(result!.scale).toBeCloseTo(1.62, 1);
+    expect(result!.offsetX).toBeCloseTo(offset.x, -0.5);
+    expect(result!.offsetY).toBeCloseTo(offset.y, -0.5);
+    expect(result!.inliers).toBeGreaterThanOrEqual(7);
+  });
+
+  it('tracks an aggressive zoom-out without confusing it with a pan', () => {
+    const previous = treeTexture(width, height);
+    const offset = centreZoomOffset(width, height, 0.64, 7, -4);
+    const current = transformed(previous, width, height, 0.64, offset.x, offset.y);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height);
+    expect(result).toBeDefined();
+    expect(result!.scale).toBeCloseTo(0.64, 1);
+    expect(result!.offsetX).toBeCloseTo(offset.x, -0.5);
+    expect(result!.offsetY).toBeCloseTo(offset.y, -0.5);
+    expect(result!.inliers).toBeGreaterThanOrEqual(7);
   });
 
   it('stays locked through a tooltip-like occlusion', () => {
