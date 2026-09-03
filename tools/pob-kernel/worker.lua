@@ -322,7 +322,7 @@ local function inspectFlasks(request, startedAt)
                 life = life,
                 mana = mana,
                 utility = not life and not mana,
-                local = localProfile,
+                ["local"] = localProfile,
                 buildModifiers = {
                     durationIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskDuration")),
                     chargesUsedIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskChargesUsed")),
