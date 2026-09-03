@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { delimiter, resolve } from 'node:path';
 import {
   parsePobWorkerProtocolLines,
   validPobCalculationRequest,
@@ -16,6 +16,9 @@ export interface PobKernelRuntimeOptions {
   pobSourcePath: string;
   workerScriptPath: string;
   luaModulePath?: string;
+  luaCModulePath?: string;
+  runtimeRevision?: string;
+  additionalPathEntries?: string[];
   timeoutMs?: number;
   maxOutputBytes?: number;
 }
@@ -49,6 +52,12 @@ function defaultLuaModulePath(pobSourcePath: string): string {
   return process.env.LUA_PATH ? `${pinnedPaths};${process.env.LUA_PATH}` : pinnedPaths;
 }
 
+function defaultLuaCModulePath(pobSourcePath: string): string {
+  const runtime = resolve(pobSourcePath, '..', 'runtime');
+  const pinnedPaths = `${resolve(runtime, '?.dll')};${resolve(runtime, '?', '?.dll')}`;
+  return process.env.LUA_CPATH ? `${pinnedPaths};${process.env.LUA_CPATH}` : pinnedPaths;
+}
+
 function workerFailureError(response: PobWorkerFailure, stdout: string, stderr: string): PobKernelWorkerError {
   return new PobKernelWorkerError(
     response.error.code,
@@ -71,6 +80,9 @@ export async function runPobKernelRequest(
 
   const timeoutMs = Math.min(Math.max(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, 1_000), 120_000);
   const maxOutputBytes = Math.min(Math.max(options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES, 64 * 1024), 32 * 1024 * 1024);
+  const extraPath = (options.additionalPathEntries ?? []).map((entry) => resolve(entry)).filter(Boolean);
+  const inheritedPath = process.env.PATH ?? '';
+  const childPath = [...extraPath, inheritedPath].filter(Boolean).join(delimiter);
 
   return await new Promise<PobWorkerResponse>((resolvePromise, rejectPromise) => {
     const child = spawn(options.runtimePath, [resolve(options.workerScriptPath)], {
@@ -81,6 +93,9 @@ export async function runPobKernelRequest(
       env: {
         ...process.env,
         LUA_PATH: options.luaModulePath ?? defaultLuaModulePath(options.pobSourcePath),
+        LUA_CPATH: options.luaCModulePath ?? defaultLuaCModulePath(options.pobSourcePath),
+        EXILEQUESTING_LUAJIT_COMMIT: options.runtimeRevision ?? process.env.EXILEQUESTING_LUAJIT_COMMIT,
+        PATH: childPath,
       },
     });
 
