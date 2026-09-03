@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { BuildDoctorSnapshot } from '../core/build-doctor';
+import BuildDoctorCandidateItemPanel from './BuildDoctorCandidateItemPanel';
 import BuildDoctorDependencyPanel from './BuildDoctorDependencyPanel';
 
 type BuildWorkspaceState = Awaited<ReturnType<typeof window.exileQuesting.getBuildWorkspace>>;
@@ -130,10 +131,18 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
 
           {profile && (
             <BuildDoctorDependencyPanel
-              key={`${profile.id}:${snapshot.generatedAt}`}
+              key={`dependencies:${profile.id}:${snapshot.generatedAt}`}
               profileId={profile.id}
               enabled={snapshot.status === 'ready'}
               activeUtilityCount={activeUtilityDependencies}
+            />
+          )}
+
+          {profile && (
+            <BuildDoctorCandidateItemPanel
+              key={`candidate:${profile.id}:${snapshot.generatedAt}`}
+              profileId={profile.id}
+              enabled={snapshot.status === 'ready'}
             />
           )}
 

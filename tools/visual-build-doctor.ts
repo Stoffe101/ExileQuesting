@@ -4,6 +4,7 @@ import path from 'node:path';
 import { normalizeCampaign } from '../src/core/campaign';
 import { buildPlannerSnapshot, normalizeBuildPlannerState } from '../src/core/build-planner';
 import { readyBuildDoctorSnapshot } from '../src/core/build-doctor';
+import { readyCandidateItemAnalysis } from '../src/core/build-doctor-candidate-item';
 import { measuredConfigurationDependency, pobUptimeEvidence, readyDependencyScan } from '../src/core/build-doctor-dependencies';
 import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
@@ -14,6 +15,19 @@ import type { PobCalculationResult, PobFlaskInspectionResult, PobFlaskProfile, P
 import type { AppSettings, GuidanceAnnotation, LayoutHint, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
 
 const output = path.resolve(process.argv[2] || 'artifacts/manager-visual/build-doctor');
+const candidateItemText = `Item Class: Boots
+Rarity: Rare
+Storm Pace
+Sharkskin Boots
+--------
+Requirements:
+Level: 68
+Dex: 120
+--------
++95 to maximum Life
++22% to Fire Resistance
++35% to Cold Resistance
+30% increased Movement Speed`;
 
 const settings: AppSettings = {
   logPath: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Path of Exile\\logs\\LatestClient.txt', guidanceMode: 'beginner', leagueStart: false, bandit: 'none', showOptional: true,
@@ -60,6 +74,7 @@ function baseline(): PobCalculationResult {
     defence: {
       life: 3_860, energyShield: 4_920, mana: 1_170, effectiveHitPool: 182_440, armour: 13_800, evasion: 42_700, spellSuppressionChance: 100,
       fireResistance: 75, coldResistance: 75, lightningResistance: 75, chaosResistance: 42,
+      fireResistanceOverCap: 35, coldResistanceOverCap: 30, lightningResistanceOverCap: 28, chaosResistanceOverCap: 0,
       maximumHit: { physical: 28_940, fire: 61_200, cold: 63_840, lightning: 60_770, chaos: 31_420 },
       totalNetRecovery: 2_180,
     },
@@ -85,7 +100,7 @@ function utilityInspection(): PobFlaskInspectionResult {
   };
 }
 
-function comparison(flask: PobFlaskProfile, after: PobCalculationResult): PobPerturbationComparison {
+function flaskComparison(flask: PobFlaskProfile, after: PobCalculationResult): PobPerturbationComparison {
   const before = baseline();
   before.requestId = `visual-dependency-before-${flask.slot}`;
   after.requestId = `visual-dependency-after-${flask.slot}`;
@@ -131,9 +146,36 @@ function dependencyScan(now: string) {
       adapterVersion: kernel.adapterVersion,
     },
     dependencies: [
-      measuredConfigurationDependency(diamond, comparison(diamond, diamondAfter), diamondUptime),
-      measuredConfigurationDependency(granite, comparison(granite, graniteAfter), graniteUptime),
+      measuredConfigurationDependency(diamond, flaskComparison(diamond, diamondAfter), diamondUptime),
+      measuredConfigurationDependency(granite, flaskComparison(granite, graniteAfter), graniteUptime),
     ],
+  });
+}
+
+function candidateAnalysis(now: string) {
+  const before = baseline();
+  before.requestId = 'visual-candidate-before';
+  const after = baseline();
+  after.requestId = 'visual-candidate-after';
+  after.offence = { ...after.offence, totalDps: 9_018_668, fullDps: 9_018_668 };
+  after.defence = {
+    ...after.defence,
+    life: 4_060,
+    spellSuppressionChance: 92,
+    fireResistanceOverCap: 12,
+    maximumHit: { ...after.defence.maximumHit, physical: 31_834 },
+  };
+  return readyCandidateItemAnalysis({
+    profileId: 'visual-build-doctor',
+    profileName: 'Level 96 Trickster · Build Doctor fixture',
+    generatedAt: now,
+    slot: 'Boots',
+    candidateLabel: 'Storm Pace · Sharkskin Boots',
+    comparison: {
+      perturbations: [{ kind: 'replace-item', slot: 'Boots', itemText: candidateItemText }],
+      before,
+      after,
+    },
   });
 }
 
@@ -204,11 +246,13 @@ async function main(): Promise<void> {
   };
   const snapshot = readyBuildDoctorSnapshot({ profileId: buildProfile.id, profileName: buildProfile.name, generatedAt: now, baseline: baseline(), flaskInspection: utilityInspection() });
   const dependencies = dependencyScan(now);
+  const candidate = candidateAnalysis(now);
 
   ipcMain.handle('app:bootstrap', () => state);
   ipcMain.handle('pob:workspace', () => workspace);
   ipcMain.handle('build-doctor:analyze', () => snapshot);
   ipcMain.handle('build-doctor:dependencies', () => dependencies);
+  ipcMain.handle('build-doctor:candidate-item', () => candidate);
 
   const window = new BrowserWindow({ show: false, width: 1200, height: 800, backgroundColor: '#090b10', webPreferences: { preload: path.resolve('dist-electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
   await window.loadFile(path.resolve('dist/index.html'));
@@ -253,27 +297,59 @@ async function main(): Promise<void> {
   }
   const dependencyDesktopBytes = await capture(window, 'build-doctor-dependencies-1920x1080.png');
 
+  const candidateSubmitted = await window.webContents.executeJavaScript(`(() => {
+    const textarea = document.querySelector('.build-doctor-candidate-text');
+    if (!(textarea instanceof HTMLTextAreaElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(textarea, ${JSON.stringify(candidateItemText)});
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    const button = [...document.querySelectorAll('.build-doctor-candidate button')].find((node) => node.textContent?.includes('Check candidate in PoB'));
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!candidateSubmitted) throw new Error('Candidate Upgrade Doctor paste/submit controls are missing.');
+  await waitFor(window, `document.querySelector('.build-doctor-candidate-result')`, 'Candidate Upgrade Doctor result');
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-candidate')?.scrollIntoView({ block: 'start' })`);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const candidateDesktop = await inspectLayout(window);
+  if (!candidateDesktop.text.includes('Storm Pace · Sharkskin Boots') || !candidateDesktop.text.includes('PoB damage') || !candidateDesktop.text.includes('+15%')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing the deterministic offence comparison.');
+  }
+  if (!candidateDesktop.text.includes('Spell suppression') || !candidateDesktop.text.includes('100%') || !candidateDesktop.text.includes('92%') || !candidateDesktop.text.includes('-8 pts')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing the suppression regression.');
+  }
+  if (!candidateDesktop.text.includes('Fire overcap') || !candidateDesktop.text.includes('35%') || !candidateDesktop.text.includes('12%') || !candidateDesktop.text.includes('-23 pts')) {
+    throw new Error('Candidate Upgrade Doctor fixture is missing the resistance-overcap regression.');
+  }
+  if (!candidateDesktop.text.includes('requirements') || !candidateDesktop.text.includes('reservation') || !candidateDesktop.text.includes('trade cost')) {
+    throw new Error('Candidate Upgrade Doctor fixture lost its unresolved-transition boundary.');
+  }
+  const candidateDesktopBytes = await capture(window, 'build-doctor-candidate-1920x1080.png');
+
   window.setSize(1280, 720, false);
   await new Promise((resolve) => setTimeout(resolve, 180));
-  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-dependencies')?.scrollIntoView({ block: 'start' })`);
+  await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-candidate')?.scrollIntoView({ block: 'start' })`);
   const compact = await inspectLayout(window);
   if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
   if (compact.panelWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor panel exceeds compact viewport (${compact.panelWidth} > ${compact.viewportWidth}).`);
-  if (!compact.text.includes('78% avg · 60% min') || !compact.text.includes('No numerical uptime is inferred.')) throw new Error('Build Doctor compact sustainability evidence is incomplete.');
-  const compactBytes = await capture(window, 'build-doctor-dependencies-1280x720.png');
+  if (!compact.text.includes('Storm Pace · Sharkskin Boots') || !compact.text.includes('Spell suppression') || !compact.text.includes('Fire overcap')) throw new Error('Candidate Upgrade Doctor compact evidence is incomplete.');
+  const compactBytes = await capture(window, 'build-doctor-candidate-1280x720.png');
 
   await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({
     generatedAt: now,
     desktopBytes,
     dependencyDesktopBytes,
+    candidateDesktopBytes,
     compactBytes,
     desktop,
     dependencyDesktop,
+    candidateDesktop,
     compact,
   }, null, 2), 'utf8');
   window.destroy();
-  for (const channel of ['app:bootstrap', 'pob:workspace', 'build-doctor:analyze', 'build-doctor:dependencies']) ipcMain.removeHandler(channel);
+  for (const channel of ['app:bootstrap', 'pob:workspace', 'build-doctor:analyze', 'build-doctor:dependencies', 'build-doctor:candidate-item']) ipcMain.removeHandler(channel);
   app.quit();
 }
 
