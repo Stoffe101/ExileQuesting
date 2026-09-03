@@ -1,4 +1,4 @@
-name: Maxroll corpus research temporary
+name: Build-guide corpus research temporary
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,9 +19,13 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Inspect current Maxroll leveling corpus
-        run: npx tsx tools/research-maxroll-corpus-temp.ts
+        run: npx esbuild tools/research-maxroll-corpus-temp.ts --bundle --platform=node --format=esm --outfile=.tmp/research-maxroll-corpus-temp.mjs && node .tmp/research-maxroll-corpus-temp.mjs
+      - name: Inspect current Mobalytics build structure
+        run: node tools/research-mobalytics-temp.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: maxroll-corpus-report
-          path: maxroll-corpus-report.json
+          name: build-guide-corpus-reports
+          path: |
+            maxroll-corpus-report.json
+            mobalytics-structure-report.json
           if-no-files-found: error
