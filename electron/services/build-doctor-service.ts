@@ -1,4 +1,3 @@
-import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
 import {
   readyBuildDoctorSnapshot,
@@ -10,15 +9,8 @@ import type {
   PobWorkerFlaskInspectionSuccess,
   PobWorkerResponse,
 } from '../../src/core/pob-calculation';
-import { loadPobCalculationPayload } from './pob-calculation-payload';
+import { conciseBuildDoctorError, resolveBuildDoctorCalculationContext } from './build-doctor-context';
 import { runPobKernelRequest } from './pob-kernel-service';
-import { pobKernelBundleRoot, pobKernelRuntimeOptions, validatePobKernelBundle } from './pob-runtime';
-import { StateStore } from './state-store';
-
-function conciseError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.replace(/\s+/g, ' ').trim().slice(0, 700) || 'Unknown error.';
-}
 
 function calculationResponse(response: PobWorkerResponse): PobWorkerCalculationSuccess {
   if (!response.ok || !('result' in response)) throw new Error('PoB worker did not return the requested baseline calculation.');
@@ -32,54 +24,18 @@ function flaskResponse(response: PobWorkerResponse): PobWorkerFlaskInspectionSuc
 
 export async function analyzeBuildDoctorProfile(profileId: string): Promise<BuildDoctorSnapshot> {
   const generatedAt = new Date().toISOString();
-  const userDataPath = app.getPath('userData');
-  const store = new StateStore(userDataPath);
-  const profiles = await store.loadBuildProfiles();
-  const profile = profiles.find((candidate) => candidate.id === profileId);
-  if (!profile) throw new Error('Build Doctor could not find the requested build profile.');
-
-  if (!profile.calculation) {
+  const context = await resolveBuildDoctorCalculationContext(profileId);
+  if (!context.ok) {
     return unavailableBuildDoctorSnapshot({
-      status: 'reimport-required',
-      profileId: profile.id,
-      profileName: profile.name,
+      status: context.status,
+      profileId: context.profileId,
+      profileName: context.profileName,
       generatedAt,
-      message: 'This profile predates persistent Build Doctor calculation inputs. Re-import the PoB once so ExileQuesting can store a verified local calculation payload.',
+      message: context.message,
     });
   }
 
-  let xml: string;
-  try {
-    xml = await loadPobCalculationPayload(userDataPath, profile);
-  } catch (error) {
-    return unavailableBuildDoctorSnapshot({
-      status: 'calculation-input-invalid',
-      profileId: profile.id,
-      profileName: profile.name,
-      generatedAt,
-      message: `The stored PoB calculation input failed local integrity verification. Re-import the build before trusting a diagnosis. ${conciseError(error)}`,
-    });
-  }
-
-  let runtimeOptions: ReturnType<typeof pobKernelRuntimeOptions>;
-  try {
-    const bundleRoot = pobKernelBundleRoot({
-      packaged: app.isPackaged,
-      resourcesPath: process.resourcesPath,
-      appPath: app.getAppPath(),
-      overrideRoot: process.env.EXILEQUESTING_POB_BUNDLE_ROOT,
-    });
-    runtimeOptions = pobKernelRuntimeOptions(await validatePobKernelBundle(bundleRoot));
-  } catch (error) {
-    return unavailableBuildDoctorSnapshot({
-      status: 'runtime-unavailable',
-      profileId: profile.id,
-      profileName: profile.name,
-      generatedAt,
-      message: `The pinned Path of Building calculation runtime is missing or failed integrity verification. ${conciseError(error)}`,
-    });
-  }
-
+  const { profile, xml, runtimeOptions } = context;
   try {
     const baseline = calculationResponse(await runPobKernelRequest({
       protocolVersion: 1,
@@ -126,7 +82,7 @@ export async function analyzeBuildDoctorProfile(profileId: string): Promise<Buil
       profileId: profile.id,
       profileName: profile.name,
       generatedAt: new Date().toISOString(),
-      message: `The verified PoB runtime could not calculate this build. Build Doctor has not produced numerical conclusions. ${conciseError(error)}`,
+      message: `The verified PoB runtime could not calculate this build. Build Doctor has not produced numerical conclusions. ${conciseBuildDoctorError(error)}`,
     });
   }
 }
