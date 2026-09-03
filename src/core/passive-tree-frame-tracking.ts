@@ -437,11 +437,14 @@ export function trackPassiveTreeFrameMotion(
   const searchRadius = Math.round(clamp(Math.max(workingRequestedRadius, minimumRadius), 12, maximumRadius));
 
   // Most frames are stationary or ordinary pans. Solve scale=1 first so the
-  // common path stays cheap and extremely stable.
+  // common path stays cheap and extremely stable. A 40% inlier floor is still
+  // paired with the independent confidence/spread gates, but avoids discarding
+  // a near-perfect identity transform just because one animated UI region
+  // temporarily removes a feature cell.
   const fast = solveScaleHypothesis(previous, current, features, 1, searchRadius);
   if (fast) {
     const fastConfidence = confidenceForMotion(fast, features.length, Boolean(options.wide));
-    const fastMinimumInliers = Math.max(7, Math.ceil(features.length * 0.45));
+    const fastMinimumInliers = Math.max(7, Math.ceil(features.length * 0.4));
     if (fast.inliers.length >= fastMinimumInliers && fastConfidence >= 0.68) {
       return {
         scale: fast.scale,
