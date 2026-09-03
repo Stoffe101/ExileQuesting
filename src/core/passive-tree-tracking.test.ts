@@ -36,6 +36,10 @@ function registration(transform: PassiveTreeTransform): PassiveTreeRegistration 
   };
 }
 
+function seedRegistration(transform: PassiveTreeTransform): PassiveTreeRegistration {
+  return { transform, matches: [], inliers: 0, rms: 0, confidence: 1 };
+}
+
 function expectClose(actual: PassiveTreeTransform, expected: PassiveTreeTransform) {
   expect(actual.scale).toBeCloseTo(expected.scale, 2);
   expect(actual.offsetX).toBeCloseTo(expected.offsetX, 0);
@@ -51,6 +55,23 @@ describe('passive tree local tracking', () => {
     expect(tracked).toBeDefined();
     expect(tracked!.inliers).toBe(anchors.length);
     expectClose(tracked!.transform, base);
+  });
+
+  it('acquires the real current zoom even when the one-time seed scale is far away', () => {
+    const seed: PassiveTreeTransform = { scale: 0.05, offsetX: 700, offsetY: 430, ySign: 1 };
+    const actual: PassiveTreeTransform = { scale: 0.12, offsetX: 1090, offsetY: 125, ySign: 1 };
+    const tracked = trackPassiveTreeRegistration(seedRegistration(seed), anchors, candidates(actual), {
+      tolerancePx: 12,
+      maximumOffsetShiftPx: 1400,
+      scaleFactors: [0.84, 1, 1.2],
+      minimumScaleRatio: 0.52,
+      maximumScaleRatio: 1.9,
+      minimumScale: 0.004,
+      maximumScale: 1.2,
+    });
+    expect(tracked).toBeDefined();
+    expect(tracked!.inliers).toBeGreaterThanOrEqual(7);
+    expectClose(tracked!.transform, actual);
   });
 
   it('tracks an ordinary pan', () => {
