@@ -292,11 +292,15 @@ export function perturbationEvaluation(comparison: PobPerturbationComparison): P
   };
 }
 
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
 function validReplaceItemPerturbation(perturbation: PobPerturbation): boolean {
   if (perturbation.kind !== 'replace-item') return true;
   if (!POB_REPLACEABLE_ITEM_SLOTS.includes(perturbation.slot)) return false;
   const itemText = perturbation.itemText;
-  return Boolean(itemText.trim()) && Buffer.byteLength(itemText, 'utf8') <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
+  return Boolean(itemText.trim()) && utf8ByteLength(itemText) <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
 }
 
 export function validPobCalculationRequest(request: PobCalculationRequest): boolean {
