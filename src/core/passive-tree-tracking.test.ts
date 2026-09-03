@@ -69,7 +69,37 @@ describe('passive tree local tracking', () => {
     expectClose(tracked!.transform, moved);
   });
 
-  it('fails closed on an unrelated screen so the service can perform full reacquisition', () => {
+  it('tracks a fast pan and substantial zoom in one update when live tracking widens the search', () => {
+    const moved: PassiveTreeTransform = { scale: base.scale * 1.55, offsetX: 1110, offsetY: 92, ySign: 1 };
+    const tracked = trackPassiveTreeRegistration(registration(base), anchors, candidates(moved), {
+      maximumOffsetShiftPx: 900,
+      scaleFactors: [0.72, 0.86, 1, 1.18, 1.38, 1.55, 1.8],
+      minimumScaleRatio: 0.6,
+      maximumScaleRatio: 1.9,
+      tolerancePx: 12,
+    });
+    expect(tracked).toBeDefined();
+    expect(tracked!.inliers).toBeGreaterThanOrEqual(7);
+    expectClose(tracked!.transform, moved);
+  });
+
+  it('reacquires after a very large pan and multi-step zoom when explicitly using the wide search', () => {
+    const moved: PassiveTreeTransform = { scale: base.scale * 2.4, offsetX: 1530, offsetY: -310, ySign: 1 };
+    const tracked = trackPassiveTreeRegistration(registration(base), anchors, candidates(moved), {
+      maximumOffsetShiftPx: 2400,
+      scaleFactors: [0.35, 0.5, 0.7, 1, 1.4, 1.8, 2.4, 3.2],
+      minimumScaleRatio: 0.25,
+      maximumScaleRatio: 3.5,
+      minimumInliers: 6,
+      tolerancePx: 14,
+      minimumConfidence: 0.6,
+    });
+    expect(tracked).toBeDefined();
+    expect(tracked!.inliers).toBeGreaterThanOrEqual(6);
+    expectClose(tracked!.transform, moved);
+  });
+
+  it('fails closed on an unrelated screen so the service can perform wider tree-only reacquisition', () => {
     const unrelated = Array.from({ length: 20 }, (_, index) => ({
       x: 30 + ((index * 137) % 1100),
       y: 40 + ((index * 211) % 640),
@@ -78,7 +108,7 @@ describe('passive tree local tracking', () => {
     expect(trackPassiveTreeRegistration(registration(base), anchors, unrelated)).toBeUndefined();
   });
 
-  it('fails closed after a very large jump outside the local tracking window', () => {
+  it('still fails closed after a very large jump when only the normal local window is allowed', () => {
     const jumped: PassiveTreeTransform = { ...base, offsetX: 980, offsetY: 700 };
     expect(trackPassiveTreeRegistration(registration(base), anchors, candidates(jumped))).toBeUndefined();
   });
