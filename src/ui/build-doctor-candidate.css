@@ -140,6 +140,155 @@
   font-style: normal;
 }
 
+.build-doctor-constraint-evidence {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 9px;
+  background: rgba(0,0,0,.18);
+}
+
+.build-doctor-constraint-evidence.verified {
+  border-color: rgba(105,216,181,.16);
+}
+
+.build-doctor-constraint-evidence.unavailable {
+  border-color: rgba(242,188,114,.18);
+  background: rgba(242,188,114,.035);
+}
+
+.build-doctor-constraint-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.build-doctor-constraint-head > div {
+  min-width: 0;
+}
+
+.build-doctor-constraint-head span {
+  display: block;
+  color: #69d8b5;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.build-doctor-constraint-head strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.build-doctor-constraint-head > i {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.build-doctor-constraint-evidence > p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.build-doctor-constraint-evidence > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-doctor-constraint-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.build-doctor-constraint-list article {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 8px;
+  background: rgba(0,0,0,.2);
+}
+
+.build-doctor-constraint-list article.broken {
+  border-color: rgba(240,120,120,.22);
+  background: rgba(240,120,120,.045);
+}
+
+.build-doctor-constraint-list article.repaired,
+.build-doctor-constraint-list article.improved-buffer {
+  border-color: rgba(105,216,181,.18);
+}
+
+.build-doctor-constraint-list article.weakened-buffer {
+  border-color: rgba(242,188,114,.18);
+}
+
+.build-doctor-constraint-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.build-doctor-constraint-title strong {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-doctor-constraint-title span {
+  flex: 0 0 auto;
+  font-size: 8px;
+}
+
+.build-doctor-constraint-list article.broken .build-doctor-constraint-title span { color: #ef9696; }
+.build-doctor-constraint-list article.weakened-buffer .build-doctor-constraint-title span { color: #f0b96f; }
+.build-doctor-constraint-list article.repaired .build-doctor-constraint-title span,
+.build-doctor-constraint-list article.improved-buffer .build-doctor-constraint-title span { color: #73d9b9; }
+
+.build-doctor-constraint-transition {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.build-doctor-constraint-transition code {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-doctor-constraint-transition i {
+  color: var(--text-muted);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.build-doctor-constraint-list article > p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
 .build-doctor-candidate-group {
   margin-top: 11px;
 }
@@ -228,13 +377,16 @@
 }
 
 @media (max-width: 1050px) {
-  .build-doctor-candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .build-doctor-candidate-metrics,
+  .build-doctor-constraint-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
   .build-doctor-candidate-head { flex-direction: column; }
   .build-doctor-candidate-slot { width: 100%; flex-basis: auto; }
   .build-doctor-candidate-actions { align-items: stretch; flex-direction: column; }
-  .build-doctor-candidate-result-head { flex-direction: column; }
-  .build-doctor-candidate-metrics { grid-template-columns: 1fr; }
+  .build-doctor-candidate-result-head,
+  .build-doctor-constraint-head { flex-direction: column; }
+  .build-doctor-candidate-metrics,
+  .build-doctor-constraint-list { grid-template-columns: 1fr; }
 }
