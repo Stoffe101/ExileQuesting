@@ -1,3 +1,4 @@
+import { isMobalyticsBuildUrl } from '../../src/core/mobalytics';
 import { describePobInput, parsePobInput, parsePobXml, type PobBuildSummary, type PobInputKind } from '../../src/core/pob';
 import { isAllowedDataUrl, MAX_POBBIN_RAW_BYTES, readBoundedResponseText } from '../../src/core/security';
 
@@ -9,7 +10,10 @@ export interface ImportedPobBuild {
   build: PobBuildSummary;
 }
 
+export const MOBALYTICS_POB_BRIDGE_MESSAGE = 'Mobalytics currently blocks reliable direct app fetching. Open the build in your browser, copy its Path of Building or POBb.in export, then paste that export into ExileQuesting. It will use the normal hardened PoB importer.';
+
 export async function importPobBuild(input: string, appVersion: string): Promise<ImportedPobBuild> {
+  if (isMobalyticsBuildUrl(input.trim())) throw new Error(MOBALYTICS_POB_BRIDGE_MESSAGE);
   const descriptor = describePobInput(input);
   let build: PobBuildSummary;
   if (descriptor.kind === 'pobbin') {

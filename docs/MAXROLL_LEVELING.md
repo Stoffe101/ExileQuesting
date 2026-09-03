@@ -14,6 +14,14 @@ It does not accept arbitrary Maxroll pages, backend URLs, planner URLs as user i
 
 For a guide import, ExileQuesting fetches bounded public HTML from the allowlisted Maxroll host, reads the page's embedded Remix state, discovers the referenced PoE planner, then fetches that planner from the public `/poe/planner/<id>` route. The application does not bundle or re-publish Maxroll article prose.
 
+## Corpus audit
+
+The September 2026 audit discovered 109 current public PoE build-guide routes, parsed 106 and identified 103 with leveling-relevant signals. The three non-parsing routes were category/index-style pages rather than ordinary build planners.
+
+The corpus covered dedicated class leveling guides, league starters with leveling progression and the class Twink family. Ten pages carried a Twink signal; the canonical class Twink set covers Duelist, Marauder, Ranger, Scion, Shadow, Templar and Witch.
+
+The audit is summarized in `LEVELING_GUIDE_AUDIT.md`. The permanent scheduled monitor uses representative normal and Twink contracts rather than repeatedly fetching the entire guide corpus.
+
 ## Normal leveling guides
 
 Current Maxroll PoE1 planners can expose several useful structured families:
@@ -25,13 +33,13 @@ Current Maxroll PoE1 planners can expose several useful structured families:
 - alternate skill paths when the planner contains them;
 - equipment sets when the planner contains them.
 
-The Explosive Concoction Deadeye guide used while implementing this adapter currently exposes six skill ranges from `Level 1 - 12` through `Level 38+` and an ordered passive history with both additions and refunds.
+The Explosive Concoction Deadeye guide used as the normal live contract currently exposes six skill ranges from `Level 1 - 12` through `Level 38+` and an ordered passive history with both additions and refunds.
 
 ## Twink leveling guides
 
 Twink articles can use an older-looking backend embed URL inside the article rather than a visible modern planner link. ExileQuesting resolves the planner identifier from that public embed reference and reads the corresponding public Maxroll planner page.
 
-The Ranger Twink guide used while implementing this adapter exposes:
+The Ranger Twink guide used as the Twink live contract currently exposes:
 
 - staged skills at levels 2, 4, 10, 12, 16, 18 and 24;
 - a named `Hollow Palm Swap (Level 12)` stage;
@@ -69,7 +77,7 @@ ExileQuesting therefore persists, when available:
 - PoE base metadata ID;
 - Maxroll/PoE unique metadata ID.
 
-An internal identifier is never presented as though it were the item's real player-facing name. This preserves enough provenance for the future Gear Coach item dataset to resolve the equipment exactly without another scraping layer.
+An internal identifier is never presented as though it were the item's real player-facing name. This preserves enough provenance for Gear Coach/item-data improvements without another article-scraping layer.
 
 ## Two progression clocks
 
@@ -119,6 +127,23 @@ Compatibility states:
 
 Exact passive coaching is enabled only for `current` and `compatible-ids`. A `compatible-ids` profile keeps a visible warning and displays node names from the current bundled snapshot rather than trusting stale names.
 
+## Reusable guide knowledge
+
+The broad corpus audit repeatedly reinforced several concerns that ExileQuesting now handles as product systems rather than copied guide text:
+
+- vendor checks and current vendor regex;
+- movement-speed boots;
+- linked gear;
+- gem acquisition and build swaps;
+- Siosa/Lilly gem checkpoints;
+- resistance recovery around Kitava;
+- crafting-bench progression;
+- build-aware loot filters;
+- Lab/Ascendancy milestones when represented by the imported build;
+- waypoint/portal/relog route efficiency from campaign routing data.
+
+Build-specific damage rotations, temporary economy advice and author-specific farming recommendations are intentionally not generalized unless the structured build itself provides the underlying fact.
+
 ## Failure and schema-change behavior
 
 Maxroll is an external source whose page/planner schema can change independently of ExileQuesting. Therefore:
@@ -130,7 +155,9 @@ Maxroll is an external source whose page/planner schema can change independently
 - persisted Maxroll metadata is normalized on load;
 - a Maxroll failure must not corrupt existing PoB profiles or campaign data.
 
-External live-contract probes are useful during development, but permanent release CI relies on deterministic local fixtures so a Maxroll outage cannot block an otherwise valid ExileQuesting release.
+Permanent release CI relies on deterministic fixtures so a Maxroll outage cannot block an otherwise valid release.
+
+Separately, `.github/workflows/companion-upstream-monitor.yml` probes a normal and a Twink public contract every twelve hours. A meaningful contract drift opens a deduplicated compatibility-review issue. It never modifies production data automatically.
 
 ## Policy boundary
 
