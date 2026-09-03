@@ -1,16 +1,31 @@
 -- ExileQuesting headless Path of Building calculation adapter.
 --
 -- Run this script with cwd set to the pinned PoB `src` directory and LUA_PATH
--- pointing at the pinned PoB `runtime/lua` directory. The worker deliberately
+-- pointing at the pinned PoB source/runtime directories. The worker deliberately
 -- accepts only newline-delimited JSON requests from ExileQuesting. PoB console
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.1.0"
+local ADAPTER_VERSION = "0.2.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
 local SENTINEL = "@@EXILEQUESTING_POB@@"
+local MAX_ITEM_TEXT_BYTES = 128 * 1024
+
+local REPLACEABLE_ITEM_SLOTS = {
+    ["Weapon 1"] = true,
+    ["Weapon 2"] = true,
+    ["Helmet"] = true,
+    ["Body Armour"] = true,
+    ["Gloves"] = true,
+    ["Boots"] = true,
+    ["Amulet"] = true,
+    ["Ring 1"] = true,
+    ["Ring 2"] = true,
+    ["Ring 3"] = true,
+    ["Belt"] = true,
+}
 
 dofile("HeadlessWrapper.lua")
 
@@ -70,10 +85,10 @@ local function safeScenario(request)
     return request.scenario
 end
 
-local function normalizeOutput(request, startedAt)
-    local output = build and build.calcsTab and build.calcsTab.mainOutput
+local function normalizeOutput(request, startedAt, output)
+    output = output or (build and build.calcsTab and build.calcsTab.mainOutput)
     if type(output) ~= "table" then
-        return nil, "PoB did not expose build.calcsTab.mainOutput after loading the build."
+        return nil, "PoB did not expose a calculation output table."
     end
 
     local fullDps = numberOrNil(output, "FullDPS")
@@ -89,7 +104,7 @@ local function normalizeOutput(request, startedAt)
     if output.GuardSkillActive then
         table.insert(warnings, {
             code = "guard-skill-active",
-            message = "PoB maximum-hit/EHP outputs include an active guard skill in this imported configuration.",
+            message = "PoB maximum-hit/EHP outputs include an active guard skill in this calculation state.",
             confidence = "verified",
         })
     end
@@ -182,6 +197,92 @@ local function validRequest(request)
     return true
 end
 
+local function loadRequestBuild(request)
+    if type(request.xml) ~= "string" or request.xml == "" or #request.xml > 16 * 1024 * 1024 then
+        return false, errorResponse(request.requestId, "xml-bounds", "PoB XML must be non-empty and no larger than 16 MiB.", false)
+    end
+
+    local ok, err = pcall(loadBuildFromXML, request.xml, "ExileQuesting worker")
+    if not ok then
+        return false, errorResponse(request.requestId, "pob-load-failed", tostring(err), false)
+    end
+    return true
+end
+
+local function evaluateItemReplacement(request, startedAt)
+    if type(request.perturbations) ~= "table" or #request.perturbations ~= 1 then
+        return errorResponse(request.requestId, "perturbation-batch-unsupported", "The first sensitivity prototype accepts exactly one perturbation per calculation.", false)
+    end
+
+    local perturbation = request.perturbations[1]
+    if type(perturbation) ~= "table" or perturbation.kind ~= "replace-item" then
+        return errorResponse(request.requestId, "perturbation-kind-unsupported", "Only replace-item perturbations are enabled in the first sensitivity prototype.", false)
+    end
+    if type(perturbation.slot) ~= "string" or not REPLACEABLE_ITEM_SLOTS[perturbation.slot] then
+        return errorResponse(request.requestId, "item-slot-unsupported", "The requested PoB item slot is not enabled for replacement sensitivity.", false)
+    end
+    if type(perturbation.itemText) ~= "string" or perturbation.itemText == "" or #perturbation.itemText > MAX_ITEM_TEXT_BYTES then
+        return errorResponse(request.requestId, "item-text-bounds", "Replacement item text must be non-empty and no larger than 128 KiB.", false)
+    end
+
+    if not build or not build.itemsTab or not build.itemsTab.slots or not build.itemsTab.slots[perturbation.slot] then
+        return errorResponse(request.requestId, "item-slot-missing", "The loaded build does not expose the requested equipment slot.", false)
+    end
+
+    local itemOk, replacementItem = pcall(function()
+        return new("Item"):Item(perturbation.itemText)
+    end)
+    if not itemOk then
+        return errorResponse(request.requestId, "item-parse-failed", tostring(replacementItem), false)
+    end
+    if type(replacementItem) ~= "table" or not replacementItem.base then
+        return errorResponse(request.requestId, "item-parse-failed", "PoB could not resolve a base type from the replacement item text.", false)
+    end
+
+    local compatibilityOk, compatible = pcall(function()
+        return build.itemsTab:IsItemValidForSlot(replacementItem, perturbation.slot)
+    end)
+    if not compatibilityOk then
+        return errorResponse(request.requestId, "item-slot-validation-failed", tostring(compatible), true)
+    end
+    if not compatible then
+        return errorResponse(request.requestId, "item-slot-incompatible", "The replacement item is not valid for the requested PoB slot in the current build state.", false)
+    end
+
+    local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
+    if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
+        return errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
+    end
+
+    local calcOk, replacementOutput = pcall(calcFunc, {
+        repSlotName = perturbation.slot,
+        repItem = replacementItem,
+    })
+    if not calcOk then
+        return errorResponse(request.requestId, "item-replacement-calc-failed", tostring(replacementOutput), true)
+    end
+
+    local before, beforeError = normalizeOutput(request, startedAt, baseOutput)
+    if not before then
+        return errorResponse(request.requestId, "pob-output-missing", beforeError, true)
+    end
+    local after, afterError = normalizeOutput(request, startedAt, replacementOutput)
+    if not after then
+        return errorResponse(request.requestId, "pob-output-missing", afterError, true)
+    end
+
+    return {
+        protocolVersion = PROTOCOL_VERSION,
+        requestId = request.requestId,
+        ok = true,
+        comparison = {
+            perturbations = request.perturbations,
+            before = before,
+            after = after,
+        },
+    }
+end
+
 local function handle(request)
     local valid, code, message = validRequest(request)
     if not valid then
@@ -200,18 +301,14 @@ local function handle(request)
         }
     end
 
-    if request.operation == "calculate-with-perturbations" then
-        return errorResponse(request.requestId, "perturbations-not-enabled", "Perturbation operations remain disabled until base PoB parity is proven.", false)
-    end
-
-    if type(request.xml) ~= "string" or request.xml == "" or #request.xml > 16 * 1024 * 1024 then
-        return errorResponse(request.requestId, "xml-bounds", "PoB XML must be non-empty and no larger than 16 MiB.", false)
-    end
-
     local startedAt = os.clock()
-    local ok, err = pcall(loadBuildFromXML, request.xml, "ExileQuesting worker")
-    if not ok then
-        return errorResponse(request.requestId, "pob-load-failed", tostring(err), false)
+    local loaded, loadErrorResponse = loadRequestBuild(request)
+    if not loaded then
+        return loadErrorResponse
+    end
+
+    if request.operation == "calculate-with-perturbations" then
+        return evaluateItemReplacement(request, startedAt)
     end
 
     local result, normalizeError = normalizeOutput(request, startedAt)

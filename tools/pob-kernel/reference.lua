@@ -2,7 +2,7 @@
 --
 -- This intentionally does not share ExileQuesting's request protocol or
 -- normalization code. It loads one PoB XML fixture through upstream
--- HeadlessWrapper.lua and emits a bounded subset of raw mainOutput values.
+-- HeadlessWrapper.lua and emits a bounded subset of raw calculation values.
 
 local SENTINEL = "@@EXILEQUESTING_POB_REFERENCE@@"
 
@@ -88,14 +88,88 @@ local keys = {
     "GuardSkillActive",
 }
 
-local raw = {}
-for _, key in ipairs(keys) do
-    local value = output[key]
-    local valueType = type(value)
-    if valueType == "number" or valueType == "string" or valueType == "boolean" then
-        raw[key] = value
+local function selectRaw(source)
+    local raw = {}
+    for _, key in ipairs(keys) do
+        local value = source[key]
+        local valueType = type(value)
+        if valueType == "number" or valueType == "string" or valueType == "boolean" then
+            raw[key] = value
+        end
     end
+    return raw
 end
 
-io.stdout:write(SENTINEL .. json.encode({ raw = raw }) .. "\n")
+local function currentItemForSlot(slotName)
+    if not build or not build.itemsTab or not build.itemsTab.slots or not build.itemsTab.items then
+        return nil
+    end
+    local slot = build.itemsTab.slots[slotName]
+    if type(slot) ~= "table" or not slot.selItemId or slot.selItemId == 0 then
+        return nil
+    end
+    local item = build.itemsTab.items[slot.selItemId]
+    if type(item) ~= "table" or type(item.baseName) ~= "string" or item.baseName == "" then
+        return nil
+    end
+    return item
+end
+
+local function buildBlankReplacement()
+    local preferredSlots = {
+        "Helmet",
+        "Body Armour",
+        "Gloves",
+        "Boots",
+        "Amulet",
+        "Ring 1",
+        "Ring 2",
+        "Belt",
+        "Weapon 1",
+        "Weapon 2",
+    }
+
+    for _, slotName in ipairs(preferredSlots) do
+        local existingItem = currentItemForSlot(slotName)
+        if existingItem then
+            local itemText = "Rarity: RARE\nExileQuesting Parity Blank\n" .. existingItem.baseName
+            local replacementItem = new("Item"):Item(itemText)
+            if replacementItem and replacementItem.base and build.itemsTab:IsItemValidForSlot(replacementItem, slotName) then
+                return slotName, itemText, replacementItem
+            end
+        end
+    end
+    return nil
+end
+
+local replacementSlot, replacementItemText, replacementItem = buildBlankReplacement()
+if not replacementSlot then
+    io.stderr:write("PoB reference could not find a replaceable equipped item in the fixture.\n")
+    os.exit(6)
+end
+
+local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
+if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
+    io.stderr:write("PoB reference did not expose its miscellaneous calculator.\n")
+    os.exit(7)
+end
+
+local replacementOk, replacementOutput = pcall(calcFunc, {
+    repSlotName = replacementSlot,
+    repItem = replacementItem,
+})
+if not replacementOk or type(replacementOutput) ~= "table" then
+    io.stderr:write("PoB reference item replacement failed: " .. tostring(replacementOutput) .. "\n")
+    os.exit(8)
+end
+
+io.stdout:write(SENTINEL .. json.encode({
+    raw = selectRaw(output),
+    itemReplacement = {
+        slot = replacementSlot,
+        itemText = replacementItemText,
+        before = selectRaw(baseOutput),
+        after = selectRaw(replacementOutput),
+    },
+}) .. "\n")
 io.stdout:flush()

@@ -1,5 +1,6 @@
 export const POB_CALCULATION_PROTOCOL_VERSION = 1;
 export const POB_WORKER_SENTINEL = '@@EXILEQUESTING_POB@@';
+export const MAX_POB_PERTURBATION_ITEM_TEXT_BYTES = 128 * 1024;
 
 export const POB_SCENARIOS = [
   'imported',
@@ -17,8 +18,23 @@ export const POB_CONFIDENCE_CLASSES = [
   'experimental',
 ] as const;
 
+export const POB_REPLACEABLE_ITEM_SLOTS = [
+  'Weapon 1',
+  'Weapon 2',
+  'Helmet',
+  'Body Armour',
+  'Gloves',
+  'Boots',
+  'Amulet',
+  'Ring 1',
+  'Ring 2',
+  'Ring 3',
+  'Belt',
+] as const;
+
 export type PobCalculationScenario = typeof POB_SCENARIOS[number];
 export type PobCalculationConfidence = typeof POB_CONFIDENCE_CLASSES[number];
+export type PobReplaceableItemSlot = typeof POB_REPLACEABLE_ITEM_SLOTS[number];
 
 export interface PobCalculationKernelVersion {
   protocolVersion: number;
@@ -129,7 +145,7 @@ export type PobPerturbation =
     }
   | {
       kind: 'replace-item';
-      slot: string;
+      slot: PobReplaceableItemSlot;
       itemText: string;
     }
   | {
@@ -189,6 +205,19 @@ export interface PobWorkerCalculationSuccess {
   result: PobCalculationResult;
 }
 
+export interface PobPerturbationComparison {
+  perturbations: PobPerturbation[];
+  before: PobCalculationResult;
+  after: PobCalculationResult;
+}
+
+export interface PobWorkerPerturbationSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  comparison: PobPerturbationComparison;
+}
+
 export interface PobWorkerHealthSuccess {
   protocolVersion: number;
   requestId: string;
@@ -203,7 +232,11 @@ export interface PobWorkerFailure {
   error: PobWorkerError;
 }
 
-export type PobWorkerResponse = PobWorkerCalculationSuccess | PobWorkerHealthSuccess | PobWorkerFailure;
+export type PobWorkerResponse =
+  | PobWorkerCalculationSuccess
+  | PobWorkerPerturbationSuccess
+  | PobWorkerHealthSuccess
+  | PobWorkerFailure;
 
 export interface PobMetricDelta {
   before?: number;
@@ -222,6 +255,10 @@ export interface PobCalculationDelta {
     lightning: PobMetricDelta;
     chaos: PobMetricDelta;
   };
+}
+
+export interface PobPerturbationEvaluation extends PobPerturbationComparison {
+  delta: PobCalculationDelta;
 }
 
 function metricDelta(before: number | undefined, after: number | undefined): PobMetricDelta {
@@ -248,13 +285,34 @@ export function calculationDelta(before: PobCalculationResult, after: PobCalcula
   };
 }
 
+export function perturbationEvaluation(comparison: PobPerturbationComparison): PobPerturbationEvaluation {
+  return {
+    ...comparison,
+    delta: calculationDelta(comparison.before, comparison.after),
+  };
+}
+
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function validReplaceItemPerturbation(perturbation: PobPerturbation): boolean {
+  if (perturbation.kind !== 'replace-item') return true;
+  if (!POB_REPLACEABLE_ITEM_SLOTS.includes(perturbation.slot)) return false;
+  const itemText = perturbation.itemText;
+  return Boolean(itemText.trim()) && utf8ByteLength(itemText) <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
+}
+
 export function validPobCalculationRequest(request: PobCalculationRequest): boolean {
   if (request.protocolVersion !== POB_CALCULATION_PROTOCOL_VERSION) return false;
   if (!request.requestId.trim() || request.requestId.length > 128) return false;
   if (request.operation === 'health') return true;
   if (!request.xml.trim() || request.xml.length > 16 * 1024 * 1024) return false;
   if (!POB_SCENARIOS.includes(request.scenario.scenario)) return false;
-  if (request.operation === 'calculate-with-perturbations' && request.perturbations.length > 64) return false;
+  if (request.operation === 'calculate-with-perturbations') {
+    if (!Array.isArray(request.perturbations) || request.perturbations.length === 0 || request.perturbations.length > 64) return false;
+    if (!request.perturbations.every(validReplaceItemPerturbation)) return false;
+  }
   return true;
 }
 
