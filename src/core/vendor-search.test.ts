@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LootFilterPlan } from './loot-filter';
-import { buildVendorSearchPlan, MAX_VENDOR_SEARCH_CHARS, type VendorGemTask } from './vendor-search';
+import { buildVendorSearchPlan, linkedSocketSearchPattern, MAX_VENDOR_SEARCH_CHARS, type VendorGemTask } from './vendor-search';
 
 function loot(overrides: Partial<LootFilterPlan> = {}): LootFilterPlan {
   return {
@@ -33,10 +33,21 @@ function gem(name: string, source = 'Vendor · Nessa · Act 1', status: VendorGe
   return { name, source, status };
 }
 
+describe('linkedSocketSearchPattern', () => {
+  it('uses the compact current PoE vendor-search forms for useful link sizes', () => {
+    expect(linkedSocketSearchPattern(2)).toBeUndefined();
+    expect(linkedSocketSearchPattern(3)).toBe('-\\w-');
+    expect(linkedSocketSearchPattern(4)).toBe('-\\w-.-');
+    expect(linkedSocketSearchPattern(5)).toBe('(-\\w){4}');
+    expect(linkedSocketSearchPattern(6)).toBe('(-\\w){5}');
+    expect(linkedSocketSearchPattern(8)).toBe('(-\\w){5}');
+  });
+});
+
 describe('buildVendorSearchPlan', () => {
   it('builds one conservative gear scan from links, movement speed and active-stage bases', () => {
     const plan = buildVendorSearchPlan(loot(), []);
-    expect(plan.equipment?.query).toContain('sockets: ([rgbw]-){3}[rgbw]');
+    expect(plan.equipment?.query).toContain('-\\w-.-');
     expect(plan.equipment?.query).toContain('movement speed');
     expect(plan.equipment?.query).toContain('Quartz Wand');
     expect(plan.equipment?.query).toContain('Goathide Boots');
@@ -54,7 +65,7 @@ describe('buildVendorSearchPlan', () => {
         qualityBonusColours: ['B', 'B'], gems: ['Skill', 'Support'],
       }],
     }), []);
-    expect(plan.equipment?.query).not.toContain('sockets:');
+    expect(plan.equipment?.query).not.toContain('-\\w-');
     expect(plan.equipment?.query).toContain('movement speed');
   });
 
