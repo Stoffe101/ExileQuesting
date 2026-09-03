@@ -12,7 +12,9 @@ import {
   type PobWorkerPerturbationSuccess,
   type PobWorkerResponse,
 } from '../../src/core/pob-calculation';
+import { POB_CONSTRAINT_PROTOCOL_VERSION, type PobConstraintWorkerSuccess } from '../../src/core/pob-constraints';
 import { conciseBuildDoctorError, resolveBuildDoctorCalculationContext } from './build-doctor-context';
+import { runPobConstraintRequest } from './pob-constraint-service';
 import { runPobKernelRequest } from './pob-kernel-service';
 
 function perturbationResponse(response: PobWorkerResponse): PobWorkerPerturbationSuccess {
@@ -39,7 +41,7 @@ export async function analyzeBuildDoctorCandidateItem(
     });
   }
 
-  const { profile, xml, runtimeOptions } = context;
+  const { profile, xml, runtimeOptions, constraintRuntimeOptions } = context;
   if (!validSlot(slotInput)) {
     return unavailableCandidateItemAnalysis({
       profileId: profile.id,
@@ -60,8 +62,9 @@ export async function analyzeBuildDoctorCandidateItem(
     });
   }
 
+  let comparison: PobWorkerPerturbationSuccess['comparison'];
   try {
-    const comparison = perturbationResponse(await runPobKernelRequest({
+    comparison = perturbationResponse(await runPobKernelRequest({
       protocolVersion: 1,
       requestId: `doctor-candidate-item-${randomUUID()}`,
       operation: 'calculate-with-perturbations',
@@ -73,15 +76,6 @@ export async function analyzeBuildDoctorCandidateItem(
       },
       perturbations: [{ kind: 'replace-item', slot, itemText }],
     }, { ...runtimeOptions, timeoutMs: 45_000 })).comparison;
-
-    return readyCandidateItemAnalysis({
-      profileId: profile.id,
-      profileName: profile.name,
-      generatedAt: new Date().toISOString(),
-      slot,
-      candidateLabel: candidateItemLabel(itemText),
-      comparison,
-    });
   } catch (error) {
     return unavailableCandidateItemAnalysis({
       profileId: profile.id,
@@ -89,6 +83,46 @@ export async function analyzeBuildDoctorCandidateItem(
       status: 'failed',
       slot,
       message: `PoB could not calculate this candidate item in ${slot}. No upgrade conclusion was inferred. ${conciseBuildDoctorError(error)}`,
+    });
+  }
+
+  let constraint: { comparison: PobConstraintWorkerSuccess['comparison']; kernel: PobConstraintWorkerSuccess['kernel'] } | undefined;
+  let constraintUnavailableMessage: string | undefined;
+  try {
+    const response = await runPobConstraintRequest({
+      protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
+      requestId: `doctor-candidate-constraints-${randomUUID()}`,
+      operation: 'compare-item-constraints',
+      xml,
+      slot,
+      itemText,
+    }, { ...constraintRuntimeOptions, timeoutMs: 45_000 });
+    if (!response.ok || !('comparison' in response) || !('kernel' in response)) {
+      throw new Error('PoB constraint worker did not return the requested candidate comparison.');
+    }
+    constraint = { comparison: response.comparison, kernel: response.kernel };
+  } catch (error) {
+    constraintUnavailableMessage = `Hard-constraint verification is unavailable for this candidate. Numerical PoB replacement results remain separate. ${conciseBuildDoctorError(error)}`;
+  }
+
+  try {
+    return readyCandidateItemAnalysis({
+      profileId: profile.id,
+      profileName: profile.name,
+      generatedAt: new Date().toISOString(),
+      slot,
+      candidateLabel: candidateItemLabel(itemText),
+      comparison,
+      constraint,
+      constraintUnavailableMessage,
+    });
+  } catch (error) {
+    return unavailableCandidateItemAnalysis({
+      profileId: profile.id,
+      profileName: profile.name,
+      status: 'failed',
+      slot,
+      message: `Candidate evidence failed deterministic provenance/slot validation. No upgrade conclusion was inferred. ${conciseBuildDoctorError(error)}`,
     });
   }
 }
