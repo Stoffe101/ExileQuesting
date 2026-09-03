@@ -296,8 +296,8 @@ function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
 
-function validReplaceItemPerturbation(perturbation: PobPerturbation): boolean {
-  if (perturbation.kind !== 'replace-item') return true;
+function validEnabledPerturbation(perturbation: PobPerturbation): boolean {
+  if (perturbation.kind !== 'replace-item') return false;
   if (!POB_REPLACEABLE_ITEM_SLOTS.includes(perturbation.slot)) return false;
   const itemText = perturbation.itemText;
   return Boolean(itemText.trim()) && utf8ByteLength(itemText) <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
@@ -310,8 +310,8 @@ export function validPobCalculationRequest(request: PobCalculationRequest): bool
   if (!request.xml.trim() || request.xml.length > 16 * 1024 * 1024) return false;
   if (!POB_SCENARIOS.includes(request.scenario.scenario)) return false;
   if (request.operation === 'calculate-with-perturbations') {
-    if (!Array.isArray(request.perturbations) || request.perturbations.length === 0 || request.perturbations.length > 64) return false;
-    if (!request.perturbations.every(validReplaceItemPerturbation)) return false;
+    if (!Array.isArray(request.perturbations) || request.perturbations.length !== 1) return false;
+    if (!request.perturbations.every(validEnabledPerturbation)) return false;
   }
   return true;
 }
