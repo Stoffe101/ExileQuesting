@@ -9,14 +9,27 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
   const first = buildActions[0];
   const passive = coach?.nextPassiveText;
   const gearHint = coach?.gearHints[0];
+  const hudMessage = state.passiveTreeHud.message;
+  const passiveHudNeedsSetup = Boolean(
+    state.settings.passiveTreeHudEnabled
+      && exactPassive
+      && state.passiveTreeHud.status !== 'locked'
+      && (
+        state.passiveTreeHud.status === 'capture-error'
+        || hudMessage.startsWith('One-time calibration required')
+        || hudMessage.startsWith('Calibration ')
+        || hudMessage.startsWith('Passive Tree HUD calibration failed')
+        || hudMessage.includes('press CommandOrControl+Shift+C')
+      )
+  );
   const hasContent = Boolean(first || passive || coach?.currentGemTasks.length || maxroll || gearHint || stageNeedsReview);
   if (!hasContent) return null;
 
   if (state.settings.overlayMode === 'compact') {
     return (
       <div className={`build-overlay compact ${exactPassive ? 'maxroll-active' : ''}`}>
-        <span>{stageNeedsReview ? 'BUILD REVIEW' : exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
-        <strong>{stageNeedsReview ? coach?.stageTitle ?? 'Stage alignment needs review' : exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
+        <span>{passiveHudNeedsSetup ? 'HUD SETUP' : stageNeedsReview ? 'BUILD REVIEW' : exactPassive ? 'NEXT PASSIVE' : 'BUILD'}</span>
+        <strong>{passiveHudNeedsSetup ? 'Open passive tree · hover class start · Ctrl+Shift+C' : stageNeedsReview ? coach?.stageTitle ?? 'Stage alignment needs review' : exactPassive?.nodeName ?? first?.title ?? passive ?? gearHint?.label ?? `${coach?.currentGemTasks.length ?? 0} build task${coach?.currentGemTasks.length === 1 ? '' : 's'}`}</strong>
       </div>
     );
   }
@@ -46,6 +59,14 @@ export default function BuildOverlayBlock({ state, step }: { state: RuntimeState
           <button onClick={() => void window.exileQuesting.stepBuildPassive(coach!.profileId, 1)}>
             {exactPassive.type === 'refund' ? 'Refunded ✓' : 'Taken ✓'}
           </button>
+        </div>
+      )}
+
+      {passiveHudNeedsSetup && (
+        <div className="maxroll-passive-warning">
+          <span>PASSIVE HUD SETUP</span>
+          <strong>The node overlay is waiting for calibration</strong>
+          <small>{hudMessage}</small>
         </div>
       )}
 
