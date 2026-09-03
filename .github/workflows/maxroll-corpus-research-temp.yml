@@ -1,0 +1,27 @@
+name: Maxroll corpus research temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Inspect current Maxroll leveling corpus
+        run: npx tsx tools/research-maxroll-corpus-temp.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maxroll-corpus-report
+          path: maxroll-corpus-report.json
+          if-no-files-found: error
