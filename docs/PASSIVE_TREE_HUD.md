@@ -1,193 +1,217 @@
-# Passive Tree HUD
+# Passive Target Lock
 
-Passive Tree HUD is ExileQuesting's visual bridge between imported build guidance and Path of Exile's in-game passive tree.
+Passive Target Lock is ExileQuesting's visual bridge between ordered build guidance and Path of Exile's in-game passive tree.
 
-The HUD never moves the cursor, clicks nodes, reads process memory, injects into Path of Exile, or allocates/refunds a passive.
+The feature does not render a second passive tree. It renders one clear crosshair directly over the exact next fixed passive node chosen by the active build route.
+
+It never moves the cursor, clicks nodes, reads process memory, injects into Path of Exile, or allocates/refunds a passive.
 
 ## Product requirement
 
-When the Path of Exile passive tree is open, ExileQuesting should show the next supported passive target on the real in-game node and keep following that node while the player uses the tree normally.
+The build route is the only authority allowed to choose the target node.
 
-Normal interaction includes:
+For an exact guide, ExileQuesting holds a permanent logical identity such as:
 
-- zooming in;
-- zooming out;
-- dragging/panning left, right, up or down;
-- moving the target offscreen and back onscreen;
-- closing and reopening the passive tree.
+`targetNodeId = 57264 // Spell Damage and Mana`
 
-A player must not have to repeatedly recalibrate just because they panned or zoomed. When the target is offscreen, the HUD should use an edge indicator pointing toward it. When it becomes visible again, the marker should return to the real node.
+Vision is not allowed to replace that ID with another passive circle. Vision is used only to determine how the already-known passive-tree canvas moved on screen.
+
+The visual contract is:
+
+- pan left: the target node and crosshair move left together;
+- pan right: they move right together;
+- zoom in/out: the crosshair remains centred on the same node ID;
+- stationary tree: the crosshair is stationary;
+- build advances: the crosshair intentionally moves to the new build-authored node ID;
+- offscreen target: an edge indicator points toward the projected target;
+- uncertain tracking: hide the crosshair rather than jump to another plausible node.
+
+A marker bouncing around a stationary passive tree is a release-blocking failure.
 
 ## Source-of-truth hierarchy
 
-Passive-tree geometry follows this hierarchy:
+1. Grinding Gear Games supplies raw passive-tree data.
+2. Path of Building Community is the canonical geometry/layout interpretation used to validate class starts, groups/orbits and fixed node positions.
+3. The active ordered guide selects which node ID is next.
+4. Visible PoE window frames provide only passive-tree camera motion.
 
-1. Grinding Gear Games supplies the raw passive-tree data.
-2. Path of Building Community is the canonical reference for how that data is interpreted and laid out, including class starts, group/orbit geometry and Ascendancy normalization.
-3. Exile-UI informs the lightweight in-game passive-tree screen-check workflow.
+Canonical base class starts remain:
 
-The bundled 3.29 passive snapshot is validated against pinned PoB reference invariants before a build can pass.
+- Scion `58833`
+- Marauder `47175`
+- Ranger `50459`
+- Witch `54447`
+- Duelist `50986`
+- Templar `61525`
+- Shadow `44683`
+
+The permanent Witch regression remains:
+
+`54447 Witch start -> 57264 Spell Damage and Mana`
 
 ## Tree-open detection
 
-ExileQuesting follows the proven Exile-UI pattern of inspecting a tiny, client-relative static UI region near the top-center of the PoE 1 passive-tree screen.
+ExileQuesting keeps the lightweight static top-centre PoE 1 passive-tree screen signature.
 
-For PoE 1 the normalized reference region is:
+The screen check answers only:
 
-- x: centered horizontally;
-- y: `0.054 * clientHeight`;
-- width: `clientHeight / 16`;
-- height: `0.02 * clientHeight`.
+**Is the passive skill tree actually visible?**
 
-A one-time screen reference stores a small grayscale signature from that static region. Runtime polling compares the same sample grid and requires two consecutive matches before the transparent HUD window is shown.
+Two consecutive positive matches are required before the target overlay can appear. Ordinary gameplay, flask circles and skill icons are never allowed to activate the Passive Target Lock.
 
-This check answers only one question: **is the passive-tree UI actually visible?**
+## Target identity
 
-Node detection and tracking are never allowed to decide that ordinary gameplay is a passive tree. This prevents the old false positives where flask/skill/UI circles could make the passive HUD appear during gameplay.
+For an exact route, the target is a fixed GGG/PoB node ID and fixed tree-space coordinate.
 
-## Live node tracking
+The target ID cannot be changed by image matching, frame tracking or confidence scoring. Only build progression can advance it.
 
-Once the passive-tree screen check has positively matched, ExileQuesting may inspect passive-node circles inside that already-confirmed tree screen.
+This removes the failed v0.2.5 experiment where a dense cloud of visually interchangeable passive circles was repeatedly matched against many possible PoB nodes.
 
-This is deliberately narrower than the old v0.2.4 design. Vision is not used to discover whether the player is looking at a tree. It is used only to solve the current scale and translation of a known PoB/GGG node constellation.
+The deleted constellation tracker is not part of the runtime anymore.
 
-The tracker works in two stages:
+## Camera tracking
 
-1. **Local tracking** follows the previous frame through ordinary drag and mouse-wheel changes. It uses route anchors plus known nodes predicted to be in or near the current viewport.
-2. **Wide reacquisition** runs only when local tracking loses the constellation, for example after a large drag, several zoom steps, or reopening the tree at a substantially different view. It searches the known nodes in the current tree scope and must meet a stronger inlier/confidence threshold before the HUD is allowed to lock again.
-
-The solved transform is still intentionally simple:
+The passive tree uses a simple camera model for this feature:
 
 `screen = tree * scale + offset`
 
-PoE does not rotate the passive tree during normal interaction, so no arbitrary rotation is introduced.
+Normal passive-tree interaction changes uniform scale and X/Y translation. Path of Exile does not rotate the tree during ordinary use.
 
-## Zoom behavior
+After the initial trusted anchor, ExileQuesting compares consecutive already-confirmed passive-tree captures. It selects textured image patches across the moving tree canvas and robustly fits only:
 
-Exile-UI's PoE 1 schematic value `clientHeight / 10000` remains useful as an initial scale seed, but it is **not** the operating constraint anymore.
+- uniform scale;
+- X translation;
+- Y translation.
 
-The live tracker replaces that seed with the observed tree scale. Players may then zoom in and out normally and the target marker should follow.
+These image features have no passive-node identity. They cannot decide that node `57264` became another circle.
 
-The marker size also scales within bounded limits so it remains readable without becoming enormous at high zoom.
+The resulting frame motion is composed onto the trusted PoB tree-to-screen transform, so every fixed node coordinate remains available while only the viewport moves.
 
-## Pan behavior
+## Fail-closed tracking
 
-Dragging the passive tree changes translation. The local tracker solves that translation continuously from visible PoB/GGG node geometry.
+A bad motion estimate is rejected when it lacks enough consistent image matches, has excessive residual error, contains rotation-like motion, or falls outside bounded per-frame scale limits.
 
-If the target leaves the screen, ExileQuesting keeps the solved tree transform and renders an edge arrow toward the target. Panning back toward the target should bring the node marker back without calibration.
+On rejection:
 
-## One-time screen reference / recovery anchor
+1. the target crosshair is hidden;
+2. the previous trusted tree frame and transform are retained;
+3. a wider image-motion recovery attempt may run on the next confirmed tree frame;
+4. after repeated failures, the HUD asks for a fresh anchor.
 
-The current v0.2.5 candidate still keeps a conservative one-time reference flow so tree-open detection is based on the player's actual client rather than generic gameplay circle detection.
+There is no fallback to global anonymous passive-circle registration.
 
-To establish the reference for a base tree:
+A temporarily hidden target is always preferred to a confident marker on the wrong node.
 
-1. Run Path of Exile in Borderless / Windowed Fullscreen.
-2. Open the passive tree.
-3. Hover the character's large class-start circle.
-4. Press `Ctrl+Shift+C` once.
+## One-time anchor
 
-The tree does **not** need to remain fully zoomed out afterward. The full-zoom scale is only a seed if no better live scale is available.
+The v0.2.5 target-lock candidate uses one deterministic setup/recovery anchor per display/tree scope.
 
-For an Ascendancy tree, use the same recovery hotkey while hovering that Ascendancy's root/start circle.
+For the base passive tree:
 
-`Ctrl+Shift+C` is a setup/recovery action, not a normal navigation requirement. Ordinary panning and zooming must not require it.
+1. use Borderless / Windowed Fullscreen;
+2. open the passive tree;
+3. fully zoom out once;
+4. put the cursor in the centre of the character's large class-start node;
+5. press `Ctrl+Shift+C` once.
 
-### Recovery/debug hotkeys
+For an Ascendancy tree, use the same flow with the Ascendancy root/start node.
 
-- `Ctrl+Shift+C`: refresh the screen reference / anchor when automatic recovery cannot establish a trustworthy transform.
-- `Ctrl+Shift+Up`: diagnostic scale nudge +1%.
-- `Ctrl+Shift+Down`: diagnostic scale nudge -1%.
-- `Ctrl+Shift+0`: clear the current stored reference.
+The maximum-zoom-out requirement applies only when creating/recovering the anchor. After that, ordinary pan and mouse-wheel zoom are tracked automatically.
 
-The scale keys are diagnostics, not expected gameplay controls.
+`Ctrl+Shift+0` clears the stored anchor.
 
-## Performance contract
+The previous diagnostic `Ctrl+Shift+Up/Down` scale-nudge controls were removed with the constellation tracker.
 
-When no supported build/passive guidance is available, capture work is skipped.
+## Persistent trusted keyframe
 
-When waiting for the passive tree, ExileQuesting only performs the low-frequency static screen check.
+The stored target-lock reference contains:
 
-When the passive tree is positively visible, a small Path of Exile thumbnail is used for node tracking. Candidate detection is restricted to this confirmed-tree state. Local tracking is preferred; the wider reacquisition path runs only after the cheap tracker fails.
+- the class/Ascendancy anchor transform;
+- the passive-tree screen signature;
+- capture shape/aspect;
+- a trusted PoE tree keyframe.
 
-Renderer state is fingerprinted so unchanged HUD state is not repeatedly sent to the renderer.
+While tracking is healthy, ExileQuesting periodically persists a newer trusted transform/keyframe. This allows a reopened tree or later application session to recover from an actual PoE image rather than inventing a node correspondence.
 
-## Capture/recording contract
+## Crosshair design
 
-ExileQuesting windows must remain recordable by normal capture software such as OBS, Discord and Xbox Game Bar.
+The exact target uses a hollow gold reticle with:
 
-The old Passive Tree HUD enabled Electron `setContentProtection(true)`, which can map to Windows capture exclusion behavior. The v0.2.5 release candidate applies the capture-safe policy so ExileQuesting does not intentionally exclude its windows from normal recording.
+- a high-contrast circular lock ring;
+- four cardinal target ticks;
+- a tiny hollow centre point so the passive node itself remains visible;
+- a restrained pulse when reduced motion is disabled;
+- `TAKE THIS NODE`, node name, node ID and route progress in the label.
 
-The HUD remains transparent, always-on-top and click-through.
+Refund operations use the same reticle language with a warmer orange treatment.
 
-## Supported tree scopes
+The marker radius is intentionally screen-readable rather than scaling dramatically with tree zoom. Its centre, not its decorative size, is what must remain glued to the node.
 
-### Base passive tree
+## Offscreen behavior
 
-All seven base classes use PoB-validated GGG geometry and canonical class starts. No class-specific screen-coordinate table is used.
+Because all fixed passive nodes remain in PoB tree-space, the active target can still be projected outside the visible display while the trusted viewport transform is maintained.
 
-### Ascendancy trees
+When outside the safe viewport, the ring is replaced by an edge direction indicator. When the node returns onscreen, the same node ID is rendered under the reticle again.
 
-Ascendancy nodes use their fixed local geometry with PoB-compatible interpretation and their own root/start scope. Base-tree and Ascendancy coordinates are not mixed into one transform.
+## Resolution and class support
+
+There is no per-node pixel database and no per-resolution node table.
+
+Every supported fixed node keeps one canonical tree coordinate. Resolution, DPI, monitor size, pan and zoom affect only the current viewport transform.
+
+The same engine therefore applies to all seven base classes and fixed base-tree nodes. Ascendancy scopes use their own fixed local geometry and their own anchor/transform.
+
+Dynamic cluster-jewel layouts remain a separate modelling problem and must not be treated as ordinary fixed base-tree coordinates.
 
 ## Build-source semantics
 
-### Maxroll
+Exact ordered guides can select one precise allocate/refund node, so Target Lock can display one exact crosshair.
 
-Ordered passive history can supply an exact allocate/refund operation, so ExileQuesting can render the exact next fixed node plus nearby route context.
-
-### Path of Building
-
-PoB stages are allocation sets, not a trustworthy click-by-click order. ExileQuesting highlights supported stage nodes without inventing a source-authored exact order.
-
-PoB remains the geometry/layout authority even when ordered next-node guidance originates from Maxroll.
+A PoB stage that only provides an allocation set does not by itself prove a safe click-by-click order. Target Lock fails closed for that stage rather than choosing an arbitrary member of the set. PoB remains the canonical geometry/layout reference either way.
 
 ## Passive-point availability
 
-`waiting-point` is distinct from `waiting-tree`.
+Target Lock shows the build's next exact passive whenever supported guidance is available. A known zero unspent-point count no longer suppresses the next-node target.
 
-A current trusted `/passives` snapshot can prove zero unspent points. Very early exact routes can also prove no level-earned point is available yet. Unknown is not treated as zero.
+This makes the HUD a navigation aid for the next intended point, not merely a notification that a point is currently spendable.
 
-ExileQuesting does not add process-memory reads simply to obtain a permanent live point counter.
+## Performance
 
-## Fail-closed behavior
+When no exact supported build target exists, frame tracking is skipped.
 
-The HUD stays hidden when:
+When the passive tree is closed, only the low-frequency tree-screen check runs.
 
-- the passive-tree screen signature does not match;
-- the active target has no fixed PoB-compatible geometry;
-- a trusted zero-point state exists;
-- Path of Exile is not running or cannot be captured;
-- the PoE window moves to an unreferenced display/window shape;
-- the live node constellation cannot currently be solved with sufficient confidence.
+When the passive tree is confirmed open, the service uses a small PoE thumbnail and a bounded set of image patches. It does not scan hundreds of passive nodes and does not run the deleted circle-constellation solver.
 
-If local tracking is lost while the tree remains open, the service attempts wider automatic reacquisition before asking for manual recovery.
+Renderer state is fingerprinted so unchanged HUD state is not repeatedly sent to the overlay.
 
-A hidden HUD is still preferred to a plausible-looking marker on the wrong node.
+## Capture/recording contract
 
-## Safety boundary
+ExileQuesting must remain recordable by OBS, Discord and Xbox Game Bar.
 
-Passive Tree HUD is observation + visualization only. It uses public GGG passive data, PoB-compatible geometry, existing build guidance, visible game-window capture and a transparent click-through Electron window.
+The target overlay remains transparent, always-on-top and click-through. The v0.2.5 release candidate continues to use the capture-safe window policy rather than intentionally excluding ExileQuesting windows from recording.
 
-It does not read Path of Exile process memory, inject code, synthesize gameplay input, move the cursor, or allocate/refund passives. ExileQuesting does not claim official endorsement by Grinding Gear Games.
+## v0.2.5 acceptance checklist
 
-## v0.2.5 validation checklist
-
-Before publishing v0.2.5:
+Before publication:
 
 - typecheck and unit tests pass;
 - PoB passive-layout validation passes;
 - deterministic tree-screen-check tests pass;
-- synthetic tracker tests cover ordinary pan, zoom, aggressive pan+zoom and wide reacquisition;
-- production build passes;
-- packaged Windows app starts successfully;
-- opening PoE without opening the passive tree leaves the HUD hidden;
-- opening the passive tree shows the node HUD only after positive screen confirmation;
-- the next node follows repeated zoom-in/zoom-out operations;
-- the next node follows dragging/panning in every direction;
-- an offscreen next node produces a useful edge indicator and returns to the node when panned back onscreen;
-- closing the tree hides the HUD and reopening it automatically re-locks without normal-use recalibration;
-- multiple route nodes align, not only the class-start anchor;
-- DPI/resolution/display changes fail closed or select the correct reference instead of silently reusing a wrong transform;
-- OBS/Game Bar/Discord capture remain functional with ExileQuesting running;
-- unfinished Build Doctor functionality is not included in the v0.2.5 release branch.
+- synthetic frame-motion tests cover identity, pan, occlusion and fail-closed unrelated imagery;
+- production build and Windows packaging pass;
+- opening PoE without the passive tree keeps Target Lock hidden;
+- one maximum-zoom-out class-start anchor places the correct first target;
+- Witch regression places the reticle on node `57264 Spell Damage and Mana`;
+- stationary passive tree produces a stationary crosshair;
+- repeated pan in every direction keeps the crosshair glued to the same node;
+- repeated zoom in/out keeps the crosshair glued to the same node;
+- offscreen target produces an edge direction and returns to the same node when visible;
+- spending a point changes target only when build progression advances;
+- closing/reopening the tree hides/reacquires without ordinary-use recalibration;
+- low-confidence tracking hides instead of teleporting;
+- 1920x1080, 2560x1440 and 3440x1440/DPI scenarios do not require node-specific pixel tables;
+- OBS/Game Bar/Discord capture remain functional;
+- unfinished Build Doctor functionality remains excluded from this v0.2.5 release branch.
+
+Do not merge this validation branch into `main` until real-client Target Lock validation passes.
