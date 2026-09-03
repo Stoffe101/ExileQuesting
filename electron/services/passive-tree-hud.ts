@@ -99,10 +99,15 @@ interface TrackingDiagnostics {
   rms: number;
 }
 
+interface RecenterRequest {
+  cursor: { x: number; y: number };
+  displayId: number;
+}
+
 const RECENTER_HOTKEY = 'CommandOrControl+Shift+C';
 const RESET_HOTKEY = 'CommandOrControl+Shift+0';
 const CALIBRATION_FILE = 'passive-tree-hud-calibration.json';
-const HOTKEY_REPAIR_INTERVAL_MS = 2_000;
+const HOTKEY_REPAIR_INTERVAL_MS = 500;
 const DEFAULT_CAPTURE_WIDTH = 480;
 const DEFAULT_SEARCH_INTERVAL = 700;
 const DEFAULT_LOCKED_INTERVAL = 180;
@@ -233,7 +238,7 @@ export class PassiveTreeHudService {
   private stopped = true;
   private polling = false;
   private calibrating = false;
-  private recenterQueued = false;
+  private recenterRequest?: RecenterRequest;
   private timer?: NodeJS.Timeout;
   private hotkeyRepairTimer?: NodeJS.Timeout;
   private state: PassiveTreeHudState = passiveTreeHudIdle(true);
@@ -270,7 +275,7 @@ export class PassiveTreeHudService {
 
   stop(): void {
     this.stopped = true;
-    this.recenterQueued = false;
+    this.recenterRequest = undefined;
     this.consecutiveTreeMatches = 0;
     if (this.timer) clearTimeout(this.timer);
     if (this.hotkeyRepairTimer) clearInterval(this.hotkeyRepairTimer);
@@ -355,26 +360,29 @@ export class PassiveTreeHudService {
 
   private queueRecenter(): void {
     if (this.stopped) return;
-    this.recenterQueued = true;
+    const cursor = screen.getCursorScreenPoint();
+    const display = screen.getDisplayNearestPoint(cursor);
+    this.recenterRequest = { cursor: { ...cursor }, displayId: display.id };
     if (this.polling || this.calibrating) {
-      this.options.log?.info('Passive Target Lock anchor capture queued until the current window capture completes.');
+      this.options.log?.info('Passive Target Lock anchor capture queued with the cursor position frozen at hotkey press.');
       return;
     }
     void this.runQueuedRecenter();
   }
 
   private async runQueuedRecenter(): Promise<void> {
-    if (this.stopped || this.polling || this.calibrating || !this.recenterQueued) return;
-    this.recenterQueued = false;
+    if (this.stopped || this.polling || this.calibrating || !this.recenterRequest) return;
+    const request = this.recenterRequest;
+    this.recenterRequest = undefined;
     this.calibrating = true;
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
     try {
-      await this.recenterAtCursor();
+      await this.recenterAtCursor(request);
     } finally {
       this.calibrating = false;
       if (this.stopped) return;
-      if (this.recenterQueued) void this.runQueuedRecenter();
+      if (this.recenterRequest) void this.runQueuedRecenter();
       else this.schedule(0);
     }
   }
@@ -575,7 +583,7 @@ export class PassiveTreeHudService {
     };
   }
 
-  private async recenterAtCursor(): Promise<void> {
+  private async recenterAtCursor(request: RecenterRequest): Promise<void> {
     if (this.stopped) return;
     const context = this.options.context();
     const idle = this.eligibilityState(context);
@@ -593,14 +601,15 @@ export class PassiveTreeHudService {
       return;
     }
 
-    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const display = screen.getAllDisplays().find((candidate) => candidate.id === request.displayId)
+      ?? screen.getDisplayNearestPoint(request.cursor);
     this.consecutiveTreeMatches = 0;
-    this.emit(this.waitingTreeState(context, 'Capturing Target Lock anchor. Keep the passive tree at maximum zoom-out and the cursor centred on the class/Ascendancy start node.'));
+    this.emit(this.waitingTreeState(context, 'Capturing Target Lock anchor. Keep the passive tree at maximum zoom-out while the reference frames are sampled.'));
     try {
       await new Promise((resolve) => setTimeout(resolve, 60));
       const first = await this.capturePoeWindow();
       if (!captureDisplayMatches(first, display)) {
-        this.emit(this.waitingTreeState(context, 'Anchor rejected: Path of Exile is captured from a different display than the cursor.'));
+        this.emit(this.waitingTreeState(context, 'Anchor rejected: Path of Exile is captured from a different display than the cursor position recorded at hotkey press.'));
         return;
       }
       const signature = createPassiveTreeScreenSignature(first.bitmap, first.capture.width, first.capture.height);
@@ -621,9 +630,8 @@ export class PassiveTreeHudService {
       }
 
       const scale = seedScale(display);
-      const cursor = screen.getCursorScreenPoint();
-      const localX = cursor.x - display.bounds.x;
-      const localY = cursor.y - display.bounds.y;
+      const localX = request.cursor.x - display.bounds.x;
+      const localY = request.cursor.y - display.bounds.y;
       const transform: PassiveTreeTransform = {
         scale,
         offsetX: localX - anchor.x * scale,
@@ -685,7 +693,7 @@ export class PassiveTreeHudService {
     if (!previous) return undefined;
     if (previous.capture.width !== capture.capture.width || previous.capture.height !== capture.capture.height) return undefined;
     const failures = this.trackingFailures.get(projection.calibrationKey) ?? 0;
-    const motion: PassiveTreeFrameMotion | undefined = trackPassiveTreeFrameMotion(
+    let motion: PassiveTreeFrameMotion | undefined = trackPassiveTreeFrameMotion(
       previous.bitmap,
       capture.bitmap,
       capture.capture.width,
@@ -696,6 +704,15 @@ export class PassiveTreeHudService {
         minimumConfidence: failures > 0 ? 0.55 : 0.6,
       },
     );
+    if (!motion && failures === 0) {
+      motion = trackPassiveTreeFrameMotion(
+        previous.bitmap,
+        capture.bitmap,
+        capture.capture.width,
+        capture.capture.height,
+        { wide: true, searchRadiusPx: 104, minimumConfidence: 0.55 },
+      );
+    }
     if (!motion) return undefined;
     const transform = applyPassiveTreeFrameMotion(
       projection.transform,
@@ -799,7 +816,7 @@ export class PassiveTreeHudService {
       }
     } finally {
       this.polling = false;
-      if (this.recenterQueued) void this.runQueuedRecenter();
+      if (this.recenterRequest) void this.runQueuedRecenter();
       else this.schedule();
     }
   }
