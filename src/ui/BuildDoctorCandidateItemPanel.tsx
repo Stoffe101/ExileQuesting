@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { BuildDoctorCandidateItemReady } from '../core/build-doctor-candidate-item';
 import {
-  BUILD_DOCTOR_REVIEWED_ITEM_METRIC_GROUPS,
-  type BuildDoctorCandidateItemReady,
-  type BuildDoctorReviewedItemMetric,
-  type BuildDoctorReviewedItemMetricGroup,
-} from '../core/build-doctor-candidate-item';
+  BUILD_DOCTOR_REVIEWED_METRIC_GROUPS,
+  type BuildDoctorReviewedMetric,
+  type BuildDoctorReviewedMetricGroup,
+} from '../core/build-doctor-reviewed-metrics';
 import { POB_REPLACEABLE_ITEM_SLOTS, type PobReplaceableItemSlot } from '../core/pob-calculation';
 
-const GROUP_LABELS: Record<BuildDoctorReviewedItemMetricGroup, string> = {
+const GROUP_LABELS: Record<BuildDoctorReviewedMetricGroup, string> = {
   offence: 'Offence',
   survivability: 'Survivability',
   resources: 'Resources',
@@ -29,13 +29,13 @@ function fixed(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 }
 
-function formatted(metric: BuildDoctorReviewedItemMetric, value: number | undefined): string {
+function formatted(metric: BuildDoctorReviewedMetric, value: number | undefined): string {
   if (metric.format === 'percent') return value === undefined ? '—' : `${fixed(value)}%`;
   if (metric.format === 'rate') return fixed(value);
   return compactNumber(value);
 }
 
-function changeLabel(metric: BuildDoctorReviewedItemMetric): string {
+function changeLabel(metric: BuildDoctorReviewedMetric): string {
   if (metric.absoluteChange === undefined || !Number.isFinite(metric.absoluteChange)) return 'not comparable';
   const sign = metric.absoluteChange > 0 ? '+' : '';
   if (metric.format === 'percent') return `${sign}${fixed(metric.absoluteChange)} pts`;
@@ -46,8 +46,8 @@ function changeLabel(metric: BuildDoctorReviewedItemMetric): string {
   return `${sign}${formatted(metric, metric.absoluteChange)}`;
 }
 
-function changedGroups(analysis: BuildDoctorCandidateItemReady): Array<{ group: BuildDoctorReviewedItemMetricGroup; metrics: BuildDoctorReviewedItemMetric[] }> {
-  return BUILD_DOCTOR_REVIEWED_ITEM_METRIC_GROUPS.flatMap((group) => {
+function changedGroups(analysis: BuildDoctorCandidateItemReady): Array<{ group: BuildDoctorReviewedMetricGroup; metrics: BuildDoctorReviewedMetric[] }> {
+  return BUILD_DOCTOR_REVIEWED_METRIC_GROUPS.flatMap((group) => {
     const metrics = analysis.changedMetrics.filter((metric) => metric.group === group);
     return metrics.length ? [{ group, metrics }] : [];
   });
