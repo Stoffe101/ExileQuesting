@@ -57,7 +57,7 @@ The screen check answers only:
 
 **Is the passive skill tree actually visible?**
 
-Two consecutive positive matches are required before the target overlay can appear. Ordinary gameplay, flask circles and skill icons are never allowed to activate the Passive Target Lock.
+Two consecutive positive matches are required before the target overlay can appear. Ordinary gameplay, flask circles and skill icons are never allowed to activate Passive Target Lock.
 
 ## Target identity
 
@@ -85,18 +85,22 @@ After the initial trusted anchor, ExileQuesting compares consecutive already-con
 
 These image features have no passive-node identity. They cannot decide that node `57264` became another circle.
 
+Zoom is modeled explicitly around the passive-tree viewport centre before residual pan is solved. This is important for aggressive mouse-wheel changes because a large centre zoom otherwise looks like an enormous translation when expressed around the capture origin.
+
 The resulting frame motion is composed onto the trusted PoB tree-to-screen transform, so every fixed node coordinate remains available while only the viewport moves.
 
 ## Fail-closed tracking
 
-A bad motion estimate is rejected when it lacks enough consistent image matches, has excessive residual error, contains rotation-like motion, or falls outside bounded per-frame scale limits.
+A bad motion estimate is rejected when it lacks enough consistent image matches, has excessive residual error, contains rotation-like/incoherent motion, or falls outside bounded per-frame scale limits.
 
-On rejection:
+For each confirmed frame ExileQuesting first tries the normal tracker. If that exact frame cannot be solved confidently, a wider scale/pan hypothesis search is attempted immediately against the same previous trusted frame and current capture.
+
+If both attempts fail:
 
 1. the target crosshair is hidden;
 2. the previous trusted tree frame and transform are retained;
-3. a wider image-motion recovery attempt may run on the next confirmed tree frame;
-4. after repeated failures, the HUD asks for a fresh anchor.
+3. the failed capture is not promoted to a trusted reference;
+4. repeated failures eventually ask for a fresh anchor.
 
 There is no fallback to global anonymous passive-circle registration.
 
@@ -116,6 +120,8 @@ For the base passive tree:
 
 For an Ascendancy tree, use the same flow with the Ascendancy root/start node.
 
+The cursor coordinate and display are frozen immediately when the hotkey is pressed. The later reference-frame sampling cannot silently move the anchor if the player moves the mouse while those frames are being captured.
+
 The maximum-zoom-out requirement applies only when creating/recovering the anchor. After that, ordinary pan and mouse-wheel zoom are tracked automatically.
 
 `Ctrl+Shift+0` clears the stored anchor.
@@ -133,6 +139,8 @@ The stored target-lock reference contains:
 
 While tracking is healthy, ExileQuesting periodically persists a newer trusted transform/keyframe. This allows a reopened tree or later application session to recover from an actual PoE image rather than inventing a node correspondence.
 
+Only a successfully tracked frame becomes the next trusted frame. Failed motion estimates do not move the reference forward.
+
 ## Crosshair design
 
 The exact target uses a hollow gold reticle with:
@@ -140,7 +148,7 @@ The exact target uses a hollow gold reticle with:
 - a high-contrast circular lock ring;
 - four cardinal target ticks;
 - a tiny hollow centre point so the passive node itself remains visible;
-- a restrained pulse when reduced motion is disabled;
+- a compositor-static presentation with no permanent animation;
 - `TAKE THIS NODE`, node name, node ID and route progress in the label.
 
 Refund operations use the same reticle language with a warmer orange treatment.
@@ -163,9 +171,11 @@ The same engine therefore applies to all seven base classes and fixed base-tree 
 
 Dynamic cluster-jewel layouts remain a separate modelling problem and must not be treated as ordinary fixed base-tree coordinates.
 
-## Build-source semantics
+## Build-source semantics and progression
 
 Exact ordered guides can select one precise allocate/refund node, so Target Lock can display one exact crosshair.
+
+For the current Maxroll integration, advancing from one ordered passive operation to the next is an explicit build-progression action (`Taken ✓` / `Refunded ✓`). ExileQuesting does not pretend it observed an in-game node allocation when no reliable allocation signal was available. After progression advances, the next ordered node ID becomes the new immutable target.
 
 A PoB stage that only provides an allocation set does not by itself prove a safe click-by-click order. Target Lock fails closed for that stage rather than choosing an arbitrary member of the set. PoB remains the canonical geometry/layout reference either way.
 
@@ -198,14 +208,14 @@ Before publication:
 - typecheck and unit tests pass;
 - PoB passive-layout validation passes;
 - deterministic tree-screen-check tests pass;
-- synthetic frame-motion tests cover identity, pan, occlusion and fail-closed unrelated imagery;
+- synthetic frame-motion tests cover identity, pan, tooltip occlusion, fail-closed unrelated imagery, ordinary zoom+pan, aggressive ~1.6x zoom-in and aggressive zoom-out;
 - production build and Windows packaging pass;
 - opening PoE without the passive tree keeps Target Lock hidden;
 - one maximum-zoom-out class-start anchor places the correct first target;
 - Witch regression places the reticle on node `57264 Spell Damage and Mana`;
 - stationary passive tree produces a stationary crosshair;
 - repeated pan in every direction keeps the crosshair glued to the same node;
-- repeated zoom in/out keeps the crosshair glued to the same node;
+- repeated zoom in/out, including fast wheel input, keeps the crosshair glued to the same node or fails closed without teleporting;
 - offscreen target produces an edge direction and returns to the same node when visible;
 - spending a point changes target only when build progression advances;
 - closing/reopening the tree hides/reacquires without ordinary-use recalibration;
