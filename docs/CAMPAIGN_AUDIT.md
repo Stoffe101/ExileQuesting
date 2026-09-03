@@ -1,6 +1,7 @@
 # Campaign content audit
 
-Audit run: 2026-09-01 against the bundled Exile-UI campaign snapshot.
+Base route audit: 2026-09-01 against the bundled Exile-UI campaign snapshot.
+Cross-source leveling review: 2026-09-03 against current Maxroll leveling/Twink material, Mobalytics campaign/build material and current PoE data/tooling.
 
 The audit distinguishes decisive action signals (kill, travel, reward, waypoint, trial, passive, etc.) from contextual layout/directional clues. Context-only pages are review candidates rather than automatic failures: a wall-following clue must never outrank a decisive objective in the glance-first overlay.
 
@@ -32,9 +33,33 @@ Those 37 raw source lines are expected to remain in the upstream source layer. T
 | 9 | 17 | 17 | 0 | 5 | 3 |
 | 10 | 17 | 17 | 0 | 5 | 5 |
 
-## What changed in this pass
+## Cross-source leveling review
 
-The audit exposed eight stale selectors from the older coaching layer. They were repaired against the actual bundled route rather than weakened into broad index-based matching. Coaching was also expanded around high-value bosses, quest items and permanent-reward stops including Hailrake, Fairgraves, Abberath, Ryslatha, Maligaro, Greust, the Basilisk, Shakari, General Adus, Plaguewing, Avarius and the final `/passives` audit.
+The 2026-09-03 Maxroll corpus pass discovered 109 public PoE build-guide routes, successfully parsed 106 and classified 103 as leveling-relevant. It included normal league-start progression and the class Twink family. The repeated high-value themes were vendor checks/regex, movement-speed boots, linked gear, gem transitions, crafting, resistance recovery, Lab/Ascendancy milestones, loot filters and waypoint/portal/relog efficiency.
+
+Mobalytics was used as an independent cross-check rather than a route source. Its current PoE1 campaign/build material reinforces the same progression concerns and exposes build variants, PoB integration, equipment, passive trees and skills. Direct application fetching is currently blocked by HTTP 403, so Mobalytics remains a PoB/POBb.in bridge instead of a fragile scraper.
+
+The cross-source review did **not** reveal a reason to replace the Exile-UI route. The route already contains strong speedrun-informed sequencing, portal/relog tricks, layout tells, trial stops, bandit branches and permanent-reward routing. The useful gap was the explanatory/build-aware layer around that route.
+
+## Product changes justified by the review
+
+The review now feeds durable systems instead of copied prose:
+
+- build-aware vendor search uses current compact PoE link-search forms and remains <=250 characters;
+- movement-speed boots stay a first-priority vendor scan target;
+- gem acquisition plans class-valid quest/vendor sources plus conservative Siosa/Lilly fallbacks;
+- the campaign explicitly explains the Siosa `A Fixture of Fate` and Lilly `Fallen from Grace` gem-vendor checkpoints;
+- Kitava resistance-recovery warnings remain critical at Acts 5 and 10;
+- crafting recipe/town-bench intelligence stays separate from raw route text;
+- imported build stages drive gem, passive, gear, loot and vendor guidance;
+- route analytics reports where time changed without inventing a cause;
+- Maxroll/Mobalytics/game-data contracts now have scheduled upstream monitoring.
+
+Author-specific damage rotations, temporary economy advice, isolated unique-item shopping advice and copied one-off regex strings are intentionally not generalized without structured build evidence.
+
+## Original semantic-guidance hardening
+
+The first audit exposed eight stale selectors from the older coaching layer. They were repaired against the actual bundled route rather than weakened into broad index-based matching. Coaching was also expanded around high-value bosses, quest items and permanent-reward stops including Hailrake, Fairgraves, Abberath, Ryslatha, Maligaro, Greust, the Basilisk, Shakari, General Adus, Plaguewing, Avarius and the final `/passives` audit.
 
 The semantic-action layer identifies at least one decisive action signal for every bundled route page, so Overlay V2 does not need raw Exile-UI text as its primary Focus-mode objective.
 
@@ -45,3 +70,5 @@ This is still **not** a claim that all 228 pages deserve hand-authored prose. Th
 Directional clues remain context even if they appear earlier in an upstream route page. This is deliberate. For example, `follow side of wall` must not become **NOW** when the same page later contains a decisive `kill Hailrake` objective.
 
 `npm run audit:campaign` is part of CI and must be rerun after campaign-data, annotation or action-parser changes. The audit fails visibly when selectors become stale so coaching cannot silently rot across upstream changes.
+
+Scheduled upstream monitors complement, but do not replace, this deterministic audit. External provider outages never make normal release CI fail.
