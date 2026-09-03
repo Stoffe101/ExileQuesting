@@ -2,6 +2,18 @@
 
 ExileQuesting's own code is licensed under PolyForm Noncommercial License 1.0.0. Third-party material listed here remains under its original license or terms and is not relicensed by ExileQuesting.
 
+## Path of Building Community and LuaJIT calculation runtime
+
+Repositories:
+- <https://github.com/PathOfBuildingCommunity/PathOfBuilding>
+- <https://github.com/LuaJIT/LuaJIT>
+
+ExileQuesting v0.3's Build Doctor calculation kernel runs Path of Building Community as an isolated headless child process. The packaged runtime is pinned to an exact reviewed Path of Building commit and an exact reviewed LuaJIT commit; those source pins and SHA-256 bundle provenance are recorded in the adjacent `pob-kernel/manifest.json` installed with ExileQuesting.
+
+Path of Building and LuaJIT are not linked into or relicensed as ExileQuesting code. They remain separate third-party runtime components. The packaged `pob-kernel/licenses` directory contains the complete Path of Building `LICENSE.md` from the pinned source checkout and LuaJIT `COPYRIGHT` notice from the pinned runtime checkout. Path of Building's license document also preserves notices for the third-party components distributed by its runtime bundle.
+
+ExileQuesting deliberately stages the complete reviewed Path of Building source/runtime bundle for the first Build Doctor alpha instead of silently reconstructing Path of Exile calculation semantics. Numerical Build Doctor results are produced by that pinned calculation process, while ExileQuesting supplies bounded inputs, parity testing, sensitivity analysis, evidence modelling and explanations.
+
 ## Exile-UI
 
 Repository: <https://github.com/Lailloken/Exile-UI>
