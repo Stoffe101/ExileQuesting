@@ -394,12 +394,17 @@ function refineHypothesis(
 }
 
 function confidenceForMotion(motion: WorkingMotion, availableFeatures: number, wide: boolean): number {
-  const coverage = motion.inliers.length / Math.max(1, availableFeatures);
+  // Zooming in necessarily throws old-frame features outside the current
+  // viewport. The maximum visible area shrinks approximately by 1/scale², so
+  // raw inlier/feature coverage would unfairly reject a geometrically excellent
+  // large zoom. Normalize coverage by that physically visible feature budget,
+  // while the independent absolute-inlier floor below still prevents a tiny
+  // accidental match set from becoming a valid transform.
+  const visibleFraction = motion.scale > 1 ? 1 / (motion.scale * motion.scale) : 1;
+  const visibleFeatureBudget = Math.max(1, availableFeatures * visibleFraction);
+  const coverage = clamp(motion.inliers.length / visibleFeatureBudget, 0, 1);
   const residualConfidence = 1 - clamp(motion.rms / (wide ? 6 : 5), 0, 1);
   const matchQuality = 1 - clamp(motion.meanPatchError / MATCH_ERROR_LIMIT, 0, 1);
-  // Large legitimate zooms naturally throw some source features outside the
-  // viewport, so raw coverage should not dominate confidence. Geometric
-  // residual and patch agreement become stronger evidence in that case.
   return clamp(coverage * 0.5 + residualConfidence * 0.32 + matchQuality * 0.18, 0, 1);
 }
 
