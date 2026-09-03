@@ -177,42 +177,129 @@ v0.2 turns the build foundation into an active leveling companion. PoB and Maxro
 
 See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`, `VENDOR_SEARCH.md`, `PASSIVES_RECONCILIATION.md` and `ROUTE_ANALYTICS.md` for the build-aware planner, stage reconciliation, data provenance, passive, crafting, loot-filter, vendor-search, route analytics and authoritative passive-reward audit behavior.
 
-## 0.3 — deeper route + endgame intelligence
+## 0.3 — Build Doctor / endgame intelligence foundation
 
-- [ ] current-patch real-world PoB corpus validation and heuristics hardening
-- [ ] character-linked build profiles when a reliable identity source is available
-- [x] build-specific vendor regex/search reminders
-- [x] richer `/passives` reconciliation workflow
-- [ ] more reviewed high-confidence layout and routing hints
-- [x] deeper personal route analytics without gameplay automation
-- [ ] endgame/economy-aware loot intelligence beyond the campaign-scoped wrapper
+v0.3 changes ExileQuesting from a campaign/build-stage companion into the foundation of an expert build-understanding system. The quality bar is not “spot obvious mistakes”; the target is evidence-backed diagnosis of how a build scales, survives, plays and should progress into difficult mapping and pinnacle/Uber content.
 
-## 0.4 — Advanced Gear Coach
+See `ENDGAME_BUILD_INTELLIGENCE.md` and `POB_CALCULATION_KERNEL.md` for the canonical architecture and research requirements.
+
+### Living research corpus
+
+- [x] typed provenance, source-policy, build-case, assertion and coverage schema
+- [x] advisory corpus coverage audit that exposes missing mechanical dimensions
+- [x] initial mechanically diverse 3.29 seed registry
+- [ ] expand toward 2,000+ distinct public/contributed build profiles and 5,000+ progression/investment states over time
+- [ ] build 1,000+ deliberately mutated negative cases that break known dependencies, breakpoints, defences and configurations
+- [ ] represent current meta, historical metas, niche-but-distinct archetypes, softcore trade, SSF and hardcore perspectives
+- [ ] represent league-start, early-map, established, high-investment and near-BiS states where source material exists
+- [ ] represent mapping, eight-mod/Nightmare mapping, pinnacle/Uber bossing, Simulacrum, Delve and other mechanically distinct content intents
+- [ ] continuously research Maxroll, Mobalytics, public PoBs and expert creators while retaining patch/source/use-policy provenance
+- [ ] derive normalized facts and relationships instead of mirroring copyrighted guide prose or transcripts
+- [ ] source freshness/watchdog for reviewed GGG, PoB, guide-provider and creator registries; changes create review work and never mutate production advice automatically
+
+### Deterministic PoB calculation kernel
+
+- [x] confirm current PoB Community headless calculation seam and pin the initial research spike to a reviewed upstream commit
+- [x] define a stable ExileQuesting-side calculation/perturbation protocol and delta model
+- [ ] prototype isolated LuaJIT + pinned PoB headless worker
+- [ ] normalize reviewed offence, defence, maximum-hit, recovery and configuration outputs behind an adapter
+- [ ] parity-test direct-hit, DoT, ailment, minion, trigger, stacking and mechanically diverse defensive builds against PoB
+- [ ] benchmark startup time, warm-worker latency, memory, crash recovery and timeout behaviour
+- [ ] audit all PoB/runtime redistribution licenses and third-party notices before packaging
+- [ ] package the kernel as an independent extra resource without weakening Electron sandbox/context-isolation boundaries
+- [ ] gate every PoB pin update on parity fixtures before production activation
+
+### Build understanding + Configuration Doctor
+
+- [ ] extract a mechanic graph connecting active skills, supports, passives, items, resources, conditions and defensive layers
+- [ ] infer candidate scaling axes from structure and verify them with controlled PoB perturbations
+- [ ] detect caps, thresholds and discontinuities such as trigger/cooldown breakpoints instead of treating every stat as a smooth weight
+- [ ] classify PoB conditions as permanent, mapping-uptime, sustained-boss, burst-only or unproven
+- [ ] calculate explicit peak, mapping, sustained-boss and cold-start/low-uptime scenarios with visible assumptions
+- [ ] identify build invariants whose violation invalidates an otherwise attractive upgrade
+- [ ] preserve uncertainty and refuse high-confidence recommendations for unknown/unverified interactions
+
+### Character-linked state
+
+- [ ] finalize minimal-scope GGG OAuth architecture for a public desktop client using Authorization Code + PKCE
+- [ ] prepare an authentic GGG developer registration application with explicit scope/use rationale
+- [ ] optional account link using documented GGG APIs only
+- [ ] import authorized character equipment, gems/items and passive state into a character-linked Build Profile
+- [ ] reconcile actual character state against the intended guide/PoB state
+- [ ] keep manual PoB/item workflows fully usable without an account link
+- [ ] defer stash access unless a concrete feature genuinely requires the additional scope
+
+### Practical combat + content model
+
+- [ ] model playstyle dimensions such as range, mobility, ramp, coverage, damage-while-moving, boss uptime, rotation burden, flask/charge dependency and kill-dependent defences
+- [ ] distinguish spreadsheet peak power from sustainable practical states without fabricating unsupported DPS multipliers
+- [ ] parse explicitly copied endgame map modifiers into a content scenario
+- [ ] evaluate how content modifiers attack the current build's actual damage/defence dependencies
+- [ ] add reviewed profiles for common mapping, eight-mod/Nightmare, pinnacle/Uber and other high-value endgame scenarios
+- [ ] surface exact assumptions and separate deterministic build weakness from uncertain player-execution causes
+
+### Whole-build upgrade solver
+
+- [ ] move from isolated item scoring to coordinated transition packages spanning items, passives, gems, flasks, jewels, anoints and configuration
+- [ ] re-solve attributes, resistances, suppression/block/caps, reservation/resources, gem requirements and build-specific invariants after every candidate package
+- [ ] generate build-specific sensitivity rankings rather than universal stat weights
+- [ ] preserve mapping/bossing/playstyle intent in the objective function
+- [ ] return Pareto-efficient damage/defence/quality-of-life/budget choices instead of one opaque score
+- [ ] explain why rejected “upgrades” fail whole-build constraints
+- [ ] early-map through near-BiS next-upgrade recommendations with confidence/evidence
+
+### Expert benchmark
+
+- [ ] healthy reference cases across all supported mechanic families
+- [ ] deliberately broken cases for breakpoints, enabling uniques/jewels, supports, attributes, reservation, recovery and defensive layers
+- [ ] content-specific danger/upgrade scenarios
+- [ ] expected diagnoses reviewed against deterministic PoB results and multiple strong community/expert sources where available
+- [ ] regression score measures identifying the important problem for the right reason, not matching one creator's exact item choice
+- [ ] no “expert-ready” marketing claim until diverse endgame benchmark quality is demonstrated
+
+## 0.4 — Advanced Build Doctor / endgame progression
+
+0.4 turns the v0.3 calculation and research foundation into a polished player-facing diagnosis loop.
 
 - [x] manually copied item parser foundation
 - [x] visible resistance/attribute/life analysis
 - [x] gear-slot/build-stage match score
 - [x] cheap campaign repair suggestions
 - [x] compare candidate against an explicitly copied currently equipped item
-- [ ] richer weapon-specific build weighting from local modifier/base data
-- [ ] exact unique/base resolution for Maxroll internal item metadata
-- [ ] early-map and endgame upgrade recommendations
+- [ ] Build Health view prioritizing the few bottlenecks that matter now
+- [ ] evidence-backed “why am I dying?” analysis for supported content scenarios
+- [ ] evidence-backed “what should I upgrade next?” analysis at configurable budgets
+- [ ] richer weapon/base/unique resolution using licensed/versioned local data
+- [ ] build-specific damage scaling and defensive-layer explanations
+- [ ] practical mapping-vs-bossing trade-off explanations
+- [ ] generated supported trade-search handoff for verified target requirements
+- [ ] upgrade history so the user can verify whether a recommended transition fixed the predicted bottleneck
+- [ ] endgame/economy-aware loot intelligence driven by current build needs rather than generic rarity
 
-## 0.5 — Crafting Coach
+## 0.5 — Crafting Coach / build-aware acquisition
 
-- [ ] licensed local modifier/base/essence/fossil/bench dataset
-- [ ] essential/important/flexible target decomposition
-- [ ] budget, recommended, high-end, and near-BiS strategies
+Crafting Coach consumes Build Doctor's target, rather than inventing a generic “good item”.
+
+- [ ] licensed/versioned local modifier, base, essence, fossil, bench and supported crafting-method dataset
+- [ ] essential/important/flexible/luxury target-affix decomposition from whole-build constraints
+- [ ] budget, recommended, high-end and near-BiS strategies
+- [ ] crafting-state graph with valid next operations
 - [ ] probabilities and expected attempts/cost
-- [ ] explicit stop conditions
+- [ ] supported economy/pricing inputs with provenance and freshness
+- [ ] compare expected craft cost against supported buy/trade alternatives
+- [ ] explicit stop conditions and “good enough” states
 - [ ] item-state validation after manual Ctrl+C
+- [ ] recover/re-plan when a craft step produces an unexpected but usable state
 - [ ] “just tell me” and “teach me” explanations
 - [ ] optional supported Craft of Exile handoff/integration
+- [ ] no automated crafting input or game-process manipulation
 
 ## Release requirements for every milestone
 
-- typecheck, runtime dependency audit, campaign audit, semantic campaign lint, full simulator and tests pass;
+- typecheck, runtime dependency audit, campaign audit, build-knowledge corpus validation, semantic campaign lint, full simulator and tests pass;
 - generated game-data snapshots and the shared provenance manifest validate before packaging;
+- endgame calculation/advice features may only consume PoB kernel outputs after their parity fixtures pass for the pinned calculation version;
+- knowledge assertions and benchmark cases retain source, patch and source-use provenance;
 - Windows manager responsive matrix, Gear Coach visual smoke, overlay visual matrix and lifecycle soak pass;
 - Windows NSIS installer builds successfully;
 - when a previous stable release exists, CI installs that release and proves the real updater can move it to the candidate build;
@@ -223,5 +310,5 @@ See `BUILD_INTELLIGENCE.md`, `POB_STAGE_ALIGNMENT.md`, `GAME_DATA_PROVENANCE.md`
 - a release tag must match `package.json` version;
 - public release assets must be generated by the tested release workflow, not uploaded ad hoc;
 - current GGG policy boundary is rechecked;
-- third-party data versions and licenses are recorded;
-- no upstream campaign update activates without validation.
+- third-party data/code versions and licenses are recorded;
+- no upstream campaign, build-knowledge or calculation-engine update activates without validation.

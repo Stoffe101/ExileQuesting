@@ -26,6 +26,7 @@ jobs:
       - run: npm run validate:passives
       - run: npm run validate:manifest
       - run: npm run audit:campaign
+      - run: npm run audit:build-knowledge
       - run: npm run lint:campaign
       - run: npm run simulate:campaign
       - uses: actions/upload-artifact@v4
