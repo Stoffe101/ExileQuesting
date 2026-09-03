@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -22,19 +22,38 @@ function hash(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex');
 }
 
+function treeHash(entries: Array<{ path: string; buffer: Buffer }>): string {
+  const tree = createHash('sha256');
+  for (const entry of [...entries].sort((a, b) => a.path.localeCompare(b.path))) {
+    tree.update(entry.path, 'utf8');
+    tree.update('\0');
+    tree.update(String(entry.buffer.length), 'utf8');
+    tree.update('\0');
+    tree.update(hash(entry.buffer), 'utf8');
+    tree.update('\n');
+  }
+  return tree.digest('hex');
+}
+
 async function fixture(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'exilequesting-pob-runtime-'));
   roots.push(root);
   const criticalFiles = {} as PobKernelBundleManifest['criticalFiles'];
-  let totalBytes = 0;
+  const treeEntries: Array<{ path: string; buffer: Buffer }> = [];
   for (const [key, relative] of Object.entries(POB_KERNEL_CRITICAL_FILES) as Array<[keyof typeof POB_KERNEL_CRITICAL_FILES, string]>) {
     const absolute = path.join(root, ...relative.split('/'));
     await mkdir(path.dirname(absolute), { recursive: true });
     const buffer = Buffer.from(`fixture:${key}`, 'utf8');
     await writeFile(absolute, buffer);
-    totalBytes += buffer.length;
+    treeEntries.push({ path: relative, buffer });
     criticalFiles[key] = { path: relative, size: buffer.length, sha256: hash(buffer) };
   }
+  const extraPath = 'pob/src/Modules/Fixture.lua';
+  const extraBuffer = Buffer.from('return { fixture = true }\n', 'utf8');
+  await mkdir(path.dirname(path.join(root, ...extraPath.split('/'))), { recursive: true });
+  await writeFile(path.join(root, ...extraPath.split('/')), extraBuffer);
+  treeEntries.push({ path: extraPath, buffer: extraBuffer });
+
   const manifest: PobKernelBundleManifest = {
     schemaVersion: POB_KERNEL_BUNDLE_SCHEMA_VERSION,
     generatedAt: '2026-09-03T00:00:00.000Z',
@@ -43,9 +62,9 @@ async function fixture(): Promise<string> {
     luaJitRepository: POB_KERNEL_LUAJIT_REPOSITORY,
     luaJitCommit: POB_KERNEL_LUAJIT_COMMIT,
     workerAdapterVersion: '0.5.0',
-    fileCount: Object.keys(criticalFiles).length,
-    totalBytes,
-    treeSha256: 'a'.repeat(64),
+    fileCount: treeEntries.length,
+    totalBytes: treeEntries.reduce((sum, entry) => sum + entry.buffer.length, 0),
+    treeSha256: treeHash(treeEntries),
     criticalFiles,
   };
   await writeFile(path.join(root, 'manifest.json'), JSON.stringify(manifest), 'utf8');
@@ -81,10 +100,16 @@ describe('PoB runtime bundle', () => {
     await expect(validatePobKernelBundle(root)).rejects.toThrow(/SHA-256|wrong size/i);
   });
 
+  it('fails closed if a non-critical PoB module changes after staging', async () => {
+    const root = await fixture();
+    await writeFile(path.join(root, 'pob', 'src', 'Modules', 'Fixture.lua'), 'return { fixture = false }\n', 'utf8');
+    await expect(validatePobKernelBundle(root)).rejects.toThrow(/whole-tree|byte-count/i);
+  });
+
   it('fails closed on an unreviewed PoB source pin', async () => {
     const root = await fixture();
     const manifestPath = path.join(root, 'manifest.json');
-    const manifest = JSON.parse(await import('node:fs/promises').then((fs) => fs.readFile(manifestPath, 'utf8'))) as PobKernelBundleManifest;
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as PobKernelBundleManifest;
     manifest.pobCommit = '0'.repeat(40);
     await writeFile(manifestPath, JSON.stringify(manifest), 'utf8');
     await expect(validatePobKernelBundle(root)).rejects.toThrow(/source pin/i);
