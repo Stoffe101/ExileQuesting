@@ -11,6 +11,13 @@ export interface PobConstraintHealthRequest {
   operation: 'health';
 }
 
+export interface PobConstraintInspectBuildRequest {
+  protocolVersion: number;
+  requestId: string;
+  operation: 'inspect-build-constraints';
+  xml: string;
+}
+
 export interface PobConstraintCompareItemRequest {
   protocolVersion: number;
   requestId: string;
@@ -20,7 +27,7 @@ export interface PobConstraintCompareItemRequest {
   itemText: string;
 }
 
-export type PobConstraintRequest = PobConstraintHealthRequest | PobConstraintCompareItemRequest;
+export type PobConstraintRequest = PobConstraintHealthRequest | PobConstraintInspectBuildRequest | PobConstraintCompareItemRequest;
 
 export interface PobConstraintComparison {
   slot: PobReplaceableItemSlot;
@@ -34,6 +41,14 @@ export interface PobConstraintWorkerSuccess {
   ok: true;
   kernel: PobCalculationKernelVersion;
   comparison: PobConstraintComparison;
+}
+
+export interface PobConstraintWorkerInspectionSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  kernel: PobCalculationKernelVersion;
+  inspection: { metrics: PobConstraintMetrics };
 }
 
 export interface PobConstraintWorkerHealthSuccess {
@@ -50,7 +65,7 @@ export interface PobConstraintWorkerFailure {
   error: { code: string; message: string; retryable: boolean };
 }
 
-export type PobConstraintWorkerResponse = PobConstraintWorkerSuccess | PobConstraintWorkerHealthSuccess | PobConstraintWorkerFailure;
+export type PobConstraintWorkerResponse = PobConstraintWorkerSuccess | PobConstraintWorkerInspectionSuccess | PobConstraintWorkerHealthSuccess | PobConstraintWorkerFailure;
 
 export type PobConstraintFindingState = 'broken' | 'repaired' | 'weakened-buffer' | 'improved-buffer';
 export type PobConstraintFindingKind = 'attribute-requirement' | 'resistance-cap' | 'spell-suppression-cap';
@@ -65,6 +80,18 @@ export interface PobConstraintFinding {
   detail: string;
 }
 
+export type PobBaselineConstraintFindingSeverity = 'warning' | 'info';
+export type PobBaselineConstraintFindingKind = 'attribute-requirement' | 'elemental-resistance-cap' | 'chaos-resistance-posture' | 'spell-suppression-posture';
+
+export interface PobBaselineConstraintFinding {
+  key: string;
+  kind: PobBaselineConstraintFindingKind;
+  severity: PobBaselineConstraintFindingSeverity;
+  label: string;
+  value: string;
+  detail: string;
+}
+
 function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
@@ -73,9 +100,9 @@ export function validPobConstraintRequest(request: PobConstraintRequest): boolea
   if (request.protocolVersion !== POB_CONSTRAINT_PROTOCOL_VERSION) return false;
   if (!request.requestId.trim() || request.requestId.length > 128) return false;
   if (request.operation === 'health') return true;
-  return Boolean(request.xml.trim())
-    && request.xml.length <= 16 * 1024 * 1024
-    && POB_REPLACEABLE_ITEM_SLOTS.includes(request.slot)
+  if (!request.xml.trim() || request.xml.length > 16 * 1024 * 1024) return false;
+  if (request.operation === 'inspect-build-constraints') return true;
+  return POB_REPLACEABLE_ITEM_SLOTS.includes(request.slot)
     && Boolean(request.itemText.trim())
     && utf8ByteLength(request.itemText) <= MAX_POB_CONSTRAINT_ITEM_TEXT_BYTES;
 }
@@ -208,4 +235,67 @@ export function constraintFindings(comparison: PobConstraintComparison): PobCons
   const rank: Record<PobConstraintFindingState, number> = { broken: 0, repaired: 1, 'weakened-buffer': 2, 'improved-buffer': 3 };
   return findings.filter((finding): finding is PobConstraintFinding => Boolean(finding))
     .sort((left, right) => rank[left.state] - rank[right.state] || left.label.localeCompare(right.label));
+}
+
+function baselineRequirementFinding(key: string, label: string, metric: { current?: number; required?: number }): PobBaselineConstraintFinding | undefined {
+  if (!finite(metric.current) || !finite(metric.required) || metric.current >= metric.required) return undefined;
+  return {
+    key,
+    kind: 'attribute-requirement',
+    severity: 'warning',
+    label: `${label} requirement not met`,
+    value: `${value(metric.current)} / ${value(metric.required)} required`,
+    detail: `Pinned PoB reports less ${label.toLowerCase()} than the imported build currently requires. This is a proven requirement failure in the calculated state.`,
+  };
+}
+
+function baselineElementalFinding(key: string, label: string, metric: { missing?: number; overCap?: number }): PobBaselineConstraintFinding | undefined {
+  if (!finite(metric.missing) || metric.missing <= 1e-9) return undefined;
+  return {
+    key,
+    kind: 'elemental-resistance-cap',
+    severity: 'warning',
+    label: `${label} below PoB cap`,
+    value: `${value(metric.missing)} missing`,
+    detail: `Pinned PoB reports the imported build is ${value(metric.missing)} percentage point${Math.abs(metric.missing - 1) <= 1e-9 ? '' : 's'} below its calculated ${label.toLowerCase()} cap.`,
+  };
+}
+
+export function baselineConstraintFindings(metrics: PobConstraintMetrics): PobBaselineConstraintFinding[] {
+  const findings: Array<PobBaselineConstraintFinding | undefined> = [
+    baselineRequirementFinding('baseline-strength-requirement', 'Strength', metrics.attributes.strength),
+    baselineRequirementFinding('baseline-dexterity-requirement', 'Dexterity', metrics.attributes.dexterity),
+    baselineRequirementFinding('baseline-intelligence-requirement', 'Intelligence', metrics.attributes.intelligence),
+    baselineElementalFinding('baseline-fire-resistance', 'Fire resistance', metrics.resistances.fire),
+    baselineElementalFinding('baseline-cold-resistance', 'Cold resistance', metrics.resistances.cold),
+    baselineElementalFinding('baseline-lightning-resistance', 'Lightning resistance', metrics.resistances.lightning),
+  ];
+
+  const chaos = metrics.resistances.chaos;
+  if (finite(chaos.missing) && chaos.missing > 1e-9) {
+    findings.push({
+      key: 'baseline-chaos-resistance',
+      kind: 'chaos-resistance-posture',
+      severity: 'info',
+      label: 'Chaos resistance below PoB cap',
+      value: `${value(chaos.missing)} missing`,
+      detail: 'Pinned PoB reports uncapped chaos resistance. This is defensive posture evidence, not a universal build-validity failure.',
+    });
+  }
+
+  const suppression = metrics.spellSuppression;
+  if (finite(suppression.chance) && finite(suppression.cap) && suppression.chance > 0 && suppression.chance < suppression.cap) {
+    findings.push({
+      key: 'baseline-spell-suppression',
+      kind: 'spell-suppression-posture',
+      severity: 'info',
+      label: 'Spell suppression is not capped',
+      value: `${value(suppression.chance)}% / ${value(suppression.cap)}% cap`,
+      detail: 'Pinned PoB reports partial spell suppression. ExileQuesting does not assume every build intends to cap suppression, so this remains posture evidence rather than a validity failure.',
+    });
+  }
+
+  const rank: Record<PobBaselineConstraintFindingSeverity, number> = { warning: 0, info: 1 };
+  return findings.filter((finding): finding is PobBaselineConstraintFinding => Boolean(finding))
+    .sort((left, right) => rank[left.severity] - rank[right.severity] || left.label.localeCompare(right.label));
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PobConstraintMetrics } from './pob-calculation';
 import {
+  baselineConstraintFindings,
   constraintFindings,
   parsePobConstraintProtocolLines,
   POB_CONSTRAINT_PROTOCOL_VERSION,
@@ -32,8 +33,14 @@ function comparison(before = metrics(), after = metrics()): PobConstraintCompari
 }
 
 describe('PoB constraint protocol', () => {
-  it('accepts bounded health and item-constraint requests only', () => {
+  it('accepts bounded health, baseline inspection and item-constraint requests only', () => {
     expect(validPobConstraintRequest({ protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION, requestId: 'health', operation: 'health' })).toBe(true);
+    expect(validPobConstraintRequest({
+      protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
+      requestId: 'baseline',
+      operation: 'inspect-build-constraints',
+      xml: '<PathOfBuilding/>',
+    })).toBe(true);
     expect(validPobConstraintRequest({
       protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
       requestId: 'candidate',
@@ -49,6 +56,12 @@ describe('PoB constraint protocol', () => {
       xml: '<PathOfBuilding/>',
       slot: 'Boots',
       itemText: 'x',
+    })).toBe(false);
+    expect(validPobConstraintRequest({
+      protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
+      requestId: 'baseline',
+      operation: 'inspect-build-constraints',
+      xml: '',
     })).toBe(false);
   });
 
@@ -121,5 +134,40 @@ describe('PoB hard-constraint findings', () => {
     after.resistances.fire = { current: 75, total: 80, overCap: 5, missing: 0 };
     const findings = constraintFindings(comparison(before, after));
     expect(findings.map((entry) => entry.state)).toEqual(['broken', 'repaired', 'weakened-buffer']);
+  });
+});
+
+describe('PoB baseline integrity findings', () => {
+  it('treats unmet attributes as proven requirement failures', () => {
+    const current = metrics();
+    current.attributes.strength = { current: 145, required: 155 };
+    expect(baselineConstraintFindings(current)).toContainEqual(expect.objectContaining({
+      key: 'baseline-strength-requirement', severity: 'warning', kind: 'attribute-requirement', value: '145 / 155 required',
+    }));
+  });
+
+  it('treats missing elemental resistance as a deterministic defensive gap', () => {
+    const current = metrics();
+    current.resistances.fire = { current: 68, total: 68, overCap: 0, missing: 7 };
+    expect(baselineConstraintFindings(current)).toContainEqual(expect.objectContaining({
+      key: 'baseline-fire-resistance', severity: 'warning', kind: 'elemental-resistance-cap', value: '7 missing',
+    }));
+  });
+
+  it('keeps uncapped chaos resistance and partial suppression as posture evidence rather than universal validity failures', () => {
+    const current = metrics();
+    current.resistances.chaos = { current: 20, total: 20, overCap: 0, missing: 55 };
+    current.spellSuppression = { chance: 82, effectiveChance: 82, overCap: 0, cap: 100 };
+    const findings = baselineConstraintFindings(current);
+    expect(findings).toContainEqual(expect.objectContaining({ key: 'baseline-chaos-resistance', severity: 'info' }));
+    expect(findings).toContainEqual(expect.objectContaining({ key: 'baseline-spell-suppression', severity: 'info' }));
+    expect(findings.filter((entry) => entry.severity === 'warning')).toHaveLength(0);
+  });
+
+  it('does not invent reservation validity or suppression intent', () => {
+    const current = metrics();
+    current.reservation = { manaUnreserved: 1, manaUnreservedPercent: 0.1, lifeUnreserved: 4_000, lifeUnreservedPercent: 100 };
+    current.spellSuppression = { chance: 0, effectiveChance: 0, overCap: 0, cap: 100 };
+    expect(baselineConstraintFindings(current)).toEqual([]);
   });
 });

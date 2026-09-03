@@ -75,6 +75,149 @@
   line-height: 1.45;
 }
 
+.build-doctor-integrity {
+  margin: 0 0 12px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 11px;
+  background: rgba(3,8,13,.34);
+}
+
+.build-doctor-integrity.attention-required {
+  border-color: rgba(240,120,120,.24);
+  background: linear-gradient(135deg, rgba(240,120,120,.05), rgba(3,8,13,.34) 52%);
+}
+
+.build-doctor-integrity.supported-checks-clear {
+  border-color: rgba(105,216,181,.18);
+  background: linear-gradient(135deg, rgba(105,216,181,.04), rgba(3,8,13,.34) 52%);
+}
+
+.build-doctor-integrity.unavailable {
+  border-color: rgba(242,188,114,.18);
+}
+
+.build-doctor-integrity-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.build-doctor-integrity-head > div:first-child {
+  min-width: 0;
+}
+
+.build-doctor-integrity-head span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: .09em;
+}
+
+.build-doctor-integrity-head strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+.build-doctor-integrity.attention-required .build-doctor-integrity-head strong { color: #ef9696; }
+.build-doctor-integrity.supported-checks-clear .build-doctor-integrity-head strong { color: #73d9b9; }
+.build-doctor-integrity.unavailable .build-doctor-integrity-head strong { color: #f0b96f; }
+
+.build-doctor-integrity-counts {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.build-doctor-integrity-counts i {
+  padding: 3px 6px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.build-doctor-integrity > p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.build-doctor-integrity > small {
+  display: block;
+  margin-top: 9px;
+  color: var(--text-muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.build-doctor-integrity-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.build-doctor-integrity-list article {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 8px;
+  background: rgba(0,0,0,.18);
+}
+
+.build-doctor-integrity-list article.warning {
+  border-color: rgba(240,120,120,.2);
+  background: rgba(240,120,120,.035);
+}
+
+.build-doctor-integrity-list article.info {
+  border-color: rgba(105,216,181,.12);
+}
+
+.build-doctor-integrity-list article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.build-doctor-integrity-list article strong {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-doctor-integrity-list article span {
+  flex: 0 0 auto;
+  font-size: 8px;
+}
+
+.build-doctor-integrity-list article.warning span { color: #ef9696; }
+.build-doctor-integrity-list article.info span { color: #69d8b5; }
+
+.build-doctor-integrity-list article code {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-doctor-integrity-list article p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
 .build-doctor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -241,12 +384,20 @@
 
 @media (max-width: 1050px) {
   .build-doctor-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .build-doctor-integrity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .build-doctor-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
-  .build-doctor-heading { flex-direction: column; }
+  .build-doctor-heading,
+  .build-doctor-integrity-head { flex-direction: column; }
   .build-doctor-run { justify-content: flex-start; }
-  .build-doctor-hit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .build-doctor-integrity-counts { justify-content: flex-start; }
+  .build-doctor-hit-grid,
+  .build-doctor-integrity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .build-doctor-findings article { grid-template-columns: 1fr; gap: 5px; }
+}
+
+@media (max-width: 480px) {
+  .build-doctor-integrity-list { grid-template-columns: 1fr; }
 }
