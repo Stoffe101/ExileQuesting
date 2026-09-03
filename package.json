@@ -32,6 +32,8 @@
     "soak:overlay": "npm run build && electron . --overlay-soak=artifacts/soak",
     "smoke:lab": "npm run build && esbuild tools/smoke-lab.ts --bundle --platform=node --format=cjs --packages=external --outfile=.tmp/smoke-lab.cjs && electron .tmp/smoke-lab.cjs",
     "smoke:update-handoff": "esbuild tools/smoke-update-handoff.ts --bundle --platform=node --format=cjs --outfile=.tmp/smoke-update-handoff.cjs",
+    "prepare:pob-runtime:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/prepare-pob-runtime-windows.ps1",
+    "smoke:pob-runtime": "esbuild tools/smoke-pob-runtime.ts --bundle --platform=node --format=esm --outfile=.tmp/smoke-pob-runtime.mjs && node .tmp/smoke-pob-runtime.mjs .pob-runtime",
     "verify:preplaytest": "npm run typecheck && npm test && npm run validate:gems && npm run validate:passives && npm run validate:manifest && npm run audit:campaign && npm run audit:build-knowledge && npm run lint:campaign && npm run simulate:campaign",
     "check:upstream": "node tools/check-upstream.mjs",
     "dist": "npm run build && electron-builder --win nsis --publish never",
@@ -81,6 +83,10 @@
       {
         "from": "assets/game-data",
         "to": "game-data"
+      },
+      {
+        "from": ".pob-runtime",
+        "to": "pob-kernel"
       }
     ],
     "win": {
