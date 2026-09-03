@@ -96,7 +96,7 @@ async function main() {
     const out = Array.isArray(node.out) ? node.out.map(Number).filter((candidate) => Number.isSafeInteger(candidate) && candidate > 0) : [];
     const ascendancyName = typeof node.ascendancyName === 'string' ? node.ascendancyName.trim() : undefined;
     const ascendancyStart = node.isAscendancyStart === true; const icon = typeof node.icon === 'string' ? node.icon : undefined;
-    nodes.push({ id, name, kind, ...(dynamic ? { dynamic: true } : {}), ...(position ?? {}), ...(Number.isSafeInteger(group) ? { group } : {}), ...(Number.isSafeInteger(orbit) ? { orbit } : {}), ...(Number.isSafeInteger(orbitIndex) ? { orbitIndex }), ...(out.length ? { out } : {}), ...(Number.isSafeInteger(classStartIndex) && classStartIndex >= 0 ? { classStartIndex } : {}), ...(ascendancyName ? { ascendancyName } : {}), ...(ascendancyStart ? { ascendancyStart: true } : {}), ...(icon ? { icon } : {}) });
+    nodes.push({ id, name, kind, ...(dynamic ? { dynamic: true } : {}), ...(position ?? {}), ...(Number.isSafeInteger(group) ? { group } : {}), ...(Number.isSafeInteger(orbit) ? { orbit } : {}), ...(Number.isSafeInteger(orbitIndex) ? { orbitIndex } : {}), ...(out.length ? { out } : {}), ...(Number.isSafeInteger(classStartIndex) && classStartIndex >= 0 ? { classStartIndex } : {}), ...(ascendancyName ? { ascendancyName } : {}), ...(ascendancyStart ? { ascendancyStart: true } : {}), ...(icon ? { icon } : {}) });
   }
   nodes.sort((left, right) => left.id - right.id);
   if (nodes.length < 1000) throw new Error(`Only ${nodes.length} passive nodes were extracted.`);
