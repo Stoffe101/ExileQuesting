@@ -4,8 +4,11 @@ import { resolve } from 'node:path';
 import { PobKernelWorkerError, runPobKernelRequest } from '../electron/services/pob-kernel-service';
 import {
   POB_CALCULATION_PROTOCOL_VERSION,
+  POB_REPLACEABLE_ITEM_SLOTS,
   type PobCalculationResult,
+  type PobReplaceableItemSlot,
   type PobWorkerCalculationSuccess,
+  type PobWorkerPerturbationSuccess,
 } from '../src/core/pob-calculation';
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
@@ -15,6 +18,8 @@ const DEFAULT_RELATIVE_TOLERANCE = 1e-6;
 const DEFAULT_ABSOLUTE_TOLERANCE = 0.05;
 const PROCESS_TIMEOUT_MS = 45_000;
 const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
+
+type RawOutput = Record<string, number | string | boolean>;
 
 interface MetricCheck {
   label: string;
@@ -31,16 +36,31 @@ interface MetricComparison {
   passed: boolean;
 }
 
+interface ItemReplacementReport {
+  slot: PobReplaceableItemSlot;
+  beforeComparisons: MetricComparison[];
+  afterComparisons: MetricComparison[];
+  changedMetrics: string[];
+  passed: boolean;
+}
+
 interface FixtureReport {
   fixture: string;
   expectedSource: string;
   comparisons: MetricComparison[];
+  itemReplacement: ItemReplacementReport;
   passed: boolean;
   elapsedMs: number;
 }
 
 interface ReferencePayload {
-  raw: Record<string, number | string | boolean>;
+  raw: RawOutput;
+  itemReplacement: {
+    slot: string;
+    itemText: string;
+    before: RawOutput;
+    after: RawOutput;
+  };
 }
 
 const FIXTURES = [
@@ -158,6 +178,10 @@ async function runReference(
           finishError('PoB reference payload did not contain a raw output object.');
           return;
         }
+        if (!payload.itemReplacement || typeof payload.itemReplacement.slot !== 'string' || typeof payload.itemReplacement.itemText !== 'string') {
+          finishError('PoB reference payload did not contain an item-replacement oracle.');
+          return;
+        }
         settled = true;
         resolvePromise(payload);
       } catch (error) {
@@ -183,6 +207,34 @@ function compareMetric(check: MetricCheck, expected: number, actual: number | un
   };
 }
 
+function compareRawToNormalized(raw: RawOutput, result: PobCalculationResult): MetricComparison[] {
+  return METRICS.flatMap((check) => {
+    const rawValue = raw[check.expectedStat];
+    if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) return [];
+    return [compareMetric(check, rawValue, check.readActual(result))];
+  });
+}
+
+function changedReferenceMetrics(before: RawOutput, after: RawOutput): string[] {
+  return METRICS.flatMap((check) => {
+    const beforeValue = before[check.expectedStat];
+    const afterValue = after[check.expectedStat];
+    if (typeof beforeValue !== 'number' || typeof afterValue !== 'number') return [];
+    if (!Number.isFinite(beforeValue) || !Number.isFinite(afterValue)) return [];
+    const tolerance = Math.max(comparisonTolerance(beforeValue), comparisonTolerance(afterValue));
+    return Math.abs(afterValue - beforeValue) > tolerance ? [check.label] : [];
+  });
+}
+
+function assertKernelProvenance(result: PobCalculationResult): void {
+  if (result.kernel.pobCommit !== POB_COMMIT) {
+    throw new Error(`Worker PoB pin ${result.kernel.pobCommit} does not match expected commit ${POB_COMMIT}.`);
+  }
+  if (result.kernel.runtimeRevision !== LUAJIT_COMMIT) {
+    throw new Error(`Worker LuaJIT pin ${result.kernel.runtimeRevision} does not match expected commit ${LUAJIT_COMMIT}.`);
+  }
+}
+
 async function runFixture(
   pobRoot: string,
   runtimePath: string,
@@ -192,6 +244,18 @@ async function runFixture(
 ): Promise<FixtureReport> {
   const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
   const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
+  if (!POB_REPLACEABLE_ITEM_SLOTS.includes(reference.itemReplacement.slot as PobReplaceableItemSlot)) {
+    throw new Error(`Reference selected unsupported replacement slot ${reference.itemReplacement.slot} for ${fixture}.`);
+  }
+  const replacementSlot = reference.itemReplacement.slot as PobReplaceableItemSlot;
+  const runtimeOptions = {
+    runtimePath,
+    pobSourcePath: resolve(pobRoot, 'src'),
+    workerScriptPath,
+    timeoutMs: PROCESS_TIMEOUT_MS,
+    maxOutputBytes: MAX_PROCESS_OUTPUT_BYTES,
+  };
+
   const requestId = `parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 120);
   const response = await runPobKernelRequest({
     protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
@@ -199,42 +263,66 @@ async function runFixture(
     operation: 'load-and-calculate',
     xml,
     scenario: { scenario: 'imported', label: `PoB upstream fixture: ${fixture}` },
-  }, {
-    runtimePath,
-    pobSourcePath: resolve(pobRoot, 'src'),
-    workerScriptPath,
-    timeoutMs: PROCESS_TIMEOUT_MS,
-    maxOutputBytes: MAX_PROCESS_OUTPUT_BYTES,
-  });
+  }, runtimeOptions);
 
   if (!response.ok || !('result' in response)) {
     throw new Error(`PoB worker returned a non-calculation response for ${fixture}.`);
   }
 
   const result = (response as PobWorkerCalculationSuccess).result;
-  if (result.kernel.pobCommit !== POB_COMMIT) {
-    throw new Error(`Worker PoB pin ${result.kernel.pobCommit} does not match expected commit ${POB_COMMIT}.`);
-  }
-  if (result.kernel.runtimeRevision !== LUAJIT_COMMIT) {
-    throw new Error(`Worker LuaJIT pin ${result.kernel.runtimeRevision} does not match expected commit ${LUAJIT_COMMIT}.`);
-  }
-
-  const comparisons = METRICS.flatMap((check) => {
-    const rawValue = reference.raw[check.expectedStat];
-    if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) return [];
-    return [compareMetric(check, rawValue, check.readActual(result))];
-  });
-
+  assertKernelProvenance(result);
+  const comparisons = compareRawToNormalized(reference.raw, result);
   if (comparisons.length < 8) {
     throw new Error(`${fixture} exposed only ${comparisons.length} comparable normalized metrics; expected at least 8.`);
   }
 
+  const perturbationResponse = await runPobKernelRequest({
+    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+    requestId: `${requestId}-item`.slice(0, 128),
+    operation: 'calculate-with-perturbations',
+    xml,
+    scenario: { scenario: 'imported', label: `PoB item replacement parity: ${fixture}` },
+    perturbations: [{
+      kind: 'replace-item',
+      slot: replacementSlot,
+      itemText: reference.itemReplacement.itemText,
+    }],
+  }, runtimeOptions);
+
+  if (!perturbationResponse.ok || !('comparison' in perturbationResponse)) {
+    throw new Error(`PoB worker returned a non-perturbation response for ${fixture}.`);
+  }
+  const perturbation = (perturbationResponse as PobWorkerPerturbationSuccess).comparison;
+  assertKernelProvenance(perturbation.before);
+  assertKernelProvenance(perturbation.after);
+
+  const beforeComparisons = compareRawToNormalized(reference.itemReplacement.before, perturbation.before);
+  const afterComparisons = compareRawToNormalized(reference.itemReplacement.after, perturbation.after);
+  if (beforeComparisons.length < 8 || afterComparisons.length < 8) {
+    throw new Error(`${fixture} item replacement exposed too few comparable metrics (before=${beforeComparisons.length}, after=${afterComparisons.length}).`);
+  }
+
+  const changedMetrics = changedReferenceMetrics(reference.itemReplacement.before, reference.itemReplacement.after);
+  if (changedMetrics.length === 0) {
+    throw new Error(`${fixture} blank ${replacementSlot} replacement did not change any reviewed metric; the sensitivity fixture would be vacuous.`);
+  }
+
+  const itemReplacement: ItemReplacementReport = {
+    slot: replacementSlot,
+    beforeComparisons,
+    afterComparisons,
+    changedMetrics,
+    passed: beforeComparisons.every((comparison) => comparison.passed)
+      && afterComparisons.every((comparison) => comparison.passed),
+  };
+
   return {
     fixture,
-    expectedSource: 'fresh pinned-PoB mainOutput reference process',
+    expectedSource: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',
     comparisons,
-    passed: comparisons.every((comparison) => comparison.passed),
-    elapsedMs: result.elapsedMs,
+    itemReplacement,
+    passed: comparisons.every((comparison) => comparison.passed) && itemReplacement.passed,
+    elapsedMs: result.elapsedMs + perturbation.after.elapsedMs,
   };
 }
 
@@ -253,8 +341,14 @@ async function main(): Promise<void> {
     process.stdout.write(`PoB parity: ${fixture} ... `);
     const report = await runFixture(pobRoot, runtimePath, workerScriptPath, referenceScriptPath, fixture);
     reports.push(report);
-    console.log(report.passed ? `PASS (${report.comparisons.length} metrics)` : 'FAIL');
-    for (const failed of report.comparisons.filter((comparison) => !comparison.passed)) {
+    console.log(report.passed
+      ? `PASS (${report.comparisons.length} base metrics, ${report.itemReplacement.afterComparisons.length} replacement metrics, changed=${report.itemReplacement.changedMetrics.length})`
+      : 'FAIL');
+    for (const failed of [
+      ...report.comparisons,
+      ...report.itemReplacement.beforeComparisons,
+      ...report.itemReplacement.afterComparisons,
+    ].filter((comparison) => !comparison.passed)) {
       console.error(`  ${failed.label}: expected=${failed.expected} actual=${failed.actual ?? 'missing'} tolerance=${failed.tolerance}`);
     }
   }
@@ -263,12 +357,12 @@ async function main(): Promise<void> {
   await mkdir(artifactDir, { recursive: true });
   const artifactPath = resolve(artifactDir, 'parity.json');
   await writeFile(artifactPath, `${JSON.stringify({
-    schemaVersion: 2,
+    schemaVersion: 3,
     pobCommit: POB_COMMIT,
     luaJitCommit: LUAJIT_COMMIT,
     generatedAt: new Date().toISOString(),
     runtimePath,
-    oracle: 'fresh pinned-PoB mainOutput reference process',
+    oracle: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',
     reports,
     passed: reports.every((report) => report.passed),
   }, null, 2)}\n`, 'utf8');
