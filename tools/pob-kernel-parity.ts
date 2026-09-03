@@ -6,6 +6,7 @@ import {
   POB_CALCULATION_PROTOCOL_VERSION,
   POB_REPLACEABLE_ITEM_SLOTS,
   type PobCalculationResult,
+  type PobPassiveNodeOperation,
   type PobReplaceableItemSlot,
   type PobWorkerCalculationSuccess,
   type PobWorkerPerturbationSuccess,
@@ -13,6 +14,7 @@ import {
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
+const ADAPTER_VERSION = '0.3.0';
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_REFERENCE@@';
 const DEFAULT_RELATIVE_TOLERANCE = 1e-6;
 const DEFAULT_ABSOLUTE_TOLERANCE = 0.05;
@@ -44,13 +46,29 @@ interface ItemReplacementReport {
   passed: boolean;
 }
 
+interface PassiveNodeReport {
+  operation: PobPassiveNodeOperation;
+  nodeId: number;
+  beforeComparisons: MetricComparison[];
+  afterComparisons: MetricComparison[];
+  changedMetrics: string[];
+  passed: boolean;
+}
+
 interface FixtureReport {
   fixture: string;
   expectedSource: string;
   comparisons: MetricComparison[];
   itemReplacement: ItemReplacementReport;
+  passiveNodes: PassiveNodeReport[];
   passed: boolean;
   elapsedMs: number;
+}
+
+interface ReferencePassiveNode {
+  nodeId: number;
+  before: RawOutput;
+  after: RawOutput;
 }
 
 interface ReferencePayload {
@@ -60,6 +78,10 @@ interface ReferencePayload {
     itemText: string;
     before: RawOutput;
     after: RawOutput;
+  };
+  passiveNodes: {
+    allocate: ReferencePassiveNode;
+    deallocate: ReferencePassiveNode;
   };
 }
 
@@ -182,6 +204,12 @@ async function runReference(
           finishError('PoB reference payload did not contain an item-replacement oracle.');
           return;
         }
+        if (!payload.passiveNodes
+          || !Number.isSafeInteger(payload.passiveNodes.allocate?.nodeId)
+          || !Number.isSafeInteger(payload.passiveNodes.deallocate?.nodeId)) {
+          finishError('PoB reference payload did not contain both passive-node oracles.');
+          return;
+        }
         settled = true;
         resolvePromise(payload);
       } catch (error) {
@@ -233,6 +261,57 @@ function assertKernelProvenance(result: PobCalculationResult): void {
   if (result.kernel.runtimeRevision !== LUAJIT_COMMIT) {
     throw new Error(`Worker LuaJIT pin ${result.kernel.runtimeRevision} does not match expected commit ${LUAJIT_COMMIT}.`);
   }
+  if (result.kernel.adapterVersion !== ADAPTER_VERSION) {
+    throw new Error(`Worker adapter ${result.kernel.adapterVersion} does not match expected version ${ADAPTER_VERSION}.`);
+  }
+}
+
+async function runPassiveNodeParity(
+  xml: string,
+  fixture: string,
+  requestId: string,
+  operation: PobPassiveNodeOperation,
+  reference: ReferencePassiveNode,
+  runtimeOptions: Parameters<typeof runPobKernelRequest>[1],
+): Promise<{ report: PassiveNodeReport; elapsedMs: number }> {
+  const response = await runPobKernelRequest({
+    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+    requestId: `${requestId}-passive-${operation}`.slice(0, 128),
+    operation: 'calculate-with-perturbations',
+    xml,
+    scenario: { scenario: 'imported', label: `PoB passive ${operation} parity: ${fixture}` },
+    perturbations: [{ kind: 'passive-node', operation, nodeId: reference.nodeId }],
+  }, runtimeOptions);
+
+  if (!response.ok || !('comparison' in response)) {
+    throw new Error(`PoB worker returned a non-perturbation response for ${fixture} passive ${operation}.`);
+  }
+  const comparison = (response as PobWorkerPerturbationSuccess).comparison;
+  assertKernelProvenance(comparison.before);
+  assertKernelProvenance(comparison.after);
+
+  const beforeComparisons = compareRawToNormalized(reference.before, comparison.before);
+  const afterComparisons = compareRawToNormalized(reference.after, comparison.after);
+  if (beforeComparisons.length < 8 || afterComparisons.length < 8) {
+    throw new Error(`${fixture} passive ${operation} exposed too few comparable metrics (before=${beforeComparisons.length}, after=${afterComparisons.length}).`);
+  }
+
+  const changedMetrics = changedReferenceMetrics(reference.before, reference.after);
+  if (changedMetrics.length === 0) {
+    throw new Error(`${fixture} passive ${operation} node ${reference.nodeId} did not change any reviewed metric; the sensitivity fixture would be vacuous.`);
+  }
+
+  return {
+    report: {
+      operation,
+      nodeId: reference.nodeId,
+      beforeComparisons,
+      afterComparisons,
+      changedMetrics,
+      passed: beforeComparisons.every((metric) => metric.passed) && afterComparisons.every((metric) => metric.passed),
+    },
+    elapsedMs: comparison.after.elapsedMs,
+  };
 }
 
 async function runFixture(
@@ -316,13 +395,31 @@ async function runFixture(
       && afterComparisons.every((comparison) => comparison.passed),
   };
 
+  const passiveNodes: PassiveNodeReport[] = [];
+  let passiveElapsedMs = 0;
+  for (const operation of ['deallocate', 'allocate'] as const) {
+    const passive = await runPassiveNodeParity(
+      xml,
+      fixture,
+      requestId,
+      operation,
+      reference.passiveNodes[operation],
+      runtimeOptions,
+    );
+    passiveNodes.push(passive.report);
+    passiveElapsedMs += passive.elapsedMs;
+  }
+
   return {
     fixture,
     expectedSource: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',
     comparisons,
     itemReplacement,
-    passed: comparisons.every((comparison) => comparison.passed) && itemReplacement.passed,
-    elapsedMs: result.elapsedMs + perturbation.after.elapsedMs,
+    passiveNodes,
+    passed: comparisons.every((comparison) => comparison.passed)
+      && itemReplacement.passed
+      && passiveNodes.every((passive) => passive.passed),
+    elapsedMs: result.elapsedMs + perturbation.after.elapsedMs + passiveElapsedMs,
   };
 }
 
@@ -341,13 +438,15 @@ async function main(): Promise<void> {
     process.stdout.write(`PoB parity: ${fixture} ... `);
     const report = await runFixture(pobRoot, runtimePath, workerScriptPath, referenceScriptPath, fixture);
     reports.push(report);
+    const passiveChanged = report.passiveNodes.reduce((sum, passive) => sum + passive.changedMetrics.length, 0);
     console.log(report.passed
-      ? `PASS (${report.comparisons.length} base metrics, ${report.itemReplacement.afterComparisons.length} replacement metrics, changed=${report.itemReplacement.changedMetrics.length})`
+      ? `PASS (${report.comparisons.length} base metrics, ${report.itemReplacement.afterComparisons.length} replacement metrics, item-changed=${report.itemReplacement.changedMetrics.length}, passive-changed=${passiveChanged})`
       : 'FAIL');
     for (const failed of [
       ...report.comparisons,
       ...report.itemReplacement.beforeComparisons,
       ...report.itemReplacement.afterComparisons,
+      ...report.passiveNodes.flatMap((passive) => [...passive.beforeComparisons, ...passive.afterComparisons]),
     ].filter((comparison) => !comparison.passed)) {
       console.error(`  ${failed.label}: expected=${failed.expected} actual=${failed.actual ?? 'missing'} tolerance=${failed.tolerance}`);
     }
@@ -357,9 +456,10 @@ async function main(): Promise<void> {
   await mkdir(artifactDir, { recursive: true });
   const artifactPath = resolve(artifactDir, 'parity.json');
   await writeFile(artifactPath, `${JSON.stringify({
-    schemaVersion: 3,
+    schemaVersion: 4,
     pobCommit: POB_COMMIT,
     luaJitCommit: LUAJIT_COMMIT,
+    adapterVersion: ADAPTER_VERSION,
     generatedAt: new Date().toISOString(),
     runtimePath,
     oracle: 'fresh pinned-PoB mainOutput + reversible misc-calculator reference process',

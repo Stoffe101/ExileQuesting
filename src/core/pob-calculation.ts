@@ -1,6 +1,7 @@
 export const POB_CALCULATION_PROTOCOL_VERSION = 1;
 export const POB_WORKER_SENTINEL = '@@EXILEQUESTING_POB@@';
 export const MAX_POB_PERTURBATION_ITEM_TEXT_BYTES = 128 * 1024;
+export const MAX_POB_PASSIVE_NODE_ID = 2_147_483_647;
 
 export const POB_SCENARIOS = [
   'imported',
@@ -32,9 +33,12 @@ export const POB_REPLACEABLE_ITEM_SLOTS = [
   'Belt',
 ] as const;
 
+export const POB_PASSIVE_NODE_OPERATIONS = ['allocate', 'deallocate'] as const;
+
 export type PobCalculationScenario = typeof POB_SCENARIOS[number];
 export type PobCalculationConfidence = typeof POB_CONFIDENCE_CLASSES[number];
 export type PobReplaceableItemSlot = typeof POB_REPLACEABLE_ITEM_SLOTS[number];
+export type PobPassiveNodeOperation = typeof POB_PASSIVE_NODE_OPERATIONS[number];
 
 export interface PobCalculationKernelVersion {
   protocolVersion: number;
@@ -150,7 +154,7 @@ export type PobPerturbation =
     }
   | {
       kind: 'passive-node';
-      operation: 'allocate' | 'deallocate';
+      operation: PobPassiveNodeOperation;
       nodeId: number;
     }
   | {
@@ -297,10 +301,18 @@ function utf8ByteLength(value: string): number {
 }
 
 function validEnabledPerturbation(perturbation: PobPerturbation): boolean {
-  if (perturbation.kind !== 'replace-item') return false;
-  if (!POB_REPLACEABLE_ITEM_SLOTS.includes(perturbation.slot)) return false;
-  const itemText = perturbation.itemText;
-  return Boolean(itemText.trim()) && utf8ByteLength(itemText) <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
+  if (perturbation.kind === 'replace-item') {
+    if (!POB_REPLACEABLE_ITEM_SLOTS.includes(perturbation.slot)) return false;
+    const itemText = perturbation.itemText;
+    return Boolean(itemText.trim()) && utf8ByteLength(itemText) <= MAX_POB_PERTURBATION_ITEM_TEXT_BYTES;
+  }
+  if (perturbation.kind === 'passive-node') {
+    return POB_PASSIVE_NODE_OPERATIONS.includes(perturbation.operation)
+      && Number.isSafeInteger(perturbation.nodeId)
+      && perturbation.nodeId > 0
+      && perturbation.nodeId <= MAX_POB_PASSIVE_NODE_ID;
+  }
+  return false;
 }
 
 export function validPobCalculationRequest(request: PobCalculationRequest): boolean {
