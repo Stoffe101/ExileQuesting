@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   measuredConfigurationDependency,
+  pobUptimeEvidence,
   rankConfigurationDependencies,
   readyDependencyScan,
   strongestObservedRelativeChangePercent,
@@ -14,7 +15,7 @@ const kernel = {
   pobCommit: 'ed354c2f8c42e148bc904c7508dbe851fb2cf952',
   runtime: 'LuaJIT 2.1',
   runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e',
-  adapterVersion: '0.5.0',
+  adapterVersion: '0.6.0',
 };
 
 function result(requestId: string, totalDps: number, ehp: number, physicalMaxHit: number): PobCalculationResult {
@@ -50,6 +51,47 @@ describe('Build Doctor configuration dependency evidence', () => {
     expect(dependency.delta.totalDps).toMatchObject({ before: 1_000_000, after: 800_000, percent: -20 });
     expect(dependency.strongestObservedRelativeChangePercent).toBe(-20);
     expect(dependency.evidence).toBe('pob-reversible-toggle');
+    expect(dependency.pobUptime.status).toBe('unsupported');
+  });
+
+  it('preserves PoB-owned average/minimum uptime without converting it into a practical multiplier', () => {
+    const uptime = pobUptimeEvidence({
+      slot: 'Flask 1',
+      name: 'Diamond Flask',
+      baseName: 'Diamond Flask',
+      active: true,
+      supported: true,
+      sourceLine: '^8Flask uptime: ^778%^8 average, ^760%^8 minimum',
+      averagePercent: 78,
+      minimumPercent: 60,
+    });
+    const dependency = measuredConfigurationDependency(
+      { slot: 'Flask 1', name: 'Diamond Flask', active: true, utility: true },
+      comparison('Flask 1', result('before', 1_000_000, 100_000, 30_000), result('after', 800_000, 100_000, 30_000)),
+      uptime,
+    );
+
+    expect(dependency.pobUptime).toEqual({
+      status: 'estimated',
+      source: 'pob-items-tab-effective-flask-stats',
+      averagePercent: 78,
+      minimumPercent: 60,
+      sourceLine: '^8Flask uptime: ^778%^8 average, ^760%^8 minimum',
+    });
+    expect(dependency.delta.totalDps.percent).toBe(-20);
+  });
+
+  it('fails closed on incomplete or out-of-range PoB uptime numbers', () => {
+    const incomplete = pobUptimeEvidence({
+      slot: 'Flask 1', name: 'Utility', baseName: 'Utility', active: true, supported: true,
+      sourceLine: 'Flask uptime: 80% average, 60% minimum', averagePercent: 80,
+    });
+    const invalid = pobUptimeEvidence({
+      slot: 'Flask 1', name: 'Utility', baseName: 'Utility', active: true, supported: true,
+      sourceLine: 'Flask uptime: 120% average, 60% minimum', averagePercent: 120, minimumPercent: 60,
+    });
+    expect(incomplete.status).toBe('unsupported');
+    expect(invalid.status).toBe('unsupported');
   });
 
   it('uses the largest observed relative change only as a ranking signal', () => {
@@ -101,10 +143,14 @@ describe('Build Doctor configuration dependency evidence', () => {
     ]);
   });
 
-  it('describes ranking as measured response rather than a build-quality verdict', () => {
+  it('describes uptime as separate PoB evidence rather than a build-quality or practical-output verdict', () => {
     const dependency = measuredConfigurationDependency(
       { slot: 'Flask 1', name: 'Diamond Flask', active: true, utility: true },
       comparison('Flask 1', result('before', 100, 100, 100), result('after', 80, 100, 100)),
+      pobUptimeEvidence({
+        slot: 'Flask 1', name: 'Diamond Flask', baseName: 'Diamond Flask', active: true, supported: true,
+        sourceLine: 'Flask uptime: 90% average, 70% minimum', averagePercent: 90, minimumPercent: 70,
+      }),
     );
     const scan = readyDependencyScan({
       profileId: 'profile',
@@ -115,6 +161,8 @@ describe('Build Doctor configuration dependency evidence', () => {
     });
     expect(scan.status).toBe('ready');
     expect(scan.message).toMatch(/largest observed relative change/i);
+    expect(scan.message).toMatch(/average\/minimum uptime estimate/i);
+    expect(scan.message).toMatch(/not multiplied into practical dps\/ehp/i);
     expect(scan.message).not.toMatch(/good|bad|score|boss uptime/i);
   });
 });
