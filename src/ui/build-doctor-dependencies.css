@@ -105,6 +105,45 @@
   margin-top: 7px;
 }
 
+.build-doctor-uptime {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: baseline;
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+}
+
+.build-doctor-uptime > span {
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.build-doctor-uptime strong {
+  min-width: 0;
+  color: #73d9b9;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.build-doctor-uptime.unsupported strong {
+  color: #f0b96f;
+}
+
+.build-doctor-uptime small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
 .build-doctor-dependency-chips {
   display: flex;
   flex-wrap: wrap;
@@ -133,4 +172,7 @@
 @media (max-width: 720px) {
   .build-doctor-dependency-head { flex-direction: column; }
   .build-doctor-dependency-title { grid-template-columns: 1fr; gap: 2px; }
+  .build-doctor-uptime { grid-template-columns: 1fr; }
+  .build-doctor-uptime strong { text-align: left; }
+  .build-doctor-uptime small { grid-column: 1; }
 }
