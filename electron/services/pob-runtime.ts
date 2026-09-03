@@ -64,6 +64,35 @@ function safeCriticalEntry(value: unknown, expectedPath: string): value is { pat
     && validSha256(entry.sha256);
 }
 
+async function filesRecursively(root: string, relative = ''): Promise<string[]> {
+  const entries = await fs.readdir(path.join(root, relative), { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.isSymbolicLink()) throw new Error(`PoB kernel bundle contains unsupported symbolic link ${path.posix.join(relative.replaceAll('\\', '/'), entry.name)}.`);
+    const child = path.posix.join(relative.replaceAll('\\', '/'), entry.name);
+    if (entry.isDirectory()) files.push(...await filesRecursively(root, child));
+    else if (entry.isFile()) files.push(child);
+  }
+  return files;
+}
+
+async function verifiedTree(root: string): Promise<{ fileCount: number; totalBytes: number; treeSha256: string }> {
+  const files = (await filesRecursively(root)).filter((file) => file !== 'manifest.json').sort();
+  const tree = createHash('sha256');
+  let totalBytes = 0;
+  for (const relative of files) {
+    const buffer = await fs.readFile(path.join(root, ...relative.split('/')));
+    totalBytes += buffer.length;
+    tree.update(relative, 'utf8');
+    tree.update('\0');
+    tree.update(String(buffer.length), 'utf8');
+    tree.update('\0');
+    tree.update(sha256(buffer), 'utf8');
+    tree.update('\n');
+  }
+  return { fileCount: files.length, totalBytes, treeSha256: tree.digest('hex') };
+}
+
 export function pobKernelBundleRoot(input: {
   packaged: boolean;
   resourcesPath: string;
@@ -110,6 +139,11 @@ export async function validatePobKernelBundle(root: string): Promise<ValidatedPo
     if (buffer.length !== entry.size) throw new Error(`PoB kernel critical file ${expectedRelativePath} has the wrong size.`);
     if (sha256(buffer) !== entry.sha256.toLowerCase()) throw new Error(`PoB kernel critical file ${expectedRelativePath} failed SHA-256 verification.`);
   }
+
+  const tree = await verifiedTree(paths.root);
+  if (tree.fileCount !== manifest.fileCount) throw new Error(`PoB kernel bundle file count mismatch: expected ${manifest.fileCount}, got ${tree.fileCount}.`);
+  if (tree.totalBytes !== manifest.totalBytes) throw new Error(`PoB kernel bundle byte-count mismatch: expected ${manifest.totalBytes}, got ${tree.totalBytes}.`);
+  if (tree.treeSha256 !== manifest.treeSha256.toLowerCase()) throw new Error('PoB kernel bundle whole-tree SHA-256 verification failed.');
 
   return { paths, manifest };
 }
