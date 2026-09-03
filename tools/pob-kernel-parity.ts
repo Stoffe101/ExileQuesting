@@ -8,6 +8,7 @@ import {
 } from '../src/core/pob-calculation';
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
+const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
 const DEFAULT_RELATIVE_TOLERANCE = 1e-6;
 const DEFAULT_ABSOLUTE_TOLERANCE = 0.05;
 
@@ -126,7 +127,10 @@ async function runFixture(
 
   const result = (response as PobWorkerCalculationSuccess).result;
   if (result.kernel.pobCommit !== POB_COMMIT) {
-    throw new Error(`Worker pin ${result.kernel.pobCommit} does not match expected PoB commit ${POB_COMMIT}.`);
+    throw new Error(`Worker PoB pin ${result.kernel.pobCommit} does not match expected commit ${POB_COMMIT}.`);
+  }
+  if (result.kernel.runtimeRevision !== LUAJIT_COMMIT) {
+    throw new Error(`Worker LuaJIT pin ${result.kernel.runtimeRevision} does not match expected commit ${LUAJIT_COMMIT}.`);
   }
 
   const comparisons = METRICS.flatMap((check) => {
@@ -174,6 +178,7 @@ async function main(): Promise<void> {
   await writeFile(artifactPath, `${JSON.stringify({
     schemaVersion: 1,
     pobCommit: POB_COMMIT,
+    luaJitCommit: LUAJIT_COMMIT,
     generatedAt: new Date().toISOString(),
     runtimePath,
     reports,
