@@ -130,6 +130,7 @@ export default function BuildDoctorPanel({ workspace }: { workspace: BuildWorksp
 
           {profile && (
             <BuildDoctorDependencyPanel
+              key={`${profile.id}:${snapshot.generatedAt}`}
               profileId={profile.id}
               enabled={snapshot.status === 'ready'}
               activeUtilityCount={activeUtilityDependencies}
