@@ -84,6 +84,12 @@ async function criticalFileMetadata(root: string): Promise<PobKernelBundleManife
   return result;
 }
 
+function adapterVersion(workerText: string, label: string): string {
+  const version = workerText.match(/ADAPTER_VERSION\s*=\s*["']([^"']+)["']/)?.[1];
+  if (!version) throw new Error(`Could not determine the staged ${label} adapter version.`);
+  return version;
+}
+
 async function main(): Promise<void> {
   const args = parseArguments();
   const actualPobCommit = gitHead(args.pobRoot);
@@ -94,12 +100,14 @@ async function main(): Promise<void> {
   const luaJitExe = path.join(args.luaJitRoot, 'src', 'luajit.exe');
   const lua51Dll = path.join(args.luaJitRoot, 'src', 'lua51.dll');
   const worker = path.resolve('tools', 'pob-kernel', 'worker.lua');
+  const constraintWorker = path.resolve('tools', 'pob-kernel', 'constraint-worker.lua');
   const pobLicense = path.join(args.pobRoot, 'LICENSE.md');
   const luaJitLicense = path.join(args.luaJitRoot, 'COPYRIGHT');
   for (const [file, label] of [
     [luaJitExe, 'Built LuaJIT executable'],
     [lua51Dll, 'Built LuaJIT lua51.dll'],
     [worker, 'ExileQuesting PoB worker'],
+    [constraintWorker, 'ExileQuesting PoB constraint worker'],
     [pobLicense, 'Path of Building license'],
     [luaJitLicense, 'LuaJIT license'],
   ] as const) await requireFile(file, label);
@@ -112,6 +120,7 @@ async function main(): Promise<void> {
   await cp(luaJitExe, path.join(args.output, 'pob', 'runtime', 'luajit.exe'), { force: true });
   await cp(lua51Dll, path.join(args.output, 'pob', 'runtime', 'lua51.dll'), { force: true });
   await cp(worker, path.join(args.output, 'worker.lua'), { force: true });
+  await cp(constraintWorker, path.join(args.output, 'constraint-worker.lua'), { force: true });
   await cp(pobLicense, path.join(args.output, 'licenses', 'PathOfBuilding-LICENSE.md'), { force: true });
   await cp(luaJitLicense, path.join(args.output, 'licenses', 'LuaJIT-COPYRIGHT'), { force: true });
 
@@ -120,8 +129,9 @@ async function main(): Promise<void> {
   }
 
   const workerText = await readFile(path.join(args.output, 'worker.lua'), 'utf8');
-  const adapterVersion = workerText.match(/ADAPTER_VERSION\s*=\s*["']([^"']+)["']/)?.[1];
-  if (!adapterVersion) throw new Error('Could not determine the staged PoB worker adapter version.');
+  const constraintWorkerText = await readFile(path.join(args.output, 'constraint-worker.lua'), 'utf8');
+  const workerAdapterVersion = adapterVersion(workerText, 'PoB worker');
+  const constraintAdapterVersion = adapterVersion(constraintWorkerText, 'PoB constraint worker');
 
   const aggregate = await bundleStats(args.output);
   const manifest: PobKernelBundleManifest = {
@@ -131,7 +141,8 @@ async function main(): Promise<void> {
     pobCommit: actualPobCommit,
     luaJitRepository: POB_KERNEL_LUAJIT_REPOSITORY,
     luaJitCommit: actualLuaJitCommit,
-    workerAdapterVersion: adapterVersion,
+    workerAdapterVersion,
+    constraintAdapterVersion,
     ...aggregate,
     criticalFiles: await criticalFileMetadata(args.output),
   };
@@ -139,7 +150,7 @@ async function main(): Promise<void> {
 
   console.log(`Staged pinned PoB kernel ${actualPobCommit.slice(0, 12)} / LuaJIT ${actualLuaJitCommit.slice(0, 12)}.`);
   console.log(`Bundle: ${manifest.fileCount} files, ${manifest.totalBytes} bytes, tree SHA-256 ${manifest.treeSha256}.`);
-  console.log(`Worker adapter: ${manifest.workerAdapterVersion}.`);
+  console.log(`Worker adapters: calculation=${manifest.workerAdapterVersion}, constraints=${manifest.constraintAdapterVersion}.`);
 }
 
 main().catch((error: unknown) => {
