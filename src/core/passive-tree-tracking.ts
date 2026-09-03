@@ -132,9 +132,10 @@ function offsetHypotheses(
  * anonymous tree nodes to a dense circle cloud can manufacture plausible but
  * wrong transforms, which is explicitly rejected here.
  *
- * The same solver can be used in two modes:
- * - a tight, cheap search around the previous frame for normal drag/wheel input;
- * - a wider search of the same known local constellation after a large jump.
+ * A registration with no inliers is treated as an unverified seed, not a real
+ * zoom measurement. The first lock therefore searches a wider scale range so
+ * initial setup can happen at the player's current zoom. After real inliers
+ * exist, tracking returns to the tighter previous-frame search.
  */
 export function trackPassiveTreeRegistration(
   previous: PassiveTreeRegistration,
@@ -151,13 +152,19 @@ export function trackPassiveTreeRegistration(
   const maximumOffsetShiftPx = Math.max(20, options.maximumOffsetShiftPx ?? 180);
   const minimumScale = Math.max(0.0001, options.minimumScale ?? 0.002);
   const maximumScale = Math.max(minimumScale * 1.01, options.maximumScale ?? 2);
-  const minimumScaleRatio = Math.max(0.05, options.minimumScaleRatio ?? 0.72);
-  const maximumScaleRatio = Math.max(minimumScaleRatio * 1.01, options.maximumScaleRatio ?? 1.38);
+  const unverifiedSeed = previous.inliers <= 0 || previous.matches.length <= 0;
+  const configuredMinimumScaleRatio = Math.max(0.05, options.minimumScaleRatio ?? 0.72);
+  const configuredMaximumScaleRatio = Math.max(configuredMinimumScaleRatio * 1.01, options.maximumScaleRatio ?? 1.38);
+  const minimumScaleRatio = unverifiedSeed ? Math.min(configuredMinimumScaleRatio, 0.22) : configuredMinimumScaleRatio;
+  const maximumScaleRatio = unverifiedSeed ? Math.max(configuredMaximumScaleRatio, 4.5) : configuredMaximumScaleRatio;
   const minimumConfidence = clamp(options.minimumConfidence ?? 0.62, 0, 1);
   const maximumRmsRatio = Math.max(0.1, options.maximumRmsRatio ?? 0.82);
   const confidenceAnchorCap = Math.max(minimumInliers, Math.trunc(options.confidenceAnchorCap ?? 14));
-  const factors = (options.scaleFactors ?? [0.82, 0.9, 0.96, 1, 1.04, 1.1, 1.22])
-    .filter((factor) => Number.isFinite(factor) && factor > 0.05 && factor < 8);
+  const configuredFactors = options.scaleFactors ?? [0.82, 0.9, 0.96, 1, 1.04, 1.1, 1.22];
+  const factors = [...new Set([
+    ...configuredFactors,
+    ...(unverifiedSeed ? [0.24, 0.32, 0.42, 0.54, 0.68, 0.84, 1, 1.2, 1.48, 1.82, 2.25, 2.8, 3.5, 4.4] : []),
+  ])].filter((factor) => Number.isFinite(factor) && factor > 0.05 && factor < 8);
   const hypothesesPerScale = Math.max(1, Math.min(12, options.hypothesesPerScale ?? 4));
   const candidates = [...rawCandidates]
     .filter((candidate) => Number.isFinite(candidate.x) && Number.isFinite(candidate.y))
