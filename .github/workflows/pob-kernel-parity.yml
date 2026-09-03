@@ -1,0 +1,81 @@
+name: PoB kernel parity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pob-kernel-parity.yml'
+      - 'electron/services/pob-kernel-service.ts'
+      - 'src/core/pob-calculation.ts'
+      - 'src/core/pob-calculation.test.ts'
+      - 'tools/pob-kernel/**'
+      - 'tools/pob-kernel-parity.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POB_COMMIT: ed354c2f8c42e148bc904c7508dbe851fb2cf952
+      LUAJIT_COMMIT: 2460b3ff93a1c955de3d62cfc825de7d68dc272e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build exact PoB-compatible LuaJIT runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y luarocks liblua5.1-0-dev build-essential
+          LUAJIT_ROOT="$RUNNER_TEMP/luajit"
+          git init "$LUAJIT_ROOT"
+          git -C "$LUAJIT_ROOT" remote add origin https://github.com/LuaJIT/LuaJIT.git
+          git -C "$LUAJIT_ROOT" fetch --depth=1 origin "$LUAJIT_COMMIT"
+          git -C "$LUAJIT_ROOT" checkout --detach FETCH_HEAD
+          ACTUAL_LUAJIT_COMMIT="$(git -C "$LUAJIT_ROOT" rev-parse HEAD)"
+          if [ "$ACTUAL_LUAJIT_COMMIT" != "$LUAJIT_COMMIT" ]; then
+            echo "LuaJIT pin mismatch: expected $LUAJIT_COMMIT, got $ACTUAL_LUAJIT_COMMIT" >&2
+            exit 1
+          fi
+          make -C "$LUAJIT_ROOT" -j2
+          sudo make -C "$LUAJIT_ROOT" install
+          LUAJIT_BIN="$(command -v luajit)"
+          "$LUAJIT_BIN" -e 'local x=1; x += 2; assert(x == 3); print(jit.version)'
+          sudo luarocks --lua-version=5.1 install luautf8 0.1.6-1
+          echo "POB_LUAJIT=$LUAJIT_BIN" >> "$GITHUB_ENV"
+          echo "EXILEQUESTING_LUAJIT_COMMIT=$LUAJIT_COMMIT" >> "$GITHUB_ENV"
+          echo "LUA_PATH=$(luarocks --lua-version=5.1 path --lr-path)" >> "$GITHUB_ENV"
+          echo "LUA_CPATH=$(luarocks --lua-version=5.1 path --lr-cpath)" >> "$GITHUB_ENV"
+      - name: Fetch exact pinned Path of Building source
+        shell: bash
+        run: |
+          set -euo pipefail
+          POB_ROOT="$RUNNER_TEMP/path-of-building"
+          git init "$POB_ROOT"
+          git -C "$POB_ROOT" remote add origin https://github.com/PathOfBuildingCommunity/PathOfBuilding.git
+          git -C "$POB_ROOT" fetch --depth=1 origin "$POB_COMMIT"
+          git -C "$POB_ROOT" checkout --detach FETCH_HEAD
+          ACTUAL_COMMIT="$(git -C "$POB_ROOT" rev-parse HEAD)"
+          if [ "$ACTUAL_COMMIT" != "$POB_COMMIT" ]; then
+            echo "PoB pin mismatch: expected $POB_COMMIT, got $ACTUAL_COMMIT" >&2
+            exit 1
+          fi
+          echo "POB_ROOT=$POB_ROOT" >> "$GITHUB_ENV"
+      - name: Build parity harness
+        run: npx esbuild tools/pob-kernel-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-kernel-parity.mjs
+      - name: Run real headless PoB parity
+        run: node .tmp/pob-kernel-parity.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ExileQuesting-pob-kernel-parity-${{ github.sha }}
+          path: artifacts/pob-kernel/parity.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,4 +1,5 @@
 export const POB_CALCULATION_PROTOCOL_VERSION = 1;
+export const POB_WORKER_SENTINEL = '@@EXILEQUESTING_POB@@';
 
 export const POB_SCENARIOS = [
   'imported',
@@ -24,6 +25,7 @@ export interface PobCalculationKernelVersion {
   pobRepository: string;
   pobCommit: string;
   runtime: string;
+  runtimeRevision: string;
   adapterVersion: string;
 }
 
@@ -39,6 +41,7 @@ export interface PobOffenceMetrics {
   mainSkill?: string;
   skillPart?: string;
   totalDps?: number;
+  fullDps?: number;
   combinedDps?: number;
   hitDps?: number;
   dotDps?: number;
@@ -47,7 +50,10 @@ export interface PobOffenceMetrics {
   poisonDps?: number;
   impaleDps?: number;
   averageHit?: number;
+  speed?: number;
   hitRate?: number;
+  effectiveTriggerRate?: number;
+  hitChance?: number;
   critChance?: number;
   critMultiplier?: number;
 }
@@ -64,6 +70,7 @@ export interface PobDefenceMetrics {
   life?: number;
   energyShield?: number;
   mana?: number;
+  ward?: number;
   effectiveHitPool?: number;
   maximumHit?: PobMaximumHitMetrics;
   armour?: number;
@@ -75,14 +82,20 @@ export interface PobDefenceMetrics {
   coldResistance?: number;
   lightningResistance?: number;
   chaosResistance?: number;
-  maximumFireResistance?: number;
-  maximumColdResistance?: number;
-  maximumLightningResistance?: number;
-  maximumChaosResistance?: number;
+  fireResistanceOverCap?: number;
+  coldResistanceOverCap?: number;
+  lightningResistanceOverCap?: number;
+  chaosResistanceOverCap?: number;
   lifeRegen?: number;
   energyShieldRegen?: number;
   lifeLeechRate?: number;
   energyShieldLeechRate?: number;
+  totalNetRecovery?: number;
+  netLifeRecovery?: number;
+  netManaRecovery?: number;
+  netEnergyShieldRecovery?: number;
+  totalDegen?: number;
+  guardSkillActive?: boolean;
 }
 
 export interface PobCalculationWarning {
@@ -158,6 +171,40 @@ export type PobCalculationRequest =
   | PobCalculateWithPerturbationsRequest
   | PobHealthRequest;
 
+export interface PobWorkerError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+export interface PobWorkerHealth {
+  status: 'ready';
+  kernel: PobCalculationKernelVersion;
+}
+
+export interface PobWorkerCalculationSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  result: PobCalculationResult;
+}
+
+export interface PobWorkerHealthSuccess {
+  protocolVersion: number;
+  requestId: string;
+  ok: true;
+  health: PobWorkerHealth;
+}
+
+export interface PobWorkerFailure {
+  protocolVersion: number;
+  requestId?: string;
+  ok: false;
+  error: PobWorkerError;
+}
+
+export type PobWorkerResponse = PobWorkerCalculationSuccess | PobWorkerHealthSuccess | PobWorkerFailure;
+
 export interface PobMetricDelta {
   before?: number;
   after?: number;
@@ -209,4 +256,15 @@ export function validPobCalculationRequest(request: PobCalculationRequest): bool
   if (!POB_SCENARIOS.includes(request.scenario.scenario)) return false;
   if (request.operation === 'calculate-with-perturbations' && request.perturbations.length > 64) return false;
   return true;
+}
+
+export function parsePobWorkerProtocolLines(stdout: string): PobWorkerResponse[] {
+  const responses: PobWorkerResponse[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    if (!line.startsWith(POB_WORKER_SENTINEL)) continue;
+    const payload = line.slice(POB_WORKER_SENTINEL.length);
+    if (!payload) continue;
+    responses.push(JSON.parse(payload) as PobWorkerResponse);
+  }
+  return responses;
 }
