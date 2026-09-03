@@ -111,6 +111,7 @@ async function inspectLayout(window: BrowserWindow) {
     if (!panel || metrics.length !== 4 || !provenance) throw new Error('Build Doctor ready-state structure is incomplete.');
     return {
       viewportWidth: document.documentElement.clientWidth,
+      viewportHeight: document.documentElement.clientHeight,
       scrollWidth: document.documentElement.scrollWidth,
       panelWidth: panel.getBoundingClientRect().width,
       metricCount: metrics.length,
@@ -154,7 +155,7 @@ async function main(): Promise<void> {
   ipcMain.handle('pob:workspace', () => workspace);
   ipcMain.handle('build-doctor:analyze', () => snapshot);
 
-  const window = new BrowserWindow({ show: false, width: 1920, height: 1080, backgroundColor: '#090b10', webPreferences: { preload: path.resolve('dist-electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
+  const window = new BrowserWindow({ show: false, width: 1200, height: 800, backgroundColor: '#090b10', webPreferences: { preload: path.resolve('dist-electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
   await window.loadFile(path.resolve('dist/index.html'));
   await waitFor(window, `document.querySelector('.sidebar nav button')`, 'manager navigation');
   const clicked = await window.webContents.executeJavaScript(`(() => { const button = [...document.querySelectorAll('.sidebar nav button')].find((node) => node.textContent?.includes('Build')); if (!(button instanceof HTMLButtonElement)) return false; button.click(); return true; })()`);
@@ -163,10 +164,16 @@ async function main(): Promise<void> {
   const ran = await window.webContents.executeJavaScript(`(() => { const button = [...document.querySelectorAll('.build-doctor-panel button')].find((node) => node.textContent?.includes('Run Build Doctor')); if (!(button instanceof HTMLButtonElement)) return false; button.click(); return true; })()`);
   if (!ran) throw new Error('Build Doctor run button is missing.');
   await waitFor(window, `document.querySelector('.build-doctor-metrics')`, 'Build Doctor ready metrics');
+
+  // GitHub-hosted Windows runners can clamp a BrowserWindow's initial size to the virtual desktop.
+  // Resize after load so the named regression dimensions are the dimensions actually captured.
+  window.setSize(1920, 1080, false);
+  await new Promise((resolve) => setTimeout(resolve, 180));
   await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-panel')?.scrollIntoView({ block: 'start' })`);
-  await new Promise((resolve) => setTimeout(resolve, 140));
+  await new Promise((resolve) => setTimeout(resolve, 120));
 
   const desktop = await inspectLayout(window);
+  if (desktop.viewportWidth < 1900 || desktop.viewportHeight < 1000) throw new Error(`Build Doctor desktop smoke was clamped to ${desktop.viewportWidth}x${desktop.viewportHeight}; expected approximately 1920x1080.`);
   if (desktop.scrollWidth > desktop.viewportWidth + 2) throw new Error(`Build Doctor causes desktop horizontal overflow (${desktop.scrollWidth} > ${desktop.viewportWidth}).`);
   if (!desktop.text.includes('7.84M') || !desktop.text.includes('guard skill') || !desktop.text.includes('ed354c2f8c42')) throw new Error('Build Doctor desktop fixture is missing deterministic metric/caveat/provenance text.');
   const desktopBytes = await capture(window, 'build-doctor-ready-1920x1080.png');
@@ -175,6 +182,7 @@ async function main(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 180));
   await window.webContents.executeJavaScript(`document.querySelector('.build-doctor-panel')?.scrollIntoView({ block: 'start' })`);
   const compact = await inspectLayout(window);
+  if (compact.viewportWidth < 1270 || compact.viewportWidth > 1290 || compact.viewportHeight < 700 || compact.viewportHeight > 730) throw new Error(`Build Doctor compact smoke rendered at ${compact.viewportWidth}x${compact.viewportHeight}; expected approximately 1280x720.`);
   if (compact.scrollWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor causes compact horizontal overflow (${compact.scrollWidth} > ${compact.viewportWidth}).`);
   if (compact.panelWidth > compact.viewportWidth + 2) throw new Error(`Build Doctor panel exceeds compact viewport (${compact.panelWidth} > ${compact.viewportWidth}).`);
   const compactBytes = await capture(window, 'build-doctor-ready-1280x720.png');
