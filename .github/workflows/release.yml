@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release/v0.2.4-passive-tree-hotfix
     tags:
       - 'v*.*.*'
     paths:
