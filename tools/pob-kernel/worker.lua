@@ -6,7 +6,7 @@
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.4.0"
+local ADAPTER_VERSION = "0.5.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
@@ -55,6 +55,10 @@ local function numberOrNil(output, key)
         return nil
     end
     return finiteNumber(output[key])
+end
+
+local function finiteOrZero(value)
+    return finiteNumber(value) or 0
 end
 
 local function emit(value)
@@ -200,7 +204,10 @@ local function validRequest(request)
     if type(request.requestId) ~= "string" or request.requestId == "" or #request.requestId > 128 then
         return false, "request-id", "requestId must be a non-empty string no longer than 128 bytes."
     end
-    if request.operation ~= "health" and request.operation ~= "load-and-calculate" and request.operation ~= "calculate-with-perturbations" then
+    if request.operation ~= "health"
+        and request.operation ~= "load-and-calculate"
+        and request.operation ~= "inspect-flasks"
+        and request.operation ~= "calculate-with-perturbations" then
         return false, "operation", "Unsupported PoB worker operation."
     end
     return true
@@ -254,6 +261,100 @@ local function currentItemForSlot(slotName)
         return slot, nil
     end
     return slot, build.itemsTab.items[slot.selItemId]
+end
+
+local function flaskLocalProfile(item)
+    local flaskData = item and item.flaskData
+    if type(flaskData) ~= "table" then
+        return nil
+    end
+    return {
+        duration = finiteNumber(flaskData.duration),
+        chargesMax = finiteNumber(flaskData.chargesMax),
+        chargesUsed = finiteNumber(flaskData.chargesUsed),
+        chargeGainModifier = finiteNumber(flaskData.gainMod),
+        effectIncrease = finiteNumber(flaskData.effectInc),
+    }
+end
+
+local function inspectFlasks(request, startedAt)
+    if not build or not build.itemsTab or not build.calcsTab or type(build.calcsTab.mainEnv) ~= "table" then
+        return errorResponse(request.requestId, "flask-inspection-unavailable", "PoB did not expose item and calculation state for flask inspection.", true)
+    end
+    local modDB = build.calcsTab.mainEnv.modDB
+    if type(modDB) ~= "table" or type(modDB.Sum) ~= "function" then
+        return errorResponse(request.requestId, "flask-inspection-moddb-missing", "PoB did not expose the modifier database required for flask inspection.", true)
+    end
+
+    local emptyFlaskSlots = 0
+    local flasks = {}
+    for index = 1, 5 do
+        local slotName = "Flask " .. index
+        local slot, item = currentItemForSlot(slotName)
+        if type(slot) ~= "table" then
+            return errorResponse(request.requestId, "flask-slot-missing", "The loaded build does not expose all five flask slots.", true)
+        end
+        if type(item) ~= "table" then
+            emptyFlaskSlots = emptyFlaskSlots + 1
+        else
+            if type(item.base) ~= "table" or not item.base.flask then
+                return errorResponse(request.requestId, "flask-item-unsupported", "An equipped flask slot contains an item PoB does not classify as a flask.", false)
+            end
+            local localProfile = flaskLocalProfile(item)
+            if not localProfile then
+                return errorResponse(request.requestId, "flask-data-missing", "PoB did not expose processed flaskData for an equipped flask.", true)
+            end
+
+            local life = item.base.flask.life == true
+            local mana = item.base.flask.mana == true
+            local envActive = type(build.calcsTab.mainEnv.flasks) == "table" and build.calcsTab.mainEnv.flasks[item] == true
+            local slotActive = slot.active == true
+            if envActive ~= slotActive then
+                return errorResponse(request.requestId, "flask-state-mismatch", "PoB flask slot activity disagrees with the active calculation environment during inspection.", true)
+            end
+
+            table.insert(flasks, {
+                slot = slotName,
+                name = tostring(item.title or item.name or item.baseName or slotName),
+                baseName = tostring(item.baseName or "Unknown Flask"),
+                rarity = tostring(item.rarity or "UNKNOWN"),
+                active = slotActive,
+                life = life,
+                mana = mana,
+                utility = not life and not mana,
+                local = localProfile,
+                buildModifiers = {
+                    durationIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskDuration")),
+                    chargesUsedIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskChargesUsed")),
+                    chargesGainedIncrease = finiteOrZero(modDB:Sum("INC", nil, "FlaskChargesGained")),
+                    effectIncrease = finiteOrZero(modDB:Sum("INC", { actor = "player" }, "FlaskEffect")),
+                    magicUtilityEffectIncrease = finiteOrZero(modDB:Sum("INC", { actor = "player" }, "MagicUtilityFlaskEffect")),
+                    genericChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "FlaskChargesGenerated")),
+                    lifeChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "LifeFlaskChargesGenerated")),
+                    manaChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "ManaFlaskChargesGenerated")),
+                    utilityChargesGeneratedPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "UtilityFlaskChargesGenerated")),
+                    chargesGeneratedPerEmptyFlaskPerSecond = finiteOrZero(modDB:Sum("BASE", nil, "FlaskChargesGeneratedPerEmptyFlask")),
+                    chanceNotConsumeCharges = math.min(finiteOrZero(modDB:Sum("BASE", nil, "FlaskChanceNotConsumeCharges")), 100),
+                    ironFlaskChargesGeneratedOnWardBreak = finiteOrZero(modDB:Sum("BASE", nil, "IronFlaskChargesGeneratedOnWardBreak")),
+                },
+            })
+        end
+    end
+
+    return {
+        protocolVersion = PROTOCOL_VERSION,
+        requestId = request.requestId,
+        ok = true,
+        flaskInspection = {
+            protocolVersion = PROTOCOL_VERSION,
+            requestId = request.requestId,
+            kernel = kernelVersion(),
+            scenario = safeScenario(request),
+            emptyFlaskSlots = emptyFlaskSlots,
+            flasks = flasks,
+            elapsedMs = math.max(0, (os.clock() - startedAt) * 1000),
+        },
+    }
 end
 
 local function evaluateItemReplacement(request, startedAt, perturbation)
@@ -452,6 +553,9 @@ local function handle(request)
         return loadErrorResponse
     end
 
+    if request.operation == "inspect-flasks" then
+        return inspectFlasks(request, startedAt)
+    end
     if request.operation == "calculate-with-perturbations" then
         return evaluateSinglePerturbation(request, startedAt)
     end
