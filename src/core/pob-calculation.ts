@@ -127,6 +127,44 @@ export interface PobDefenceMetrics {
   guardSkillActive?: boolean;
 }
 
+export interface PobAttributeConstraint {
+  current?: number;
+  required?: number;
+}
+
+export interface PobResistanceConstraint {
+  current?: number;
+  total?: number;
+  overCap?: number;
+  missing?: number;
+}
+
+export interface PobConstraintMetrics {
+  attributes: {
+    strength: PobAttributeConstraint;
+    dexterity: PobAttributeConstraint;
+    intelligence: PobAttributeConstraint;
+  };
+  reservation: {
+    manaUnreserved?: number;
+    manaUnreservedPercent?: number;
+    lifeUnreserved?: number;
+    lifeUnreservedPercent?: number;
+  };
+  spellSuppression: {
+    chance?: number;
+    effectiveChance?: number;
+    overCap?: number;
+    cap?: number;
+  };
+  resistances: {
+    fire: PobResistanceConstraint;
+    cold: PobResistanceConstraint;
+    lightning: PobResistanceConstraint;
+    chaos: PobResistanceConstraint;
+  };
+}
+
 export interface PobCalculationWarning {
   code: string;
   message: string;
@@ -140,6 +178,7 @@ export interface PobCalculationResult {
   scenario: PobScenarioConfiguration;
   offence: PobOffenceMetrics;
   defence: PobDefenceMetrics;
+  constraints?: PobConstraintMetrics;
   warnings: PobCalculationWarning[];
   elapsedMs: number;
 }
