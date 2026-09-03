@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PobKernelWorkerError, runPobKernelRequest } from '../electron/services/pob-kernel-service';
@@ -9,8 +10,11 @@ import {
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
+const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_REFERENCE@@';
 const DEFAULT_RELATIVE_TOLERANCE = 1e-6;
 const DEFAULT_ABSOLUTE_TOLERANCE = 0.05;
+const PROCESS_TIMEOUT_MS = 45_000;
+const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 interface MetricCheck {
   label: string;
@@ -33,6 +37,10 @@ interface FixtureReport {
   comparisons: MetricComparison[];
   passed: boolean;
   elapsedMs: number;
+}
+
+interface ReferencePayload {
+  raw: Record<string, number | string | boolean>;
 }
 
 const FIXTURES = [
@@ -67,17 +75,96 @@ const METRICS: MetricCheck[] = [
   { label: 'Chaos resistance', expectedStat: 'ChaosResist', readActual: (result) => result.defence.chaosResistance },
 ];
 
-function luaExpectedOutput(luaSource: string): Map<string, number> {
-  const outputStart = luaSource.indexOf('output = {');
-  if (outputStart < 0) throw new Error('PoB generated fixture does not contain an output table.');
-  const outputSource = luaSource.slice(outputStart);
-  const stats = new Map<string, number>();
-  for (const match of outputSource.matchAll(/\["([^"]+)"\]\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/g)) {
-    const numeric = Number(match[2]);
-    if (Number.isFinite(numeric)) stats.set(match[1], numeric);
-  }
-  if (!stats.size) throw new Error('PoB generated fixture output table did not contain numeric stats.');
-  return stats;
+function luaModulePath(pobRoot: string): string {
+  const paths = [
+    resolve(pobRoot, 'src', '?.lua'),
+    resolve(pobRoot, 'src', '?', 'init.lua'),
+    resolve(pobRoot, 'runtime', 'lua', '?.lua'),
+    resolve(pobRoot, 'runtime', 'lua', '?', 'init.lua'),
+  ];
+  if (process.env.LUA_PATH) paths.push(process.env.LUA_PATH);
+  return paths.join(';');
+}
+
+async function runReference(
+  pobRoot: string,
+  runtimePath: string,
+  referenceScriptPath: string,
+  fixture: string,
+): Promise<ReferencePayload> {
+  const fixturePath = resolve(pobRoot, fixture);
+  const cwd = resolve(pobRoot, 'src');
+
+  return await new Promise<ReferencePayload>((resolvePromise, rejectPromise) => {
+    const child = spawn(runtimePath, [referenceScriptPath, fixturePath], {
+      cwd,
+      windowsHide: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        LUA_PATH: luaModulePath(pobRoot),
+      },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const finishError = (message: string): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      rejectPromise(new Error(`${message}\n--- reference stdout tail ---\n${stdout.slice(-4_000)}\n--- reference stderr tail ---\n${stderr.slice(-4_000)}`));
+    };
+
+    const timer = setTimeout(() => {
+      child.kill();
+      finishError(`PoB reference runner exceeded ${PROCESS_TIMEOUT_MS} ms.`);
+    }, PROCESS_TIMEOUT_MS);
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+      if (Buffer.byteLength(stdout, 'utf8') > MAX_PROCESS_OUTPUT_BYTES) {
+        child.kill();
+        finishError('PoB reference stdout exceeded the output bound.');
+      }
+    });
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+      if (Buffer.byteLength(stderr, 'utf8') > MAX_PROCESS_OUTPUT_BYTES) {
+        child.kill();
+        finishError('PoB reference stderr exceeded the output bound.');
+      }
+    });
+    child.on('error', (error) => finishError(`PoB reference runner failed to spawn: ${error.message}`));
+    child.on('close', (code, signal) => {
+      if (settled) return;
+      clearTimeout(timer);
+      if (code !== 0) {
+        finishError(`PoB reference runner exited with code ${code ?? 'null'} (${signal ?? 'no signal'}).`);
+        return;
+      }
+      const line = stdout.split(/\r?\n/).findLast((candidate) => candidate.startsWith(REFERENCE_SENTINEL));
+      if (!line) {
+        finishError('PoB reference runner did not emit its sentinel payload.');
+        return;
+      }
+      try {
+        const payload = JSON.parse(line.slice(REFERENCE_SENTINEL.length)) as ReferencePayload;
+        if (!payload || typeof payload.raw !== 'object' || payload.raw === null) {
+          finishError('PoB reference payload did not contain a raw output object.');
+          return;
+        }
+        settled = true;
+        resolvePromise(payload);
+      } catch (error) {
+        finishError(`PoB reference payload JSON failed to parse: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+  });
 }
 
 function comparisonTolerance(expected: number): number {
@@ -100,12 +187,11 @@ async function runFixture(
   pobRoot: string,
   runtimePath: string,
   workerScriptPath: string,
+  referenceScriptPath: string,
   fixture: string,
 ): Promise<FixtureReport> {
   const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
-  const expectedSource = fixture.replace(/\.xml$/i, '.lua');
-  const expectedLua = await readFile(resolve(pobRoot, expectedSource), 'utf8');
-  const expected = luaExpectedOutput(expectedLua);
+  const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
   const requestId = `parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 120);
   const response = await runPobKernelRequest({
     protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
@@ -117,8 +203,8 @@ async function runFixture(
     runtimePath,
     pobSourcePath: resolve(pobRoot, 'src'),
     workerScriptPath,
-    timeoutMs: 45_000,
-    maxOutputBytes: 8 * 1024 * 1024,
+    timeoutMs: PROCESS_TIMEOUT_MS,
+    maxOutputBytes: MAX_PROCESS_OUTPUT_BYTES,
   });
 
   if (!response.ok || !('result' in response)) {
@@ -134,9 +220,9 @@ async function runFixture(
   }
 
   const comparisons = METRICS.flatMap((check) => {
-    const expectedValue = expected.get(check.expectedStat);
-    if (expectedValue === undefined) return [];
-    return [compareMetric(check, expectedValue, check.readActual(result))];
+    const rawValue = reference.raw[check.expectedStat];
+    if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) return [];
+    return [compareMetric(check, rawValue, check.readActual(result))];
   });
 
   if (comparisons.length < 8) {
@@ -145,7 +231,7 @@ async function runFixture(
 
   return {
     fixture,
-    expectedSource,
+    expectedSource: 'fresh pinned-PoB mainOutput reference process',
     comparisons,
     passed: comparisons.every((comparison) => comparison.passed),
     elapsedMs: result.elapsedMs,
@@ -160,11 +246,12 @@ async function main(): Promise<void> {
   const pobRoot = resolve(pobRootInput);
   const runtimePath = process.env.POB_LUAJIT ?? process.argv[3] ?? 'luajit';
   const workerScriptPath = resolve(process.cwd(), 'tools/pob-kernel/worker.lua');
+  const referenceScriptPath = resolve(process.cwd(), 'tools/pob-kernel/reference.lua');
 
   const reports: FixtureReport[] = [];
   for (const fixture of FIXTURES) {
     process.stdout.write(`PoB parity: ${fixture} ... `);
-    const report = await runFixture(pobRoot, runtimePath, workerScriptPath, fixture);
+    const report = await runFixture(pobRoot, runtimePath, workerScriptPath, referenceScriptPath, fixture);
     reports.push(report);
     console.log(report.passed ? `PASS (${report.comparisons.length} metrics)` : 'FAIL');
     for (const failed of report.comparisons.filter((comparison) => !comparison.passed)) {
@@ -176,11 +263,12 @@ async function main(): Promise<void> {
   await mkdir(artifactDir, { recursive: true });
   const artifactPath = resolve(artifactDir, 'parity.json');
   await writeFile(artifactPath, `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     pobCommit: POB_COMMIT,
     luaJitCommit: LUAJIT_COMMIT,
     generatedAt: new Date().toISOString(),
     runtimePath,
+    oracle: 'fresh pinned-PoB mainOutput reference process',
     reports,
     passed: reports.every((report) => report.passed),
   }, null, 2)}\n`, 'utf8');
