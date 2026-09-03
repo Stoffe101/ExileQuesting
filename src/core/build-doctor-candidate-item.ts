@@ -8,7 +8,7 @@ import type { BuildDoctorKernelProvenance } from './build-doctor';
 import { reviewedBuildMetrics, type BuildDoctorReviewedMetric } from './build-doctor-reviewed-metrics';
 import { constraintFindings, type PobConstraintComparison, type PobConstraintFinding } from './pob-constraints';
 
-export const BUILD_DOCTOR_CANDIDATE_ITEM_SCHEMA_VERSION = 2;
+export const BUILD_DOCTOR_CANDIDATE_ITEM_SCHEMA_VERSION = 3;
 
 export interface BuildDoctorCandidateConstraintVerified {
   status: 'verified';
@@ -25,6 +25,16 @@ export interface BuildDoctorCandidateConstraintUnavailable {
 
 export type BuildDoctorCandidateConstraintEvidence = BuildDoctorCandidateConstraintVerified | BuildDoctorCandidateConstraintUnavailable;
 
+export type BuildDoctorDropInStatus = 'blocked' | 'caution' | 'preserved' | 'unverified';
+
+export interface BuildDoctorDropInVerdict {
+  status: BuildDoctorDropInStatus;
+  title: string;
+  message: string;
+  brokenCount: number;
+  weakenedBufferCount: number;
+}
+
 export interface BuildDoctorCandidateItemReady {
   schemaVersion: number;
   status: 'ready';
@@ -37,6 +47,7 @@ export interface BuildDoctorCandidateItemReady {
   metrics: BuildDoctorReviewedMetric[];
   changedMetrics: BuildDoctorReviewedMetric[];
   constraints: BuildDoctorCandidateConstraintEvidence;
+  dropIn: BuildDoctorDropInVerdict;
   beforeWarnings: string[];
   afterWarnings: string[];
   boundary: string;
@@ -78,6 +89,46 @@ function kernelProvenance(kernel: PobCalculationKernelVersion): BuildDoctorKerne
     runtime: kernel.runtime,
     runtimeRevision: kernel.runtimeRevision,
     adapterVersion: kernel.adapterVersion,
+  };
+}
+
+export function candidateDropInVerdict(constraints: BuildDoctorCandidateConstraintEvidence): BuildDoctorDropInVerdict {
+  if (constraints.status !== 'verified') {
+    return {
+      status: 'unverified',
+      title: 'Drop-in compatibility unverified',
+      message: 'Hard-constraint evidence is unavailable, so ExileQuesting cannot verify this item as a drop-in replacement even if its numerical PoB deltas look favorable.',
+      brokenCount: 0,
+      weakenedBufferCount: 0,
+    };
+  }
+
+  const brokenCount = constraints.findings.filter((finding) => finding.state === 'broken').length;
+  const weakenedBufferCount = constraints.findings.filter((finding) => finding.state === 'weakened-buffer').length;
+  if (brokenCount > 0) {
+    return {
+      status: 'blocked',
+      title: 'Not a drop-in replacement',
+      message: `${brokenCount} previously satisfied PoB constraint${brokenCount === 1 ? '' : 's'} become unsatisfied. The item may still belong in a coordinated upgrade package, but it is not a like-for-like replacement under the supported checks.`,
+      brokenCount,
+      weakenedBufferCount,
+    };
+  }
+  if (weakenedBufferCount > 0) {
+    return {
+      status: 'caution',
+      title: 'Drop-in with reduced buffer',
+      message: `No supported PoB constraint becomes unsatisfied, but ${weakenedBufferCount} previously satisfied buffer${weakenedBufferCount === 1 ? '' : 's'} become thinner. Treat the replacement as more fragile until surrounding gear/content requirements are rechecked.`,
+      brokenCount,
+      weakenedBufferCount,
+    };
+  }
+  return {
+    status: 'preserved',
+    title: 'Supported drop-in constraints preserved',
+    message: 'The replacement preserves every currently supported PoB hard-constraint state. This is not an overall upgrade recommendation; unresolved sockets, reservation, cost and coordinated transitions still apply.',
+    brokenCount,
+    weakenedBufferCount,
   };
 }
 
@@ -154,9 +205,10 @@ export function readyCandidateItemAnalysis(input: {
     metrics,
     changedMetrics: metrics.filter((entry) => entry.changed),
     constraints,
+    dropIn: candidateDropInVerdict(constraints),
     beforeWarnings: input.comparison.before.warnings.map((warning) => warning.message),
     afterWarnings: input.comparison.after.warnings.map((warning) => warning.message),
-    boundary: 'This is a deterministic PoB slot-replacement calculation. Attribute requirements, resistance-cap state and spell-suppression cap state are verified only when the constraint evidence above is available. ExileQuesting has not yet proven socket/link migration, reservation validity, trade cost, crafting cost, or coordinated multi-slot/passive transitions for this candidate.',
+    boundary: 'This is a deterministic PoB slot-replacement calculation. The drop-in verdict only describes preservation of currently supported attribute, resistance-cap and spell-suppression constraint state. ExileQuesting has not yet proven socket/link migration, reservation validity, trade cost, crafting cost, or coordinated multi-slot/passive transitions for this candidate.',
   };
 }
 

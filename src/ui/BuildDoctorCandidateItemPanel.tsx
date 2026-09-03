@@ -76,6 +76,20 @@ export default function BuildDoctorCandidateItemPanel({ profileId, enabled }: { 
             <i>{analysis.changedMetrics.length} reviewed metric{analysis.changedMetrics.length === 1 ? '' : 's'} changed</i>
           </div>
 
+          <section className={`build-doctor-drop-in ${analysis.dropIn.status}`} data-testid="candidate-drop-in-verdict">
+            <div className="build-doctor-drop-in-head">
+              <div>
+                <span>DROP-IN COMPATIBILITY</span>
+                <strong>{analysis.dropIn.title}</strong>
+              </div>
+              <div className="build-doctor-drop-in-counts">
+                {analysis.dropIn.brokenCount > 0 && <i>{analysis.dropIn.brokenCount} broken</i>}
+                {analysis.dropIn.weakenedBufferCount > 0 && <i>{analysis.dropIn.weakenedBufferCount} weaker buffer</i>}
+              </div>
+            </div>
+            <p>{analysis.dropIn.message}</p>
+          </section>
+
           <section className={`build-doctor-constraint-evidence ${analysis.constraints.status}`} data-testid="candidate-constraint-evidence">
             <div className="build-doctor-constraint-head">
               <div>

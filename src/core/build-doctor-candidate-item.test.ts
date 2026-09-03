@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  candidateDropInVerdict,
   candidateItemLabel,
   readyCandidateItemAnalysis,
   unavailableCandidateItemAnalysis,
+  type BuildDoctorCandidateConstraintEvidence,
 } from './build-doctor-candidate-item';
 import type { PobCalculationResult, PobConstraintMetrics, PobPerturbationComparison } from './pob-calculation';
-import type { PobConstraintComparison } from './pob-constraints';
+import type { PobConstraintComparison, PobConstraintFinding } from './pob-constraints';
 
 const kernel = {
   protocolVersion: 1,
@@ -80,6 +82,33 @@ function constraintComparison(before = constraints(), after = constraints()): Po
   return { slot: 'Boots', before, after };
 }
 
+function finding(state: PobConstraintFinding['state'], key = state): PobConstraintFinding {
+  return {
+    key,
+    kind: 'resistance-cap',
+    state,
+    label: key,
+    before: 'before',
+    after: 'after',
+    detail: 'fixture',
+  };
+}
+
+function verified(findings: PobConstraintFinding[]): BuildDoctorCandidateConstraintEvidence {
+  return {
+    status: 'verified',
+    kernel: {
+      pobRepository: constraintKernel.pobRepository,
+      pobCommit: constraintKernel.pobCommit,
+      runtime: constraintKernel.runtime,
+      runtimeRevision: constraintKernel.runtimeRevision,
+      adapterVersion: constraintKernel.adapterVersion,
+    },
+    findings,
+    message: 'fixture',
+  };
+}
+
 describe('Build Doctor candidate item analysis', () => {
   it('preserves exact PoB before/after values across reviewed endgame metrics', () => {
     const before = result('before');
@@ -110,6 +139,7 @@ describe('Build Doctor candidate item analysis', () => {
     expect(analysis.changedMetrics.find((entry) => entry.key === 'fire-overcap')).toMatchObject({ before: 35, after: 12, absoluteChange: -23 });
     expect(analysis.changedMetrics.find((entry) => entry.key === 'physical-max-hit')).toMatchObject({ before: 30_000, after: 33_000 });
     expect(analysis.constraints.status).toBe('unavailable');
+    expect(analysis.dropIn.status).toBe('unverified');
   });
 
   it('attaches only PoB-proven hard-constraint transitions from matching runtime provenance', () => {
@@ -127,10 +157,33 @@ describe('Build Doctor candidate item analysis', () => {
     expect(analysis.constraints.status).toBe('verified');
     if (analysis.constraints.status !== 'verified') throw new Error('expected verified constraints');
     expect(analysis.constraints.kernel.adapterVersion).toBe('constraint-0.1.0');
-    expect(analysis.constraints.findings.map((finding) => finding.key)).toEqual(expect.arrayContaining([
+    expect(analysis.constraints.findings.map((entry) => entry.key)).toEqual(expect.arrayContaining([
       'strength-requirement', 'fire-resistance-cap', 'spell-suppression-cap',
     ]));
-    expect(analysis.constraints.findings.filter((finding) => finding.state === 'broken')).toHaveLength(3);
+    expect(analysis.constraints.findings.filter((entry) => entry.state === 'broken')).toHaveLength(3);
+    expect(analysis.dropIn).toMatchObject({ status: 'blocked', brokenCount: 3 });
+  });
+
+  it('classifies drop-in compatibility without turning it into an upgrade recommendation', () => {
+    expect(candidateDropInVerdict(verified([finding('broken'), finding('weakened-buffer')]))).toMatchObject({
+      status: 'blocked', brokenCount: 1, weakenedBufferCount: 1, title: 'Not a drop-in replacement',
+    });
+    expect(candidateDropInVerdict(verified([finding('weakened-buffer')]))).toMatchObject({
+      status: 'caution', brokenCount: 0, weakenedBufferCount: 1,
+    });
+    expect(candidateDropInVerdict(verified([finding('repaired'), finding('improved-buffer')]))).toMatchObject({
+      status: 'preserved', brokenCount: 0, weakenedBufferCount: 0,
+    });
+    expect(candidateDropInVerdict({ status: 'unavailable', findings: [], message: 'offline' })).toMatchObject({
+      status: 'unverified', brokenCount: 0, weakenedBufferCount: 0,
+    });
+    for (const verdict of [
+      candidateDropInVerdict(verified([finding('broken')])),
+      candidateDropInVerdict(verified([finding('weakened-buffer')])),
+      candidateDropInVerdict(verified([])),
+    ]) {
+      expect(`${verdict.title} ${verdict.message}`).not.toMatch(/best|bis|buy|recommended upgrade/i);
+    }
   });
 
   it('rejects constraint evidence from a different PoB/runtime or equipment slot', () => {
@@ -184,7 +237,7 @@ describe('Build Doctor candidate item analysis', () => {
     const analysis = readyCandidateItemAnalysis({
       profileId: 'profile', profileName: 'Build', generatedAt: '2026-09-03T12:00:00.000Z', slot: 'Boots', candidateLabel: 'Candidate', comparison: comparison(result('before'), result('after')),
     });
-    expect(analysis.boundary).toMatch(/requirements/i);
+    expect(analysis.boundary).toMatch(/attribute/i);
     expect(analysis.boundary).toMatch(/reservation/i);
     expect(analysis.boundary).toMatch(/trade cost/i);
     expect(analysis.boundary).toMatch(/coordinated/i);
