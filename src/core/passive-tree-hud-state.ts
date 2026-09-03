@@ -3,6 +3,8 @@ import type { PassiveNodeKind } from './passive-data';
 export type PassiveTreeHudStatus =
   | 'disabled'
   | 'waiting-build'
+  | 'waiting-point'
+  | 'waiting-tree'
   | 'missing-geometry'
   | 'unsupported-target'
   | 'searching'
