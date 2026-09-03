@@ -14,7 +14,7 @@ export interface PassiveTreeFrameMotion {
 export interface PassiveTreeFrameTrackingOptions {
   /** Maximum width used by the pure-JS matcher. The capture is downsampled when larger. */
   maximumWorkingWidth?: number;
-  /** Maximum frame-to-frame displacement in capture pixels. */
+  /** Expected frame-to-frame pan range in capture pixels. Zoom is solved separately around viewport centre. */
   searchRadiusPx?: number;
   /** Allow a wider scale/displacement range for reopening/recovery. */
   wide?: boolean;
@@ -49,15 +49,19 @@ interface WorkingMotion {
   offsetY: number;
   inliers: FeatureMatch[];
   rms: number;
+  meanPatchError: number;
 }
 
 const MAX_CAPTURE_PIXELS = 4_000_000;
 const DEFAULT_WORKING_WIDTH = 240;
 const DEFAULT_SEARCH_RADIUS = 78;
-const PATCH_RADIUS = 5;
-const MAX_FEATURES = 52;
-const MIN_TEXTURE = 24;
-const MATCH_ERROR_LIMIT = 29;
+const PATCH_RADIUS = 4;
+const MAX_FEATURES = 42;
+const HYPOTHESIS_FEATURES = 26;
+const MIN_TEXTURE = 22;
+const MATCH_ERROR_LIMIT = 32;
+const NORMAL_SCALE_FACTORS = [0.64, 0.72, 0.8, 0.88, 0.94, 1, 1.06, 1.14, 1.24, 1.36, 1.5, 1.64, 1.76];
+const WIDE_SCALE_FACTORS = [0.48, 0.56, 0.64, 0.74, 0.84, 0.92, 1, 1.08, 1.18, 1.3, 1.44, 1.6, 1.78, 1.98, 2.18];
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -124,7 +128,7 @@ function textureScore(frame: GrayFrame, x: number, y: number): number {
  * identity. They only describe how the already-known tree image moved.
  */
 function selectFeatures(frame: GrayFrame): FeaturePoint[] {
-  const margin = PATCH_RADIUS + 3;
+  const margin = PATCH_RADIUS + 4;
   const minX = Math.max(margin, Math.floor(frame.width * 0.06));
   const maxX = Math.min(frame.width - margin - 1, Math.ceil(frame.width * 0.94));
   const minY = Math.max(margin, Math.floor(frame.height * 0.18));
@@ -157,38 +161,74 @@ function selectFeatures(frame: GrayFrame): FeaturePoint[] {
   return selected;
 }
 
-function patchError(previous: GrayFrame, current: GrayFrame, sourceX: number, sourceY: number, targetX: number, targetY: number): number {
+function patchErrorAtScale(
+  previous: GrayFrame,
+  current: GrayFrame,
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+  scale: number,
+): number {
+  const roundedTargetX = Math.round(targetX);
+  const roundedTargetY = Math.round(targetY);
   const sourceCenter = pixel(previous, sourceX, sourceY);
-  const targetCenter = pixel(current, targetX, targetY);
+  const targetCenter = pixel(current, roundedTargetX, roundedTargetY);
   let sum = 0;
   let samples = 0;
   for (let dy = -PATCH_RADIUS; dy <= PATCH_RADIUS; dy += 2) {
     for (let dx = -PATCH_RADIUS; dx <= PATCH_RADIUS; dx += 2) {
-      const sourceRelative = pixel(previous, sourceX + dx, sourceY + dy) - sourceCenter;
-      const targetRelative = pixel(current, targetX + dx, targetY + dy) - targetCenter;
+      const currentX = Math.round(targetX + dx * scale);
+      const currentY = Math.round(targetY + dy * scale);
+      if (currentX < 0 || currentX >= current.width || currentY < 0 || currentY >= current.height) return Number.POSITIVE_INFINITY;
+      const sourceValue = pixel(previous, sourceX + dx, sourceY + dy);
+      const targetValue = pixel(current, currentX, currentY);
+      const sourceRelative = sourceValue - sourceCenter;
+      const targetRelative = targetValue - targetCenter;
       const relativeDifference = Math.abs(sourceRelative - targetRelative);
-      const rawDifference = Math.abs(pixel(previous, sourceX + dx, sourceY + dy) - pixel(current, targetX + dx, targetY + dy));
-      sum += Math.min(64, relativeDifference) * 0.78 + Math.min(64, rawDifference) * 0.22;
+      const rawDifference = Math.abs(sourceValue - targetValue);
+      sum += Math.min(64, relativeDifference) * 0.8 + Math.min(64, rawDifference) * 0.2;
       samples += 1;
     }
   }
   return samples ? sum / samples : Number.POSITIVE_INFINITY;
 }
 
-function matchFeature(previous: GrayFrame, current: GrayFrame, source: FeaturePoint, radius: number): FeatureMatch | undefined {
-  const margin = PATCH_RADIUS + 1;
-  const coarseStep = radius > 34 ? 3 : 2;
-  let bestError = Number.POSITIVE_INFINITY;
-  let bestX = source.x;
-  let bestY = source.y;
-  const minX = Math.max(margin, source.x - radius);
-  const maxX = Math.min(current.width - margin - 1, source.x + radius);
-  const minY = Math.max(margin, source.y - radius);
-  const maxY = Math.min(current.height - margin - 1, source.y + radius);
+function expectedPointAtScale(frame: GrayFrame, source: FeaturePoint, scale: number): { x: number; y: number } {
+  const centerX = (frame.width - 1) / 2;
+  const centerY = (frame.height - 1) / 2;
+  return {
+    x: centerX + (source.x - centerX) * scale,
+    y: centerY + (source.y - centerY) * scale,
+  };
+}
 
+function matchFeatureAtScale(
+  previous: GrayFrame,
+  current: GrayFrame,
+  source: FeaturePoint,
+  scale: number,
+  radius: number,
+  preferredOffset?: { x: number; y: number },
+): FeatureMatch | undefined {
+  const scaledPatchMargin = Math.ceil(PATCH_RADIUS * Math.max(1, scale)) + 2;
+  const expected = expectedPointAtScale(previous, source, scale);
+  const expectedX = expected.x + (preferredOffset?.x ?? 0);
+  const expectedY = expected.y + (preferredOffset?.y ?? 0);
+  const searchRadius = preferredOffset ? Math.min(radius, 12) : radius;
+  const coarseStep = preferredOffset ? 2 : searchRadius > 48 ? 5 : searchRadius > 30 ? 4 : 3;
+  const minX = Math.max(scaledPatchMargin, Math.floor(expectedX - searchRadius));
+  const maxX = Math.min(current.width - scaledPatchMargin - 1, Math.ceil(expectedX + searchRadius));
+  const minY = Math.max(scaledPatchMargin, Math.floor(expectedY - searchRadius));
+  const maxY = Math.min(current.height - scaledPatchMargin - 1, Math.ceil(expectedY + searchRadius));
+  if (minX > maxX || minY > maxY) return undefined;
+
+  let bestError = Number.POSITIVE_INFINITY;
+  let bestX = Math.round(expectedX);
+  let bestY = Math.round(expectedY);
   for (let y = minY; y <= maxY; y += coarseStep) {
     for (let x = minX; x <= maxX; x += coarseStep) {
-      const error = patchError(previous, current, source.x, source.y, x, y);
+      const error = patchErrorAtScale(previous, current, source.x, source.y, x, y, scale);
       if (error < bestError) {
         bestError = error;
         bestX = x;
@@ -198,9 +238,9 @@ function matchFeature(previous: GrayFrame, current: GrayFrame, source: FeaturePo
   }
 
   const refineRadius = Math.max(2, coarseStep);
-  for (let y = Math.max(margin, bestY - refineRadius); y <= Math.min(current.height - margin - 1, bestY + refineRadius); y += 1) {
-    for (let x = Math.max(margin, bestX - refineRadius); x <= Math.min(current.width - margin - 1, bestX + refineRadius); x += 1) {
-      const error = patchError(previous, current, source.x, source.y, x, y);
+  for (let y = Math.max(minY, bestY - refineRadius); y <= Math.min(maxY, bestY + refineRadius); y += 1) {
+    for (let x = Math.max(minX, bestX - refineRadius); x <= Math.min(maxX, bestX + refineRadius); x += 1) {
+      const error = patchErrorAtScale(previous, current, source.x, source.y, x, y, scale);
       if (error < bestError) {
         bestError = error;
         bestX = x;
@@ -213,12 +253,54 @@ function matchFeature(previous: GrayFrame, current: GrayFrame, source: FeaturePo
   return { source, x: bestX, y: bestY, error: bestError };
 }
 
+function originOffset(match: FeatureMatch, scale: number): { x: number; y: number } {
+  return {
+    x: match.x - match.source.x * scale,
+    y: match.y - match.source.y * scale,
+  };
+}
+
 function residual(match: FeatureMatch, scale: number, offsetX: number, offsetY: number): number {
   return Math.hypot(match.source.x * scale + offsetX - match.x, match.source.y * scale + offsetY - match.y);
 }
 
-function refineMotion(matches: FeatureMatch[]): { scale: number; offsetX: number; offsetY: number } | undefined {
-  if (matches.length < 2) return undefined;
+function dominantTranslation(matches: FeatureMatch[], scale: number, tolerance: number): WorkingMotion | undefined {
+  if (matches.length < 4) return undefined;
+  let bestInliers: FeatureMatch[] = [];
+  let bestPatchError = Number.POSITIVE_INFINITY;
+
+  for (const candidate of matches) {
+    const offset = originOffset(candidate, scale);
+    const inliers = matches.filter((match) => {
+      const other = originOffset(match, scale);
+      return Math.hypot(other.x - offset.x, other.y - offset.y) <= tolerance;
+    });
+    const patchError = inliers.length
+      ? inliers.reduce((sum, match) => sum + match.error, 0) / inliers.length
+      : Number.POSITIVE_INFINITY;
+    if (inliers.length > bestInliers.length || (inliers.length === bestInliers.length && patchError < bestPatchError)) {
+      bestInliers = inliers;
+      bestPatchError = patchError;
+    }
+  }
+
+  if (bestInliers.length < 4) return undefined;
+  let offsetX = bestInliers.reduce((sum, match) => sum + originOffset(match, scale).x, 0) / bestInliers.length;
+  let offsetY = bestInliers.reduce((sum, match) => sum + originOffset(match, scale).y, 0) / bestInliers.length;
+  bestInliers = matches.filter((match) => residual(match, scale, offsetX, offsetY) <= tolerance);
+  if (bestInliers.length < 4) return undefined;
+  offsetX = bestInliers.reduce((sum, match) => sum + originOffset(match, scale).x, 0) / bestInliers.length;
+  offsetY = bestInliers.reduce((sum, match) => sum + originOffset(match, scale).y, 0) / bestInliers.length;
+  const rms = Math.sqrt(bestInliers.reduce((sum, match) => {
+    const distance = residual(match, scale, offsetX, offsetY);
+    return sum + distance * distance;
+  }, 0) / bestInliers.length);
+  const meanPatchError = bestInliers.reduce((sum, match) => sum + match.error, 0) / bestInliers.length;
+  return { scale, offsetX, offsetY, inliers: bestInliers, rms, meanPatchError };
+}
+
+function refineScaleAndTranslation(matches: FeatureMatch[], seedScale: number): WorkingMotion | undefined {
+  if (matches.length < 4) return undefined;
   const sourceMeanX = matches.reduce((sum, match) => sum + match.source.x, 0) / matches.length;
   const sourceMeanY = matches.reduce((sum, match) => sum + match.source.y, 0) / matches.length;
   const targetMeanX = matches.reduce((sum, match) => sum + match.x, 0) / matches.length;
@@ -232,81 +314,90 @@ function refineMotion(matches: FeatureMatch[]): { scale: number; offsetX: number
     denominator += sourceX * sourceX + sourceY * sourceY;
   }
   if (denominator <= 1e-6) return undefined;
-  const scale = numerator / denominator;
-  if (!finite(scale) || scale <= 0) return undefined;
-  return {
-    scale,
-    offsetX: targetMeanX - sourceMeanX * scale,
-    offsetY: targetMeanY - sourceMeanY * scale,
-  };
-}
-
-function candidateFromPair(left: FeatureMatch, right: FeatureMatch): { scale: number; offsetX: number; offsetY: number; rotationError: number } | undefined {
-  const sourceX = right.source.x - left.source.x;
-  const sourceY = right.source.y - left.source.y;
-  const targetX = right.x - left.x;
-  const targetY = right.y - left.y;
-  const denominator = sourceX * sourceX + sourceY * sourceY;
-  if (denominator < 18 * 18) return undefined;
-  const scale = (sourceX * targetX + sourceY * targetY) / denominator;
-  if (!finite(scale) || scale <= 0) return undefined;
-  const rotationError = Math.abs(sourceX * targetY - sourceY * targetX) / denominator;
-  return {
-    scale,
-    offsetX: ((left.x - left.source.x * scale) + (right.x - right.source.x * scale)) / 2,
-    offsetY: ((left.y - left.source.y * scale) + (right.y - right.source.y * scale)) / 2,
-    rotationError,
-  };
-}
-
-function fitMotion(matches: FeatureMatch[], width: number, height: number, wide: boolean): WorkingMotion | undefined {
-  if (matches.length < 4) return undefined;
-  const minimumScale = wide ? 0.58 : 0.76;
-  const maximumScale = wide ? 1.72 : 1.32;
-  const rotationLimit = wide ? 0.12 : 0.085;
-  const inlierTolerance = wide ? 5.5 : 4.25;
-  let best: WorkingMotion | undefined;
-
-  for (let leftIndex = 0; leftIndex < matches.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < matches.length; rightIndex += 1) {
-      const proposal = candidateFromPair(matches[leftIndex], matches[rightIndex]);
-      if (!proposal || proposal.scale < minimumScale || proposal.scale > maximumScale || proposal.rotationError > rotationLimit) continue;
-      const inliers = matches.filter((match) => residual(match, proposal.scale, proposal.offsetX, proposal.offsetY) <= inlierTolerance);
-      if (inliers.length < 4) continue;
-      const rms = Math.sqrt(inliers.reduce((sum, match) => {
-        const distance = residual(match, proposal.scale, proposal.offsetX, proposal.offsetY);
-        return sum + distance * distance;
-      }, 0) / inliers.length);
-      if (!best || inliers.length > best.inliers.length || (inliers.length === best.inliers.length && rms < best.rms)) {
-        best = { ...proposal, inliers, rms };
-      }
-    }
-  }
-
-  if (!best) return undefined;
-  const refined = refineMotion(best.inliers);
-  if (!refined || refined.scale < minimumScale || refined.scale > maximumScale) return undefined;
-  const finalInliers = matches.filter((match) => residual(match, refined.scale, refined.offsetX, refined.offsetY) <= inlierTolerance);
-  if (finalInliers.length < 4) return undefined;
-  const finalRefined = refineMotion(finalInliers);
-  if (!finalRefined || finalRefined.scale < minimumScale || finalRefined.scale > maximumScale) return undefined;
-  const rms = Math.sqrt(finalInliers.reduce((sum, match) => {
-    const distance = residual(match, finalRefined.scale, finalRefined.offsetX, finalRefined.offsetY);
+  const fittedScale = numerator / denominator;
+  if (!finite(fittedScale) || fittedScale <= 0) return undefined;
+  const maximumRefinement = Math.max(0.06, seedScale * 0.11);
+  const scale = clamp(fittedScale, seedScale - maximumRefinement, seedScale + maximumRefinement);
+  const offsetX = targetMeanX - sourceMeanX * scale;
+  const offsetY = targetMeanY - sourceMeanY * scale;
+  const tolerance = 5.5;
+  const inliers = matches.filter((match) => residual(match, scale, offsetX, offsetY) <= tolerance);
+  if (inliers.length < 4) return undefined;
+  const refinedOffsetX = inliers.reduce((sum, match) => sum + originOffset(match, scale).x, 0) / inliers.length;
+  const refinedOffsetY = inliers.reduce((sum, match) => sum + originOffset(match, scale).y, 0) / inliers.length;
+  const rms = Math.sqrt(inliers.reduce((sum, match) => {
+    const distance = residual(match, scale, refinedOffsetX, refinedOffsetY);
     return sum + distance * distance;
-  }, 0) / finalInliers.length);
+  }, 0) / inliers.length);
+  const meanPatchError = inliers.reduce((sum, match) => sum + match.error, 0) / inliers.length;
+  return { scale, offsetX: refinedOffsetX, offsetY: refinedOffsetY, inliers, rms, meanPatchError };
+}
 
-  const xs = finalInliers.map((match) => match.source.x);
-  const ys = finalInliers.map((match) => match.source.y);
-  const spread = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-  if (spread < Math.min(width, height) * 0.55) return undefined;
-  return { ...finalRefined, inliers: finalInliers, rms };
+function hasUsefulSpread(motion: WorkingMotion, width: number, height: number): boolean {
+  const xs = motion.inliers.map((match) => match.source.x);
+  const ys = motion.inliers.map((match) => match.source.y);
+  if (!xs.length || !ys.length) return false;
+  return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) >= Math.min(width, height) * 0.5;
+}
+
+function hypothesisScore(motion: WorkingMotion, attemptedFeatures: number): number {
+  const coverage = motion.inliers.length / Math.max(1, attemptedFeatures);
+  const residual = 1 - clamp(motion.rms / 5.5, 0, 1);
+  const patch = 1 - clamp(motion.meanPatchError / MATCH_ERROR_LIMIT, 0, 1);
+  return coverage * 0.64 + residual * 0.22 + patch * 0.14;
+}
+
+function solveScaleHypothesis(
+  previous: GrayFrame,
+  current: GrayFrame,
+  features: FeaturePoint[],
+  scale: number,
+  searchRadius: number,
+): WorkingMotion | undefined {
+  const matches = features
+    .map((feature) => matchFeatureAtScale(previous, current, feature, scale, searchRadius))
+    .filter((match): match is FeatureMatch => Boolean(match));
+  const motion = dominantTranslation(matches, scale, 6);
+  if (!motion || !hasUsefulSpread(motion, previous.width, previous.height)) return undefined;
+  return motion;
+}
+
+function refineBestHypothesis(
+  previous: GrayFrame,
+  current: GrayFrame,
+  allFeatures: FeaturePoint[],
+  seed: WorkingMotion,
+  searchRadius: number,
+): WorkingMotion | undefined {
+  const centerX = (previous.width - 1) / 2;
+  const centerY = (previous.height - 1) / 2;
+  const centeredOffset = {
+    x: seed.offsetX - centerX * (1 - seed.scale),
+    y: seed.offsetY - centerY * (1 - seed.scale),
+  };
+  const matches = allFeatures
+    .map((feature) => matchFeatureAtScale(previous, current, feature, seed.scale, searchRadius, centeredOffset))
+    .filter((match): match is FeatureMatch => Boolean(match));
+  const clustered = dominantTranslation(matches, seed.scale, 5.5);
+  if (!clustered) return seed;
+  const refined = refineScaleAndTranslation(clustered.inliers, seed.scale) ?? clustered;
+  return hasUsefulSpread(refined, previous.width, previous.height) ? refined : seed;
+}
+
+function confidenceForMotion(motion: WorkingMotion, availableFeatures: number, wide: boolean): number {
+  const coverage = motion.inliers.length / Math.max(1, availableFeatures);
+  const residualConfidence = 1 - clamp(motion.rms / (wide ? 6 : 5), 0, 1);
+  const matchQuality = 1 - clamp(motion.meanPatchError / MATCH_ERROR_LIMIT, 0, 1);
+  return clamp(coverage * 0.58 + residualConfidence * 0.27 + matchQuality * 0.15, 0, 1);
 }
 
 /**
  * Estimate only how the passive-tree canvas moved from one already-confirmed
  * passive-tree frame to the next. It never receives node IDs and therefore can
- * never change the logical target. A bad estimate fails closed instead of
- * jumping the target crosshair to another plausible passive circle.
+ * never change the logical target. Zoom is explicitly modeled around the
+ * viewport centre so aggressive mouse-wheel changes do not masquerade as huge
+ * translations. A bad estimate fails closed instead of moving the target to a
+ * plausible-looking unrelated passive.
  */
 export function trackPassiveTreeFrameMotion(
   previousBitmap: Uint8Array,
@@ -320,32 +411,64 @@ export function trackPassiveTreeFrameMotion(
   const current = toGray(currentBitmap, width, height, maximumWorkingWidth);
   if (!previous || !current || previous.width !== current.width || previous.height !== current.height) return undefined;
   const features = selectFeatures(previous);
-  if (features.length < 6) return undefined;
-  const originalSearchRadius = Math.max(18, options.searchRadiusPx ?? DEFAULT_SEARCH_RADIUS) * (options.wide ? 1.45 : 1);
-  const workingSearchRadius = Math.max(7, Math.round(originalSearchRadius / previous.scaleX));
-  const matches = features
-    .map((feature) => matchFeature(previous, current, feature, workingSearchRadius))
-    .filter((match): match is FeatureMatch => Boolean(match));
-  if (matches.length < 4) return undefined;
+  if (features.length < 8) return undefined;
 
-  const fitted = fitMotion(matches, previous.width, previous.height, Boolean(options.wide));
-  if (!fitted) return undefined;
-  const minimumInliers = Math.max(4, Math.trunc(options.minimumInliers ?? Math.max(6, Math.ceil(matches.length * 0.34))));
-  if (fitted.inliers.length < minimumInliers) return undefined;
-  const inlierRatio = fitted.inliers.length / Math.max(1, matches.length);
-  const residualConfidence = 1 - clamp(fitted.rms / (options.wide ? 5.5 : 4.25), 0, 1);
-  const matchQuality = 1 - clamp(fitted.inliers.reduce((sum, match) => sum + match.error, 0) / fitted.inliers.length / MATCH_ERROR_LIMIT, 0, 1);
-  const confidence = clamp(inlierRatio * 0.56 + residualConfidence * 0.28 + matchQuality * 0.16, 0, 1);
-  const minimumConfidence = clamp(options.minimumConfidence ?? (options.wide ? 0.56 : 0.6), 0, 1);
+  const requestedRadius = Math.max(18, options.searchRadiusPx ?? DEFAULT_SEARCH_RADIUS);
+  const workingRequestedRadius = requestedRadius / Math.max(1, previous.scaleX);
+  const minimumRadius = previous.width * (options.wide ? 0.38 : 0.27);
+  const maximumRadius = previous.width * (options.wide ? 0.5 : 0.4);
+  const searchRadius = Math.round(clamp(Math.max(workingRequestedRadius, minimumRadius), 12, maximumRadius));
+
+  // Most frames are stationary or ordinary pans. Solve scale=1 first so the
+  // common path stays cheap and extremely stable.
+  const fast = solveScaleHypothesis(previous, current, features, 1, searchRadius);
+  if (fast) {
+    const fastConfidence = confidenceForMotion(fast, features.length, Boolean(options.wide));
+    const fastMinimumInliers = Math.max(7, Math.ceil(features.length * 0.45));
+    if (fast.inliers.length >= fastMinimumInliers && fastConfidence >= 0.68) {
+      return {
+        scale: fast.scale,
+        offsetX: fast.offsetX * previous.scaleX,
+        offsetY: fast.offsetY * previous.scaleY,
+        confidence: fastConfidence,
+        inliers: fast.inliers.length,
+        rms: fast.rms * (previous.scaleX + previous.scaleY) / 2,
+      };
+    }
+  }
+
+  const hypothesisFeatures = features.slice(0, Math.min(features.length, HYPOTHESIS_FEATURES));
+  const scaleFactors = options.wide ? WIDE_SCALE_FACTORS : NORMAL_SCALE_FACTORS;
+  let best: WorkingMotion | undefined;
+  let bestScore = -1;
+  for (const scale of scaleFactors) {
+    if (scale === 1) continue;
+    const candidate = solveScaleHypothesis(previous, current, hypothesisFeatures, scale, searchRadius);
+    if (!candidate) continue;
+    const score = hypothesisScore(candidate, hypothesisFeatures.length);
+    if (!best || score > bestScore
+      || (Math.abs(score - bestScore) < 1e-6 && candidate.inliers.length > best.inliers.length)) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  if (!best) return undefined;
+
+  const refined = refineBestHypothesis(previous, current, features, best, searchRadius);
+  if (!refined) return undefined;
+  const minimumInliers = Math.max(6, Math.trunc(options.minimumInliers ?? Math.max(7, Math.ceil(features.length * 0.28))));
+  if (refined.inliers.length < minimumInliers) return undefined;
+  const confidence = confidenceForMotion(refined, features.length, Boolean(options.wide));
+  const minimumConfidence = clamp(options.minimumConfidence ?? (options.wide ? 0.55 : 0.6), 0, 1);
   if (confidence < minimumConfidence) return undefined;
 
   return {
-    scale: fitted.scale,
-    offsetX: fitted.offsetX * previous.scaleX,
-    offsetY: fitted.offsetY * previous.scaleY,
+    scale: refined.scale,
+    offsetX: refined.offsetX * previous.scaleX,
+    offsetY: refined.offsetY * previous.scaleY,
     confidence,
-    inliers: fitted.inliers.length,
-    rms: fitted.rms * (previous.scaleX + previous.scaleY) / 2,
+    inliers: refined.inliers.length,
+    rms: refined.rms * (previous.scaleX + previous.scaleY) / 2,
   };
 }
 
