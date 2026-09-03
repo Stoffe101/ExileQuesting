@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { BuildDoctorConfigurationDependency } from '../core/build-doctor-dependencies';
+import type { BuildDoctorConfigurationDependency, BuildDoctorPobUptimeEvidence } from '../core/build-doctor-dependencies';
 import type { PobMetricDelta } from '../core/pob-calculation';
 
 function compactNumber(value: number): string {
@@ -13,6 +13,10 @@ function compactNumber(value: number): string {
 function signed(value: number, suffix = ''): string {
   const prefix = value > 0 ? '+' : '';
   return `${prefix}${value.toFixed(1).replace(/\.0$/, '')}${suffix}`;
+}
+
+function percent(value: number): string {
+  return `${value.toFixed(1).replace(/\.0$/, '')}%`;
 }
 
 function metricLabel(label: string, delta: PobMetricDelta): string | undefined {
@@ -31,6 +35,25 @@ function measuredLabels(dependency: Extract<BuildDoctorConfigurationDependency, 
     metricLabel('Lightning hit', dependency.delta.maximumHit.lightning),
     metricLabel('Chaos hit', dependency.delta.maximumHit.chaos),
   ].filter((value): value is string => Boolean(value));
+}
+
+function PobUptimeEvidence({ evidence }: { evidence: BuildDoctorPobUptimeEvidence }) {
+  if (evidence.status === 'estimated') {
+    return (
+      <div className="build-doctor-uptime estimated" title={evidence.sourceLine}>
+        <span>PoB uptime estimate</span>
+        <strong>{percent(evidence.averagePercent)} avg · {percent(evidence.minimumPercent)} min</strong>
+        <small>Items tab model · not observed encounter uptime</small>
+      </div>
+    );
+  }
+  return (
+    <div className="build-doctor-uptime unsupported" title={evidence.message}>
+      <span>PoB uptime estimate</span>
+      <strong>unsupported</strong>
+      <small>No numerical uptime is inferred.</small>
+    </div>
+  );
 }
 
 export default function BuildDoctorDependencyPanel({
@@ -73,7 +96,7 @@ export default function BuildDoctorDependencyPanel({
         <div>
           <span>REVERSIBLE POB SENSITIVITY</span>
           <h3>Configuration dependencies</h3>
-          <p>Measure what changes when each currently enabled utility is made unavailable in PoB. One isolated calculation is run per active utility; this measures dependency, not encounter uptime.</p>
+          <p>Measure what changes when each currently enabled utility is made unavailable in PoB. The deeper scan also shows PoB's own supported uptime estimate separately; ExileQuesting does not turn it into practical DPS/EHP.</p>
         </div>
         <button className="ghost-button" disabled={busy || activeUtilityCount < 1} onClick={() => void run()}>
           {busy ? 'Measuring in PoB…' : scan ? 'Measure again' : activeUtilityCount ? `Measure ${activeUtilityCount} active ${activeUtilityCount === 1 ? 'utility' : 'utilities'}` : 'Nothing active to measure'}
@@ -92,6 +115,7 @@ export default function BuildDoctorDependencyPanel({
                 return (
                   <article className="unsupported" key={dependency.slot}>
                     <div className="build-doctor-dependency-title"><span>{dependency.slot}</span><strong>{dependency.name}</strong><i>not measured</i></div>
+                    <PobUptimeEvidence evidence={dependency.pobUptime} />
                     <p>{dependency.message}</p>
                   </article>
                 );
@@ -104,6 +128,7 @@ export default function BuildDoctorDependencyPanel({
                     <strong>{dependency.name}</strong>
                     <i>enabled → unavailable</i>
                   </div>
+                  <PobUptimeEvidence evidence={dependency.pobUptime} />
                   <div className="build-doctor-dependency-chips">
                     {labels.length ? labels.map((label) => <span key={label}>{label}</span>) : <span className="neutral">No reviewed output changed</span>}
                   </div>
@@ -111,7 +136,7 @@ export default function BuildDoctorDependencyPanel({
               );
             }) : <p className="build-empty">No active utility configuration dependencies required measurement.</p>}
           </div>
-          <small className="build-doctor-boundary">Negative values mean the reviewed PoB output fell when that utility was toggled off. Positive values mean it rose. Neither direction is converted into a build score or an uptime assumption.</small>
+          <small className="build-doctor-boundary">Negative values mean the reviewed PoB output fell when that utility was toggled off. Positive values mean it rose. PoB average/minimum uptime is a separate upstream estimate, not observed boss or mapping uptime, and is never multiplied into these output deltas.</small>
         </>
       )}
     </div>
