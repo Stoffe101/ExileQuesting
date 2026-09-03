@@ -6,7 +6,7 @@
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.3.0"
+local ADAPTER_VERSION = "0.4.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
@@ -26,6 +26,14 @@ local REPLACEABLE_ITEM_SLOTS = {
     ["Ring 2"] = true,
     ["Ring 3"] = true,
     ["Belt"] = true,
+}
+
+local FLASK_SLOTS = {
+    ["Flask 1"] = true,
+    ["Flask 2"] = true,
+    ["Flask 3"] = true,
+    ["Flask 4"] = true,
+    ["Flask 5"] = true,
 }
 
 dofile("HeadlessWrapper.lua")
@@ -210,7 +218,7 @@ local function loadRequestBuild(request)
     return true
 end
 
-local function normalizeComparison(request, startedAt, baseOutput, perturbedOutput)
+local function normalizeComparison(request, startedAt, baseOutput, perturbedOutput, stateTransition)
     local before, beforeError = normalizeOutput(request, startedAt, baseOutput)
     if not before then
         return nil, errorResponse(request.requestId, "pob-output-missing", beforeError, true)
@@ -220,16 +228,32 @@ local function normalizeComparison(request, startedAt, baseOutput, perturbedOutp
         return nil, errorResponse(request.requestId, "pob-output-missing", afterError, true)
     end
 
+    local comparison = {
+        perturbations = request.perturbations,
+        before = before,
+        after = after,
+    }
+    if stateTransition then
+        comparison.stateTransition = stateTransition
+    end
+
     return {
         protocolVersion = PROTOCOL_VERSION,
         requestId = request.requestId,
         ok = true,
-        comparison = {
-            perturbations = request.perturbations,
-            before = before,
-            after = after,
-        },
+        comparison = comparison,
     }
+end
+
+local function currentItemForSlot(slotName)
+    if not build or not build.itemsTab or not build.itemsTab.slots or not build.itemsTab.items then
+        return nil, nil
+    end
+    local slot = build.itemsTab.slots[slotName]
+    if type(slot) ~= "table" or not slot.selItemId or slot.selItemId == 0 then
+        return slot, nil
+    end
+    return slot, build.itemsTab.items[slot.selItemId]
 end
 
 local function evaluateItemReplacement(request, startedAt, perturbation)
@@ -335,6 +359,54 @@ local function evaluatePassiveNode(request, startedAt, perturbation)
     return response or normalizationError
 end
 
+local function evaluateFlaskToggle(request, startedAt, perturbation)
+    if type(perturbation.slot) ~= "string" or not FLASK_SLOTS[perturbation.slot] then
+        return errorResponse(request.requestId, "flask-slot-unsupported", "Flask availability sensitivity supports Flask 1 through Flask 5.", false)
+    end
+
+    local slot, item = currentItemForSlot(perturbation.slot)
+    if type(slot) ~= "table" then
+        return errorResponse(request.requestId, "flask-slot-missing", "The loaded build does not expose the requested flask slot.", false)
+    end
+    if type(item) ~= "table" then
+        return errorResponse(request.requestId, "flask-slot-empty", "The requested PoB flask slot has no equipped item.", false)
+    end
+    if type(item.base) ~= "table" or item.base.flask ~= true then
+        return errorResponse(request.requestId, "flask-item-unsupported", "The equipped item in the requested slot is not a PoB flask item.", false)
+    end
+    if not build.calcsTab or type(build.calcsTab.GetMiscCalculator) ~= "function" then
+        return errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
+    end
+
+    local fromActive = slot.active == true
+    local mainEnv = build.calcsTab.mainEnv
+    if type(mainEnv) == "table" and type(mainEnv.flasks) == "table" then
+        local envActive = mainEnv.flasks[item] == true
+        if envActive ~= fromActive then
+            return errorResponse(request.requestId, "flask-state-mismatch", "PoB flask slot activity disagrees with the active calculation environment.", true)
+        end
+    end
+
+    local calcFunc, baseOutput = build.calcsTab:GetMiscCalculator()
+    if type(calcFunc) ~= "function" or type(baseOutput) ~= "table" then
+        return errorResponse(request.requestId, "misc-calculator-missing", "PoB did not expose its reversible miscellaneous calculator after loading the build.", true)
+    end
+
+    local calcOk, flaskOutput = pcall(calcFunc, { toggleFlask = item })
+    if not calcOk or type(flaskOutput) ~= "table" then
+        return errorResponse(request.requestId, "flask-toggle-calc-failed", tostring(flaskOutput), true)
+    end
+
+    local transition = {
+        kind = "flask-active",
+        slot = perturbation.slot,
+        fromActive = fromActive,
+        toActive = not fromActive,
+    }
+    local response, normalizationError = normalizeComparison(request, startedAt, baseOutput, flaskOutput, transition)
+    return response or normalizationError
+end
+
 local function evaluateSinglePerturbation(request, startedAt)
     if type(request.perturbations) ~= "table" or #request.perturbations ~= 1 then
         return errorResponse(request.requestId, "perturbation-batch-unsupported", "PoB sensitivity currently accepts exactly one perturbation per calculation.", false)
@@ -350,7 +422,10 @@ local function evaluateSinglePerturbation(request, startedAt)
     if perturbation.kind == "passive-node" then
         return evaluatePassiveNode(request, startedAt, perturbation)
     end
-    return errorResponse(request.requestId, "perturbation-kind-unsupported", "Only replace-item and passive-node perturbations are currently enabled.", false)
+    if perturbation.kind == "toggle-flask" then
+        return evaluateFlaskToggle(request, startedAt, perturbation)
+    end
+    return errorResponse(request.requestId, "perturbation-kind-unsupported", "Only replace-item, passive-node and toggle-flask perturbations are currently enabled.", false)
 end
 
 local function handle(request)
