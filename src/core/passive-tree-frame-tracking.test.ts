@@ -84,6 +84,18 @@ describe('passive tree frame motion', () => {
     expect(result!.confidence).toBeGreaterThan(0.8);
   });
 
+  it('keeps the identity transform when a large UI occlusion removes feature cells', () => {
+    const previous = treeTexture(width, height);
+    const current = previous.slice();
+    occlude(current, width, 60, 15, 180, 100);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height);
+    expect(result).toBeDefined();
+    expect(result!.scale).toBeCloseTo(1, 2);
+    expect(result!.offsetX).toBeCloseTo(0, 0);
+    expect(result!.offsetY).toBeCloseTo(0, 0);
+    expect(result!.confidence).toBeGreaterThan(0.68);
+  });
+
   it('tracks a pan without re-identifying any passive node', () => {
     const previous = treeTexture(width, height);
     const current = transformed(previous, width, height, 1, 14, -8);
