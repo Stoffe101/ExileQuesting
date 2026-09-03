@@ -59,6 +59,8 @@ export interface PassiveTreeHudServiceOptions {
 interface PoeWindowCapture {
   bitmap: Buffer;
   capture: { width: number; height: number };
+  /** Electron maps this to screen.Display.id when the platform exposes it. */
+  displayId?: string;
 }
 
 interface StoredCalibration {
@@ -96,7 +98,7 @@ const DEFAULT_LOCKED_INTERVAL = 450;
 const MIN_SCALE = 0.004;
 const MAX_SCALE = 0.35;
 const REQUIRED_TREE_MATCHES = 2;
-const MAX_ASPECT_ERROR = 0.035;
+const MAX_CAPTURE_ASPECT_DRIFT = 0.06;
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -167,15 +169,24 @@ function fullZoomScale(display: Display): number {
 }
 
 /**
- * v0.2.5 deliberately fails closed unless the captured PoE client has the same
- * aspect as the calibrated display. That keeps windowed/bordered clients from
- * silently falling back to the old, incorrect monitor-coordinate mapping.
+ * desktopCapturer explicitly does not guarantee that a returned thumbnail has
+ * the requested dimensions. Do not compare thumbnail aspect to monitor aspect
+ * as a correctness gate. We only require captures for one calibration to keep
+ * a stable shape, and use DesktopCapturerSource.display_id when available to
+ * ensure the PoE window is still on the calibrated display.
  */
-function aspectCompatible(capture: PoeWindowCapture, display: Display, expectedAspect?: number): boolean {
-  const captureAspect = capture.capture.width / Math.max(1, capture.capture.height);
-  const displayAspect = display.bounds.width / Math.max(1, display.bounds.height);
-  const baseline = expectedAspect ?? displayAspect;
-  return Math.abs(captureAspect / baseline - 1) <= MAX_ASPECT_ERROR && Math.abs(captureAspect / displayAspect - 1) <= MAX_ASPECT_ERROR;
+function captureAspect(capture: PoeWindowCapture): number {
+  return capture.capture.width / Math.max(1, capture.capture.height);
+}
+
+function captureAspectStable(expected: number, capture: PoeWindowCapture): boolean {
+  const current = captureAspect(capture);
+  return expected > 0 && Math.abs(current / expected - 1) <= MAX_CAPTURE_ASPECT_DRIFT;
+}
+
+function captureDisplayMatches(capture: PoeWindowCapture, display: Display): boolean {
+  const sourceDisplayId = capture.displayId?.trim();
+  return !sourceDisplayId || sourceDisplayId === String(display.id);
 }
 
 function stateFingerprint(state: PassiveTreeHudState): string {
@@ -207,6 +218,8 @@ export class PassiveTreeHudService {
   private readonly options: Required<Pick<PassiveTreeHudServiceOptions, 'captureWidth' | 'searchIntervalMs' | 'lockedIntervalMs'>> & PassiveTreeHudServiceOptions;
   private stopped = true;
   private polling = false;
+  private calibrating = false;
+  private recenterQueued = false;
   private timer?: NodeJS.Timeout;
   private hotkeyRepairTimer?: NodeJS.Timeout;
   private state: PassiveTreeHudState = passiveTreeHudIdle(true);
@@ -237,6 +250,7 @@ export class PassiveTreeHudService {
 
   stop(): void {
     this.stopped = true;
+    this.recenterQueued = false;
     this.consecutiveTreeMatches = 0;
     if (this.timer) clearTimeout(this.timer);
     if (this.hotkeyRepairTimer) clearInterval(this.hotkeyRepairTimer);
@@ -292,7 +306,7 @@ export class PassiveTreeHudService {
   private ensureHotkeys(): void {
     if (this.stopped || !app.isReady()) return;
     const bindings: Array<[string, () => void]> = [
-      [RECENTER_HOTKEY, () => { void this.recenterAtCursor(); }],
+      [RECENTER_HOTKEY, () => this.queueRecenter()],
       [SCALE_UP_HOTKEY, () => this.adjustScale(1.01)],
       [SCALE_DOWN_HOTKEY, () => this.adjustScale(1 / 1.01)],
       [RESET_HOTKEY, () => this.resetCalibration()],
@@ -312,11 +326,37 @@ export class PassiveTreeHudService {
   }
 
   private schedule(delay?: number): void {
-    if (this.stopped) return;
+    if (this.stopped || this.calibrating) return;
     if (this.timer) clearTimeout(this.timer);
     const interval = delay ?? (this.state.status === 'locked' ? this.options.lockedIntervalMs : this.options.searchIntervalMs);
     this.timer = setTimeout(() => { void this.poll(); }, interval);
     this.timer.unref?.();
+  }
+
+  private queueRecenter(): void {
+    if (this.stopped) return;
+    this.recenterQueued = true;
+    if (this.polling || this.calibrating) {
+      this.options.log?.info('Passive Tree HUD calibration queued until the current capture operation completes.');
+      return;
+    }
+    void this.runQueuedRecenter();
+  }
+
+  private async runQueuedRecenter(): Promise<void> {
+    if (this.stopped || this.polling || this.calibrating || !this.recenterQueued) return;
+    this.recenterQueued = false;
+    this.calibrating = true;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = undefined;
+    try {
+      await this.recenterAtCursor();
+    } finally {
+      this.calibrating = false;
+      if (this.stopped) return;
+      if (this.recenterQueued) void this.runQueuedRecenter();
+      else this.schedule(0);
+    }
   }
 
   private projectionContext(context: PassiveTreeHudContext): ProjectionContext | undefined {
@@ -441,7 +481,11 @@ export class PassiveTreeHudService {
     }
     const capture = source.thumbnail.getSize();
     if (capture.width < 240 || capture.height < 120) throw new Error(`POE_CAPTURE_SMALL:${capture.width}x${capture.height}`);
-    return { bitmap: source.thumbnail.toBitmap(), capture };
+    return {
+      bitmap: source.thumbnail.toBitmap(),
+      capture,
+      ...(source.display_id ? { displayId: source.display_id } : {}),
+    };
   }
 
   private exactPath(context: PassiveTreeHudContext, projection: ProjectionContext): PassiveTreeHudPathPoint[] {
@@ -536,7 +580,7 @@ export class PassiveTreeHudService {
   }
 
   private async recenterAtCursor(): Promise<void> {
-    if (this.stopped || this.polling) return;
+    if (this.stopped) return;
     const context = this.options.context();
     const idle = this.eligibilityState(context);
     if (idle && idle.status !== 'waiting-point') {
@@ -560,8 +604,8 @@ export class PassiveTreeHudService {
       // The HUD state above hides our overlay before we take the reference.
       await new Promise((resolve) => setTimeout(resolve, 60));
       const first = await this.capturePoeWindow();
-      if (!aspectCompatible(first, display)) {
-        this.emit(this.waitingTreeState(context, 'Calibration rejected: the PoE client does not match this display aspect. v0.2.5 requires Borderless/Windowed Fullscreen for precise alignment.'));
+      if (!captureDisplayMatches(first, display)) {
+        this.emit(this.waitingTreeState(context, 'Calibration rejected: Path of Exile is captured from a different display than the class-start point. Move PoE to this display and try again.'));
         return;
       }
       const signature = createPassiveTreeScreenSignature(first.bitmap, first.capture.width, first.capture.height);
@@ -571,8 +615,8 @@ export class PassiveTreeHudService {
       }
       await new Promise((resolve) => setTimeout(resolve, 120));
       const second = await this.capturePoeWindow();
-      if (!aspectCompatible(second, display, first.capture.width / first.capture.height)) {
-        this.emit(this.waitingTreeState(context, 'Calibration rejected because the PoE capture changed size/aspect during sampling.'));
+      if (!captureDisplayMatches(second, display) || !captureAspectStable(captureAspect(first), second)) {
+        this.emit(this.waitingTreeState(context, 'Calibration rejected because the Path of Exile capture changed display or shape during sampling.'));
         return;
       }
       const stability = matchPassiveTreeScreenSignature(signature, second.bitmap, second.capture.width, second.capture.height);
@@ -592,13 +636,13 @@ export class PassiveTreeHudService {
         offsetX: localX - anchor.x * scale,
         offsetY: localY - anchor.y * scale,
         ySign: 1,
-        captureAspect: first.capture.width / first.capture.height,
+        captureAspect: captureAspect(first),
         screenCheck: signature,
         updatedAt: new Date().toISOString(),
       };
       this.consecutiveTreeMatches = REQUIRED_TREE_MATCHES;
       await this.saveCalibrations();
-      this.options.log?.info(`Passive Tree HUD calibrated for ${key} at scale ${scale.toFixed(4)}.`);
+      this.options.log?.info(`Passive Tree HUD calibrated for ${key} at scale ${scale.toFixed(4)} from ${first.capture.width}x${first.capture.height} capture.`);
       this.poke();
     } catch (error) {
       if (String(error).includes('POE_NOT_RUNNING')) {
@@ -642,7 +686,7 @@ export class PassiveTreeHudService {
   }
 
   private async poll(): Promise<void> {
-    if (this.stopped || this.polling) return;
+    if (this.stopped || this.polling || this.calibrating) return;
     this.polling = true;
     try {
       const context = this.options.context();
@@ -661,9 +705,14 @@ export class PassiveTreeHudService {
       }
 
       const capture = await this.capturePoeWindow();
-      if (!aspectCompatible(capture, projection.display, projection.calibration.captureAspect)) {
+      if (!captureDisplayMatches(capture, projection.display)) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, 'Passive Tree HUD hidden: the current PoE client/display aspect no longer matches its calibration.'));
+        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because Path of Exile moved to another display. Hover the class/Ascendancy start and press ${RECENTER_HOTKEY} to recalibrate there.`));
+        return;
+      }
+      if (!captureAspectStable(projection.calibration.captureAspect, capture)) {
+        this.consecutiveTreeMatches = 0;
+        this.emit(this.waitingTreeState(context, `Passive Tree HUD hidden because the PoE capture shape changed after calibration. Restore Borderless/Windowed Fullscreen or press ${RECENTER_HOTKEY} to recalibrate.`));
         return;
       }
 
@@ -701,7 +750,8 @@ export class PassiveTreeHudService {
       }
     } finally {
       this.polling = false;
-      this.schedule();
+      if (this.recenterQueued) void this.runQueuedRecenter();
+      else this.schedule();
     }
   }
 }
