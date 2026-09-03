@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { runPobKernelRequest } from '../electron/services/pob-kernel-service';
+import { PobKernelWorkerError, runPobKernelRequest } from '../electron/services/pob-kernel-service';
 import {
   POB_CALCULATION_PROTOCOL_VERSION,
   type PobCalculationResult,
@@ -186,6 +186,12 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  if (error instanceof PobKernelWorkerError) {
+    console.error(`${error.name} [${error.code}]: ${error.message}`);
+    if (error.stderrTail) console.error(`--- PoB stderr tail ---\n${error.stderrTail}`);
+    if (error.stdoutTail) console.error(`--- PoB stdout tail ---\n${error.stdoutTail}`);
+  } else {
+    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  }
   process.exitCode = 1;
 });
