@@ -17,6 +17,7 @@ function result(totalDps: number, physicalMaxHit: number, ehp: number): PobCalcu
       pobRepository: 'PathOfBuildingCommunity/PathOfBuilding',
       pobCommit: 'ed354c2f8c42e148bc904c7508dbe851fb2cf952',
       runtime: 'luajit',
+      runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e',
       adapterVersion: 'test',
     },
     scenario: { scenario: 'sustained-boss' },
@@ -74,13 +75,17 @@ describe('PoB calculation protocol', () => {
     const stdout = [
       'Loading main script...',
       'Path of Building console chatter',
-      `${POB_WORKER_SENTINEL}{"protocolVersion":1,"requestId":"health","ok":true,"health":{"status":"ready","kernel":{"protocolVersion":1,"pobRepository":"PathOfBuildingCommunity/PathOfBuilding","pobCommit":"ed354c2f8c42e148bc904c7508dbe851fb2cf952","runtime":"LuaJIT","adapterVersion":"0.1.0"}}}`,
+      `${POB_WORKER_SENTINEL}{"protocolVersion":1,"requestId":"health","ok":true,"health":{"status":"ready","kernel":{"protocolVersion":1,"pobRepository":"PathOfBuildingCommunity/PathOfBuilding","pobCommit":"ed354c2f8c42e148bc904c7508dbe851fb2cf952","runtime":"LuaJIT","runtimeRevision":"2460b3ff93a1c955de3d62cfc825de7d68dc272e","adapterVersion":"0.1.0"}}}`,
       'more logs',
     ].join('\n');
 
     const messages = parsePobWorkerProtocolLines(stdout);
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toMatchObject({ requestId: 'health', ok: true });
+    expect(messages[0]).toMatchObject({
+      requestId: 'health',
+      ok: true,
+      health: { kernel: { runtimeRevision: '2460b3ff93a1c955de3d62cfc825de7d68dc272e' } },
+    });
   });
 
   it('surfaces malformed sentinel payloads instead of silently accepting corrupt IPC', () => {
