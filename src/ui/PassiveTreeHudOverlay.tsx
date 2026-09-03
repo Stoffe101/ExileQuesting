@@ -8,10 +8,13 @@ function shortKind(kind?: string): string {
 
 export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }) {
   const hud = state.passiveTreeHud;
-  if (!hud.visible || hud.status !== 'locked') return <main className="passive-tree-hud-root" aria-hidden="true" />;
+  // Fail closed. The overlay never paints target/path geometry until the service
+  // has both a saved calibration and a positive passive-tree UI match.
+  if (!hud.visible || hud.status !== 'locked' || (hud.confidence ?? 0) < 0.99) {
+    return <main className="passive-tree-hud-root" aria-hidden="true" />;
+  }
   const target = hud.target;
   const exact = Boolean(target);
-  const calibrated = (hud.confidence ?? 0) >= 0.99;
   const scopeLabel = hud.ascendancyName ? `${hud.ascendancyName} Ascendancy` : `${hud.className ?? 'Passive'} tree`;
 
   return (
@@ -57,16 +60,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
         </div>
       )}
 
-      {!calibrated && (
-        <div className="passive-stage-legend">
-          <em className="passive-scope-label">{scopeLabel}</em>
-          <span>CALIBRATION REQUIRED</span>
-          <strong>Fully zoom out the in-game tree</strong>
-          <small>Hover the class/Ascendancy start and press Ctrl+Shift+C. Use Ctrl+Shift+↑ / Ctrl+Shift+↓ to match the route dots to the real nodes.</small>
-        </div>
-      )}
-
-      {calibrated && !exact && hud.path.some((point) => point.state === 'stage') && (
+      {!exact && hud.path.some((point) => point.state === 'stage') && (
         <div className="passive-stage-legend">
           <em className="passive-scope-label">{scopeLabel}</em>
           <span>POB STAGE PASSIVES</span>
