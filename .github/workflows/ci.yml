@@ -19,7 +19,19 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm audit --omit=dev
+      - name: Audit production dependencies
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm audit --omit=dev; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "npm audit failed on attempt $attempt; retrying after a short delay."
+            sleep $((attempt * 10))
+          done
       - run: npm run typecheck
       - run: npm test
       - run: npm run validate:gems
