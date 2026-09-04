@@ -41,6 +41,14 @@ export interface PassiveTreeHudPathPoint {
   offscreen?: boolean;
 }
 
+export interface PassiveTreeHudOperationDetected {
+  nodeId: number;
+  operation: 'allocate' | 'refund';
+  confidence: number;
+  /** Unique token so a renderer can acknowledge exactly once. */
+  token: string;
+}
+
 export interface PassiveTreeHudState {
   status: PassiveTreeHudStatus;
   enabled: boolean;
@@ -63,6 +71,8 @@ export interface PassiveTreeHudState {
   targetVerification?: 'learning' | 'verified' | 'changed' | 'mismatch';
   /** True while persistent visual-change detection can safely advance an ordered build. */
   autoAdvanceArmed?: boolean;
+  /** One-shot verified visual operation. Build progression remains the only authority that changes target ID. */
+  operationDetected?: PassiveTreeHudOperationDetected;
   displayId?: number;
   displayBounds?: { x: number; y: number; width: number; height: number };
   captureSize?: { width: number; height: number };
