@@ -3,6 +3,7 @@ import { guideCalloutsForStep, passivePlanSummary } from '../core/guide-experien
 import { summarizeActions } from '../core/actions';
 import type { RuntimeState } from '../core/types';
 import PassivePlanModal from './PassivePlanModal';
+import ZoneDiagramModal from './ZoneDiagramModal';
 import './command-palette.css';
 
 export type AppTab = 'overview' | 'guide' | 'build' | 'knowledge' | 'settings' | 'diagnostics';
@@ -18,6 +19,7 @@ interface Command {
 export default function CommandPalette({ state, onNavigate }: { state: RuntimeState; onNavigate: (tab: AppTab) => void }) {
   const [open, setOpen] = useState(false);
   const [passiveOpen, setPassiveOpen] = useState(false);
+  const [diagramOpen, setDiagramOpen] = useState(false);
   const [query, setQuery] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const passive = passivePlanSummary(state.buildCoach);
@@ -27,16 +29,18 @@ export default function CommandPalette({ state, onNavigate }: { state: RuntimeSt
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setPassiveOpen(false);
+        setDiagramOpen(false);
         setOpen((value) => !value);
       }
       if (event.key === 'Escape') {
         if (passiveOpen) setPassiveOpen(false);
+        else if (diagramOpen) setDiagramOpen(false);
         else setOpen(false);
       }
     };
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
-  }, [passiveOpen]);
+  }, [passiveOpen, diagramOpen]);
 
   useEffect(() => { if (open) window.setTimeout(() => input.current?.focus(), 0); else setQuery(''); }, [open]);
 
@@ -47,6 +51,7 @@ export default function CommandPalette({ state, onNavigate }: { state: RuntimeSt
     const base: Command[] = [
       { id: 'overview', label: 'Open Overview', detail: 'Current campaign and build status', keywords: 'home dashboard status', run: () => onNavigate('overview') },
       { id: 'campaign', label: 'Open Campaign Guide', detail: objective, keywords: `route acts guide lost objective ${important}`, run: () => onNavigate('guide') },
+      { id: 'diagram', label: 'Open current zone diagram', detail: current?.targetArea ?? state.currentZone ?? 'Current route objective flow', keywords: 'zone map layout diagram route picture objective flow', run: () => setDiagramOpen(true) },
       { id: 'build', label: 'Open Build & Build Doctor', detail: state.buildCoach?.profileName ?? 'Import or inspect a build', keywords: 'pob maxroll doctor gear upgrade passive gems', run: () => onNavigate('build') },
       { id: 'passive', label: 'Open Passive Plan', detail: passive.title, keywords: 'tree passive next node allocate refund skill point pob maxroll', run: () => setPassiveOpen(true) },
       { id: 'rewards', label: 'Permanent reward audit', detail: `${state.rewardAudit.passive.confirmed}/${state.rewardAudit.passive.knownTotal} passives · ${state.rewardAudit.trials.confirmed}/${state.rewardAudit.trials.knownTotal} trials`, keywords: 'passives trials labyrinth ascendancy book skill reward missing', run: () => onNavigate('guide') },
@@ -71,10 +76,11 @@ export default function CommandPalette({ state, onNavigate }: { state: RuntimeSt
     {open && <div className="command-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section className="command-palette">
         <header><span>⌕</span><input ref={input} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ExileQuesting…" /><kbd>ESC</kbd></header>
-        <div className="command-results">{filtered.map((command, index) => <button key={command.id} autoFocus={false} onClick={() => { command.run(); setOpen(false); }}><i>{index === 0 ? '↵' : '·'}</i><div><strong>{command.label}</strong><small>{command.detail}</small></div></button>)}{!filtered.length && <p>No matching command. Try “passive”, “lab”, “vendor”, “build”, or “settings”.</p>}</div>
+        <div className="command-results">{filtered.map((command, index) => <button key={command.id} autoFocus={false} onClick={() => { command.run(); setOpen(false); }}><i>{index === 0 ? '↵' : '·'}</i><div><strong>{command.label}</strong><small>{command.detail}</small></div></button>)}{!filtered.length && <p>No matching command. Try “passive”, “lab”, “diagram”, “vendor”, “build”, or “settings”.</p>}</div>
         <footer><span><kbd>Ctrl</kbd> <kbd>K</kbd> toggle</span><span>Search stays inside ExileQuesting. It never types into Path of Exile.</span></footer>
       </section>
     </div>}
     {passiveOpen && <PassivePlanModal state={state} onClose={() => setPassiveOpen(false)} />}
+    {diagramOpen && <ZoneDiagramModal state={state} onClose={() => setDiagramOpen(false)} />}
   </>;
 }
