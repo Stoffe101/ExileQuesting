@@ -74,9 +74,17 @@ export function normalizeBuildPlannerState(value: unknown, profiles: BuildProfil
     const stages = alignedStagesForProfile(profile);
     const stageIds = new Set(stages.map((stage) => stage.id));
     const requested = typeof requestedStages[profile.id] === 'string' ? requestedStages[profile.id] as string : undefined;
-    const selected = requested && stageIds.has(requested) ? requested : defaultActiveStageId(profile);
+    const requestedStageIsValid = Boolean(requested && stageIds.has(requested));
+    const selected = requestedStageIsValid ? requested : defaultActiveStageId(profile);
     if (selected) activeStageByProfile[profile.id] = selected;
-    passiveCursorByProfile[profile.id] = safeCursor(requestedCursors[profile.id], passiveCursorMaximum(profile));
+
+    // Maxroll owns one global ordered operation list, so its cursor survives
+    // stage normalization independently. PoB-derived cursors are stage-local:
+    // preserve them only when the persisted stage itself is still valid. This
+    // prevents stale pre-feature values from being interpreted as hundreds of
+    // already-completed derived clicks after migration.
+    const cursorSource = profile.maxroll || requestedStageIsValid ? requestedCursors[profile.id] : 0;
+    passiveCursorByProfile[profile.id] = safeCursor(cursorSource, passiveCursorMaximum(profile));
   }
 
   return { schemaVersion: 1, activeProfileId, activeStageByProfile, passiveCursorByProfile };
