@@ -12,6 +12,19 @@ ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with
 - `/passives` is now a critical end-of-campaign verification action rather than background context.
 - Added simplified **Minimal / Standard / Teach Me** experience presets while preserving advanced overlay controls.
 
+## Per-character campaign continuity
+
+- Campaign progress is now stored per character instead of sharing one global route cursor between every Path of Exile character.
+- Entering the **Act 1 Twilight Strand** starts a fresh provisional campaign profile immediately, so creating a new character after reaching a later act no longer leaves the new character on the old route position.
+- Client.txt character level-up lines are used to bind the provisional profile to the character name/class when that identity becomes available.
+- Returning to a previously progressed character restores that character's saved route progress using known character identity when available and conservative saved-zone/route context when the log has not yet emitted a fresh identity line.
+- Ambiguous character switches are handled conservatively rather than silently jumping to another character's route state.
+- Existing pre-0.2.5 global progress is migrated into a legacy character profile rather than being discarded.
+- Permanent-reward confirmations and route history follow the active character profile.
+- Startup Client.txt reconciliation now combines the latest entered-zone name with its generated internal area ID/level when available.
+- If ExileQuesting starts while the player is already inside a campaign zone, **Auto-show on zone change** can now open the campaign overlay from startup reconciliation instead of waiting for the next area transition.
+- Act 6 Twilight Strand is explicitly distinguished from the level-1 Act 1 starting area so it cannot accidentally reset campaign progress.
+
 ## Passive Plan
 
 - Replaced the in-game passive-tree drawing UX with a full ExileQuesting-owned Passive Plan.
@@ -48,28 +61,10 @@ Passive-tree data/model support remains where it is legitimately used by Passive
 ## Reliability and release safety
 
 - Expanded automated manager coverage for Campaign Route, Act Map, Timeline, Completion Audit, I'M LOST, `Ctrl+K`, Passive Plan, and zone diagrams at 1280x720.
+- Added regression coverage for per-character campaign profiles, Act 1 versus Act 6 Twilight Strand detection, character-name/class parsing, startup generated-area identity pairing, and restoring a saved later-act character instead of retaining another character's cursor.
 - Retained Gear Coach, Build Doctor, normal campaign-overlay, and overlay-lifecycle visual/smoke gates.
 - The packaged pinned PoB runtime is staged and exercised through a real child process before installer acceptance.
 - Windows acceptance builds a real NSIS installer, verifies its exact package-version filename/ProductVersion, installs the latest public stable release, performs the updater handoff, relaunches the candidate, smokes the updated installed application, verifies the installed PoB runtime, and uninstalls it.
 - The updater rehearsal refuses equal-version or downgrade candidates.
-
-## Validated 0.2.5 candidate
-
-Validated branch head: `a71d61d1243fd72e823d8f51e2b3feef62d16c59`
-
-- Linux CI: PASS.
-- 73 test files / 415 tests: PASS.
-- Campaign audit: 228/228 route pages contain decisive structured guidance.
-- Dual-mode campaign lint: 0 errors / 0 warnings.
-- League-start, optional-hidden, twink, and all bandit simulations: PASS.
-- Manager, Gear Coach, Build Doctor, and overlay visual gates: PASS.
-- Overlay lifecycle soak: PASS.
-- Pinned PoB runtime and child-process health: PASS.
-- NSIS package: **ExileQuesting-0.2.5-setup.exe**.
-- Installer size: 717,955,167 bytes.
-- Real public-stable updater rehearsal: **v0.2.4 -> v0.2.5** PASS.
-- Updated installed ProductVersion: **0.2.5.0**.
-- Updated installed PoB runtime: PASS.
-- Windows acceptance workflow: `33890053090` PASS.
 
 ExileQuesting remains advisory. It does not inject into Path of Exile, read process memory, automate gameplay input, or replace the trade site/Craft of Exile.
