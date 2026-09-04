@@ -245,6 +245,10 @@ export function campaignCompletionAudit(rewardAudit: RewardAudit, coach?: BuildC
       detail: `${rewardAudit.trials.confirmed}/${rewardAudit.trials.knownTotal} confirmed`,
     },
     {
+      id: 'labyrinths', label: 'Labyrinth / Ascendancy points', state: 'unknown',
+      detail: 'The route schedules Normal, Cruel and Merciless Labyrinth runs, but Client.txt does not prove completion. Confirm your Ascendancy points in-game before maps.',
+    },
+    {
       id: 'build-stage', label: 'Build progression', state: coach ? (gemIssues ? 'attention' : 'complete') : 'unknown',
       detail: coach ? `${coach.stageTitle ?? 'Active stage'}${gemIssues ? ` · ${gemIssues} gem acquisition issue${gemIssues === 1 ? '' : 's'} to review` : ' · active build guidance loaded'}` : 'No build profile imported.',
     },
@@ -254,9 +258,10 @@ export function campaignCompletionAudit(rewardAudit: RewardAudit, coach?: BuildC
     },
   ];
   const attention = checks.some((check) => check.state === 'attention');
+  const manual = checks.some((check) => check.state === 'unknown');
   return {
     state: attention ? 'attention' : 'ready',
-    headline: attention ? 'Finish these checks before settling into maps' : 'Campaign audit is clear',
+    headline: attention ? 'Finish these checks before settling into maps' : manual ? 'Automatic checks are clear · finish the manual checks' : 'Campaign audit is clear',
     checks,
   };
 }
