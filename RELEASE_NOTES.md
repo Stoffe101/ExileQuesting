@@ -1,20 +1,32 @@
 # ExileQuesting v0.2.5
 
+ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with Campaign Guide 2: an app-owned campaign and build coaching experience that is easier to trust, easier to read, and no longer depends on passive-tree screen capture or calibration.
+
 ## Character continuity hardening
 
-- Campaign progress, reward confirmations and build context are now character-bound rather than global.
-- A protected fresh-run generation prevents deleted/reused character names from inheriting an older run.
-- Named Client.txt level-up lines are treated as ambiguous observations unless they match the already tracked character or a tightly bounded fresh Act 1 bind; party members cannot silently switch profiles.
-- Character Profiles exposes active identity confidence/provenance, manual switching, ambiguity recovery, per-character reset/delete controls, and archived superseded runs.
-- Selecting/importing a PoB or Maxroll build links it to the active character so Passive Plan, gem guidance, Gear Coach and Build Doctor return with that character.
+- Campaign progress, route history, permanent-reward confirmations, character level context, and linked build context are now stored per ExileQuesting character profile instead of sharing one global campaign cursor.
+- Entering the **Act 1 Twilight Strand** creates a protected fresh-run profile immediately, so creating a new character after reaching a later act starts from the beginning instead of inheriting the previous character's progress.
+- Act 6 Twilight Strand is explicitly distinguished from the level-1 Act 1 starting area and cannot trigger a campaign reset.
+- Every fresh run has its own run-generation ID. If a deleted Path of Exile character name is later reused, the new run supersedes/archives the old same-name profile instead of inheriting its campaign state.
+- Arbitrary named Client.txt level-up messages are never accepted as proof of the active character. This prevents party-member level-ups from silently claiming or switching a profile.
+- A fresh/unnamed profile asks the player to confirm the exact Path of Exile character name once. After confirmation, only exact matching named level-up messages are accepted for that profile; explicit self-level events remain safe.
+- Returning characters are restored conservatively using their saved profile, exact previous area, and nearby route context. If multiple profiles fit almost equally well, ExileQuesting refuses to guess and exposes an identity-recovery choice instead.
+- Character Profiles now exposes the active character, Act/step, level, identity source/confidence/reason, linked build, last-seen time, manual switching, reset/delete controls, new-profile creation, ambiguity recovery, and archived superseded runs.
+- Existing pre-character-aware global progress is migrated into a legacy character profile rather than discarded.
+- Startup Client.txt reconciliation combines the latest entered-zone name with its preceding generated internal area ID/level when available, and can auto-show the campaign overlay when ExileQuesting starts while already inside a campaign zone.
+
+## Character-bound builds
+
+- Selecting or importing a PoB/Maxroll build while a character is active links that build profile to the character.
+- Returning to that character restores the linked build context used by Passive Plan, gem guidance, Gear Coach, Build Doctor, and build-aware campaign guidance.
+- Deleting a build removes stale character links without deleting campaign progress.
 
 ## Smaller Windows package
 
-- The bundled Path of Building kernel is now staged as a headless calculation runtime instead of embedding PoB's full GUI image/runtime payload.
-- Historical calculation data is retained, while GUI images and unrelated desktop runtime binaries are excluded.
-- A hard bundle-size budget plus a real load-and-calculate smoke test protects both installer size and Build Doctor correctness.
-
-ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with Campaign Guide 2: an app-owned campaign and build coaching experience that is easier to trust, easier to read, and no longer depends on passive-tree screen capture or calibration.
+- The bundled Path of Building kernel is now staged as a **headless calculation runtime** instead of embedding PoB's full GUI image/runtime payload.
+- Historical calculation data remains available for imported builds, while GUI images/fonts and unrelated desktop runtime binaries are excluded from the shipped bundle.
+- The headless bundle has a hard **240 MiB uncompressed budget** so an accidental return to the old ~838 MB payload fails CI instead of silently bloating the installer.
+- Windows acceptance now runs a real Path of Building `load-and-calculate` smoke against the stripped bundle before packaging, and repeats the installed PoB runtime smoke after the real updater handoff.
 
 ## Campaign Guide 2
 
@@ -25,19 +37,6 @@ ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with
 - Added **I'M LOST** recovery with non-destructive **REVISITING** and **CATCHING UP** states so detours do not corrupt furthest saved progress.
 - `/passives` is now a critical end-of-campaign verification action rather than background context.
 - Added simplified **Minimal / Standard / Teach Me** experience presets while preserving advanced overlay controls.
-
-## Per-character campaign continuity
-
-- Campaign progress is now stored per character instead of sharing one global route cursor between every Path of Exile character.
-- Entering the **Act 1 Twilight Strand** starts a fresh provisional campaign profile immediately, so creating a new character after reaching a later act no longer leaves the new character on the old route position.
-- Client.txt character level-up lines are used to bind the provisional profile to the character name/class when that identity becomes available.
-- Returning to a previously progressed character restores that character's saved route progress using known character identity when available and conservative saved-zone/route context when the log has not yet emitted a fresh identity line.
-- Ambiguous character switches are handled conservatively rather than silently jumping to another character's route state.
-- Existing pre-0.2.5 global progress is migrated into a legacy character profile rather than being discarded.
-- Permanent-reward confirmations and route history follow the active character profile.
-- Startup Client.txt reconciliation now combines the latest entered-zone name with its generated internal area ID/level when available.
-- If ExileQuesting starts while the player is already inside a campaign zone, **Auto-show on zone change** can now open the campaign overlay from startup reconciliation instead of waiting for the next area transition.
-- Act 6 Twilight Strand is explicitly distinguished from the level-1 Act 1 starting area so it cannot accidentally reset campaign progress.
 
 ## Passive Plan
 
@@ -70,15 +69,15 @@ Passive-tree data/model support remains where it is legitimately used by Passive
 - Added a current-zone diagram for every route step. Objective flow remains available even when no trustworthy spatial hint exists.
 - Layout knowledge now carries explicit `verified`, `reviewed`, `unaudited`, or `outdated` state instead of being presented as an exact procedural map.
 - Added contextual build gem, crafting, vendor-search, Passive Plan, and Build Doctor entry points throughout the campaign experience.
-- Added global `Ctrl+K` navigation for Campaign, zone diagrams, Passive Plan, permanent rewards, Build/Build Doctor, vendor helpers, Knowledge, Settings, Diagnostics, and the campaign overlay.
+- Added global `Ctrl+K` navigation for Campaign, Character Profiles, zone diagrams, Passive Plan, permanent rewards, Build/Build Doctor, vendor helpers, Knowledge, Settings, Diagnostics, and the campaign overlay.
 
 ## Reliability and release safety
 
-- Expanded automated manager coverage for Campaign Route, Act Map, Timeline, Completion Audit, I'M LOST, `Ctrl+K`, Passive Plan, and zone diagrams at 1280x720.
-- Added regression coverage for per-character campaign profiles, Act 1 versus Act 6 Twilight Strand detection, character-name/class parsing, startup generated-area identity pairing, and restoring a saved later-act character instead of retaining another character's cursor.
+- Expanded automated manager coverage for Campaign Route, Act Map, Timeline, Completion Audit, I'M LOST, `Ctrl+K`, Passive Plan, zone diagrams, and character continuity surfaces.
+- Added regression coverage for per-character campaign profiles, Act 1 versus Act 6 Twilight Strand detection, party-member/named versus explicit-self level parsing, reused-name run protection, ambiguity handling, build links, startup generated-area pairing, and restoring a saved later-act character instead of retaining another character's cursor.
 - Retained Gear Coach, Build Doctor, normal campaign-overlay, and overlay-lifecycle visual/smoke gates.
-- The packaged pinned PoB runtime is staged and exercised through a real child process before installer acceptance.
-- Windows acceptance builds a real NSIS installer, verifies its exact package-version filename/ProductVersion, installs the latest public stable release, performs the updater handoff, relaunches the candidate, smokes the updated installed application, verifies the installed PoB runtime, and uninstalls it.
+- The packaged pinned PoB runtime is staged and exercised through real child processes before installer acceptance.
+- Windows acceptance builds a real NSIS installer, verifies its exact package-version filename/ProductVersion, installs the latest public stable release, performs the updater handoff, relaunches the candidate, smokes the updated installed application, verifies the installed PoB calculation runtime, and uninstalls it.
 - The updater rehearsal refuses equal-version or downgrade candidates.
 
 ExileQuesting remains advisory. It does not inject into Path of Exile, read process memory, automate gameplay input, or replace the trade site/Craft of Exile.
