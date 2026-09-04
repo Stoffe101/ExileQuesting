@@ -454,7 +454,15 @@ export function trackPassiveTreeFrameMotion(
   height: number,
   options: PassiveTreeFrameTrackingOptions = {},
 ): PassiveTreeFrameMotion | undefined {
-  const maximumWorkingWidth = clamp(Math.trunc(options.maximumWorkingWidth ?? DEFAULT_WORKING_WIDTH), 120, 360);
+  // Wide/keyframe recovery is rare and benefits from a finer working image:
+  // it avoids one-working-pixel quantisation becoming several capture pixels
+  // after a large zoom. Ordinary live tracking keeps the cheaper 240px budget.
+  const defaultWorkingWidth = options.wide ? 480 : DEFAULT_WORKING_WIDTH;
+  const maximumWorkingWidth = clamp(
+    Math.trunc(options.maximumWorkingWidth ?? defaultWorkingWidth),
+    120,
+    options.wide ? 640 : 360,
+  );
   const previous = toGray(previousBitmap, width, height, maximumWorkingWidth);
   const current = toGray(currentBitmap, width, height, maximumWorkingWidth);
   if (!previous || !current || previous.width !== current.width || previous.height !== current.height) return undefined;
