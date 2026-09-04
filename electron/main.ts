@@ -1070,8 +1070,10 @@ else {
 
     mainWindow = createMainWindow();
     overlayWindow = createOverlayWindow();
-    passiveTreeHudWindow = createPassiveTreeHudWindow();
-    initializePassiveTreeHud();
+    // Campaign Guide 2 retired the passive-tree screen HUD. Do not create its
+    // full-screen BrowserWindow or start any related runtime service. Keeping
+    // legacy state/types for one migration cycle must never affect capture.
+    passiveTreeHudState = passiveTreeHudIdle(false);
     createTray();
     registerHotkeys();
     await startLogWatcher();
