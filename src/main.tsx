@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './ui/App';
+import ManagerV2 from './ui/ManagerV2';
 import './ui/styles.css';
 import './ui/maxroll.css';
 import './ui/gear-coach.css';
@@ -20,6 +21,6 @@ document.documentElement.dataset.mode = rendererMode;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {rendererMode === 'manager' ? <ManagerV2 /> : <App />}
   </StrictMode>,
 );
