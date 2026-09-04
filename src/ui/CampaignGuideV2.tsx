@@ -42,6 +42,13 @@ function nearestEnabledIndex(state: RuntimeState, from = state.progress): number
   return Math.max(0, Math.min(from, state.dataset.steps.length - 1));
 }
 
+function nextEnabledIndex(state: RuntimeState, from: number): number | null {
+  for (let index = from + 1; index < state.dataset.steps.length; index += 1) {
+    if (isStepEnabled(state.dataset.steps[index], state.settings)) return index;
+  }
+  return null;
+}
+
 function rewardFor(state: RuntimeState, step: CampaignStep): RewardAuditItem | undefined {
   return state.rewardAudit.items.find((item) => item.stepId === step.id);
 }
@@ -211,6 +218,7 @@ export default function CampaignGuideV2({ state, setState }: { state: RuntimeSta
   const callouts = guideCalloutsForStep(inspected);
   const reward = rewardFor(state, inspected);
   const recovery = guideRecoveryContext(state.dataset, currentIndex, state.currentAreaId);
+  const nextCurrentIndex = nextEnabledIndex(state, currentIndex);
 
   const inspect = (index: number) => {
     const step = state.dataset.steps[index];
@@ -280,7 +288,7 @@ export default function CampaignGuideV2({ state, setState }: { state: RuntimeSta
 
             {reward && <section className={`g2-reward audit-${reward.status}`}><div><span>PERMANENT REWARD</span><strong>{reward.type === 'passive' ? 'Passive skill point quest' : 'Ascendancy Trial'} · {reward.status === 'confirmed' ? 'confirmed' : reward.status === 'route-passed' ? 'needs confirmation' : 'not reached'}</strong><p>Route progress never counts this as collected until you confirm it.</p></div><button className={reward.status === 'confirmed' ? 'ghost-button' : 'primary-button'} onClick={() => void window.exileQuesting.confirmReward(reward.stepId, reward.status !== 'confirmed').then(setState)}>{reward.status === 'confirmed' ? 'Unconfirm' : 'Confirm'}</button></section>}
 
-            <footer className="g2-step-actions">{inspectedIndex !== currentIndex ? <button className="primary-button" onClick={() => void window.exileQuesting.setProgress(inspectedIndex).then(setState)}>Resume route from here</button> : <button className="primary-button" onClick={() => void window.exileQuesting.setProgress(Math.min(state.dataset.steps.length - 1, currentIndex + 1)).then(setState)}>Complete step →</button>}</footer>
+            <footer className="g2-step-actions">{inspectedIndex !== currentIndex ? <button className="primary-button" onClick={() => void window.exileQuesting.setProgress(inspectedIndex).then(setState)}>Resume route from here</button> : <button className="primary-button" disabled={nextCurrentIndex === null} onClick={() => nextCurrentIndex !== null && void window.exileQuesting.setProgress(nextCurrentIndex).then(setState)}>{nextCurrentIndex === null ? 'Campaign complete' : 'Complete step →'}</button>}</footer>
           </main>
         </div>
       </>}
