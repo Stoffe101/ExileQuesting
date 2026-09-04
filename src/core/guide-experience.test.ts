@@ -62,4 +62,18 @@ describe('Campaign Guide 2 semantics', () => {
     expect(result.state).toBe('attention');
     expect(result.checks.find((check) => check.id === 'passives')?.state).toBe('attention');
   });
+
+  it('keeps Labyrinth completion as a visible manual check instead of guessing from route progress', () => {
+    const audit: RewardAudit = {
+      passive: { confirmed: 22, routePassed: 22, knownTotal: 22 },
+      trials: { confirmed: 6, routePassed: 6, knownTotal: 6 },
+      items: [], needsFinalPassivesAudit: false,
+    };
+    const result = campaignCompletionAudit(audit);
+    const lab = result.checks.find((check) => check.id === 'labyrinths');
+    expect(result.state).toBe('ready');
+    expect(result.headline).toContain('manual checks');
+    expect(lab?.state).toBe('unknown');
+    expect(lab?.detail).toContain('Client.txt does not prove completion');
+  });
 });
