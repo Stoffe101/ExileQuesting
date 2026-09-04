@@ -81,7 +81,7 @@ export function requiresManualCampaignCompletion(step?: CampaignStep): boolean {
   return Boolean(step && (
     step.permanentReward === 'passive' ||
     step.permanentReward === 'trial' ||
-    step.tags.includes('labyrinth')
+    step.tags?.includes('labyrinth')
   ));
 }
 
