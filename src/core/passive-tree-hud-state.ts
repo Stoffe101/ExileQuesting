@@ -26,6 +26,10 @@ export interface PassiveTreeHudScreenNode {
   arrowX?: number;
   arrowY?: number;
   arrowAngle?: number;
+  /** Approximate screen-space distance from the visible tree viewport. */
+  offscreenDistancePx?: number;
+  /** Human-readable compass direction for the edge indicator. */
+  offscreenDirection?: string;
 }
 
 export interface PassiveTreeHudPathPoint {
@@ -53,6 +57,12 @@ export interface PassiveTreeHudState {
   confidence?: number;
   inliers?: number;
   rms?: number;
+  /** Cheap stationary fast path, feature tracking, or keyframe recovery. */
+  trackingMode?: 'stationary' | 'motion' | 'reacquired';
+  /** Local continuity watchdog around the exact projected target. */
+  targetVerification?: 'learning' | 'verified' | 'changed' | 'mismatch';
+  /** True while persistent visual-change detection can safely advance an ordered build. */
+  autoAdvanceArmed?: boolean;
   displayId?: number;
   displayBounds?: { x: number; y: number; width: number; height: number };
   captureSize?: { width: number; height: number };
