@@ -59,6 +59,7 @@ const DEFAULT_WORKING_WIDTH = 240;
 const DEFAULT_SEARCH_RADIUS = 78;
 const PATCH_RADIUS = 4;
 const MAX_FEATURES = 42;
+const WIDE_MAX_FEATURES = 64;
 const HYPOTHESIS_FEATURES = 26;
 const MIN_TEXTURE = 22;
 const MATCH_ERROR_LIMIT = 32;
@@ -159,7 +160,7 @@ function textureScore(frame: GrayFrame, x: number, y: number): number {
  * the mostly-static top/bottom PoE controls. These points have no passive-node
  * identity. They only describe how the already-known tree image moved.
  */
-function selectFeatures(frame: GrayFrame): FeaturePoint[] {
+function selectFeatures(frame: GrayFrame, maximumFeatures = MAX_FEATURES): FeaturePoint[] {
   const margin = PATCH_RADIUS + 4;
   const minX = Math.max(margin, Math.floor(frame.width * 0.06));
   const maxX = Math.min(frame.width - margin - 1, Math.ceil(frame.width * 0.94));
@@ -188,7 +189,7 @@ function selectFeatures(frame: GrayFrame): FeaturePoint[] {
   for (const candidate of candidates) {
     if (selected.some((existing) => Math.hypot(existing.x - candidate.x, existing.y - candidate.y) < 9)) continue;
     selected.push(candidate);
-    if (selected.length >= MAX_FEATURES) break;
+    if (selected.length >= maximumFeatures) break;
   }
   return selected;
 }
@@ -462,7 +463,10 @@ export function trackPassiveTreeFrameMotion(
     return { scale: 1, offsetX: 0, offsetY: 0, confidence: 0.995, inliers: 0, rms: 0, stationary: true };
   }
 
-  const features = selectFeatures(previous);
+  // Ordinary frame-to-frame tracking stays on the smaller feature budget for
+  // performance. Wide/keyframe recovery deliberately samples more spatially
+  // distributed anchors because extreme zoom can crop most of the old frame.
+  const features = selectFeatures(previous, options.wide ? WIDE_MAX_FEATURES : MAX_FEATURES);
   if (features.length < 8) return undefined;
 
   const requestedRadius = Math.max(18, options.searchRadiusPx ?? DEFAULT_SEARCH_RADIUS);
@@ -525,7 +529,8 @@ export function trackPassiveTreeFrameMotion(
 
   const visibleFraction = selected.scale > 1 ? 1 / (selected.scale * selected.scale) : 1;
   const physicalVisibleBudget = features.length * visibleFraction;
-  const adaptiveDefaultMinimum = Math.max(6, Math.ceil(Math.min(features.length * 0.28, physicalVisibleBudget * 0.7)));
+  const visibilityRetention = options.wide && selected.scale >= 2 ? 0.5 : 0.7;
+  const adaptiveDefaultMinimum = Math.max(6, Math.ceil(Math.min(features.length * 0.28, physicalVisibleBudget * visibilityRetention)));
   const minimumInliers = Math.max(6, Math.trunc(options.minimumInliers ?? adaptiveDefaultMinimum));
   if (selected.inliers.length < minimumInliers) return undefined;
   const minimumConfidence = clamp(options.minimumConfidence ?? (options.wide ? 0.55 : 0.6), 0, 1);
