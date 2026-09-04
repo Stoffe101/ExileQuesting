@@ -13,6 +13,18 @@ function labyrinthName(raw: string): string | undefined {
   return match ? LAB_NAMES[match[1]] : undefined;
 }
 
+function routeModeForLine(raw: string): 'league-start' | 'twink' | undefined {
+  const lower = raw.toLowerCase();
+  if (/\btwinkrun\s*:/.test(lower)) return 'twink';
+  if (/\bleaguestart\s*:/.test(lower)) return 'league-start';
+  return undefined;
+}
+
+export function sourceLineVisibleForRouteMode(raw: string, leagueStart: boolean): boolean {
+  const mode = routeModeForLine(raw);
+  return !mode || (leagueStart ? mode === 'league-start' : mode === 'twink');
+}
+
 function questTokenLabel(token: string): string {
   const readable = token.replace(/[()]/g, '').replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
   return readable ? `the ${readable} quest item` : 'the quest item';
@@ -149,34 +161,39 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
   return dedupe(actions);
 }
 
+function actionModeKey(action: RouteAction): string {
+  return action.sourceLine ? routeModeForLine(action.sourceLine) ?? 'all' : 'all';
+}
+
 function dedupe(actions: RouteAction[]): RouteAction[] {
   const seen = new Set<string>();
   return actions.filter((action) => {
-    const key = `${action.type}|${action.title.toLowerCase()}`;
+    const key = `${actionModeKey(action)}|${action.type}|${action.title.toLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
-export function buildRouteActions(rawLines: string[], areas: Map<string, AreaRecord>): RouteAction[] {
-  const actions = dedupe(rawLines.flatMap((line) => parseLine(line, areas)));
+function reprioritize(actions: RouteAction[]): RouteAction[] {
   const decisive = actions.filter((action) => action.type !== 'context');
   const context = actions.filter((action) => action.type === 'context');
   const ordered = [...decisive, ...context];
-
   let assignedNow = false;
-  ordered.forEach((action) => {
-    if (action.type === 'context') {
-      action.priority = 'context';
-    } else if (!assignedNow) {
-      action.priority = 'now';
-      assignedNow = true;
-    } else {
-      action.priority = 'then';
-    }
+  return ordered.map((action) => {
+    const priority: RouteAction['priority'] = action.type === 'context' ? 'context' : !assignedNow ? 'now' : 'then';
+    if (action.type !== 'context' && !assignedNow) assignedNow = true;
+    return { ...action, priority };
   });
-  return ordered;
+}
+
+export function buildRouteActions(rawLines: string[], areas: Map<string, AreaRecord>): RouteAction[] {
+  return reprioritize(dedupe(rawLines.flatMap((line) => parseLine(line, areas))));
+}
+
+/** Mirrors Exile-UI's leveling tracker: league-start hides twinkrun lines and vice versa. */
+export function actionsForRouteMode(actions: RouteAction[], leagueStart: boolean): RouteAction[] {
+  return reprioritize(actions.filter((action) => !action.sourceLine || sourceLineVisibleForRouteMode(action.sourceLine, leagueStart)));
 }
 
 export function summarizeActions(actions: RouteAction[]): { now?: RouteAction; then: RouteAction[]; context: RouteAction[] } {
