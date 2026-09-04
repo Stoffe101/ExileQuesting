@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const target = 'tools/visual-manager.ts';
-let text = await readFile(target, 'utf8');
+let text = (await readFile(target, 'utf8')).replace(/\r\n/g, '\n');
 
 function replaceOnce(from, to) {
   const count = text.split(from).length - 1;
