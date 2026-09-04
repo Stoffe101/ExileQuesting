@@ -1,0 +1,58 @@
+name: Prepare ExileQuesting 0.2.5 metadata
+
+on:
+  push:
+    branches: [feature/campaign-guide-2]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Bump package and lockfile to 0.2.5
+        run: npm version 0.2.5 --no-git-tag-version --allow-same-version
+      - name: Require a forward updater transition
+        shell: python
+        run: |
+          from pathlib import Path
+
+          targets = {
+            Path('.github/workflows/windows-package.yml'): 'Could not find a previous stable release to exercise the updater against $candidateTag.',
+            Path('.github/workflows/release.yml'): 'Could not find a previous stable release to exercise the release updater against $candidateTag.',
+          }
+
+          for path, missing_message in targets.items():
+              text = path.read_text(encoding='utf-8')
+              marker = f'          if (-not $previous) {{ throw "{missing_message}" }}\n'
+              if marker not in text:
+                  raise SystemExit(f'Updater baseline marker not found in {path}.')
+              guard = marker + '''          $candidateSemVer = [version]$candidateVersion
+          $previousTagVersion = [string]$previous.tagName
+          if ($previousTagVersion -notmatch '^v?(\\d+\\.\\d+\\.\\d+)$') { throw "Previous stable tag '$previousTagVersion' is not a supported semantic version." }
+          $previousSemVer = [version]$Matches[1]
+          if ($candidateSemVer -le $previousSemVer) {
+            throw "Candidate $candidateTag must be newer than latest public stable $($previous.tagName). Refusing an updater downgrade/equal-version rehearsal."
+          }
+          Write-Host "Verified forward updater baseline: $($previous.tagName) -> $candidateTag"
+'''
+              text = text.replace(marker, guard, 1)
+              path.write_text(text, encoding='utf-8')
+      - name: Remove one-shot workflow and commit
+        shell: bash
+        run: |
+          git rm .github/workflows/version-025-one-shot.yml
+          git add package.json package-lock.json .github/workflows/windows-package.yml .github/workflows/release.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Prepare release candidate v0.2.5"
+          git push origin HEAD:feature/campaign-guide-2
