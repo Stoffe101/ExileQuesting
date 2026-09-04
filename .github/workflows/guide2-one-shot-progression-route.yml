@@ -26,38 +26,30 @@ jobs:
           path = Path('electron/main.ts')
           text = path.read_text(encoding='utf-8')
 
-          old = """function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
-          function rewardEnabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, { ...settings, showOptional: true }); }"""
-          new = """function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
-          function progressionSteps(): CampaignDataset['steps'] { return campaignForRouteMode(dataset, settings.leagueStart).steps; }
-          function rewardEnabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, { ...settings, showOptional: true }); }"""
-          if old not in text:
-              raise SystemExit('progression helper insertion marker missing')
-          text = text.replace(old, new, 1)
+          helper = "function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }"
+          helper_with_progression = helper + "\nfunction progressionSteps(): CampaignDataset['steps'] { return campaignForRouteMode(dataset, settings.leagueStart).steps; }"
+          if 'function progressionSteps()' not in text:
+              if helper not in text:
+                  raise SystemExit('enabled helper missing')
+              text = text.replace(helper, helper_with_progression, 1)
 
-          old = """  if (event.type !== 'character-level' && settings.autoAdvance) {
-            decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"""
-          new = """  if (event.type !== 'character-level' && settings.autoAdvance) {
-            const activeSteps = progressionSteps();
-            decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"""
-          if old not in text:
-              raise SystemExit('live progression marker missing')
-          text = text.replace(old, new, 1)
+          live = "decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"
+          live_new = "const activeSteps = progressionSteps();\n    decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"
+          if live not in text:
+              raise SystemExit('live decideProgression call missing')
+          text = text.replace(live, live_new, 1)
 
-          old = """  updateCurrentArea(event);
-            const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
-            if (decision && decision.confidence === 'verified' && decision.to > progress && decision.to - progress <= 3) {
-              await setProgress(decision.to, `Startup reconciliation: ${decision.reason}`, 'verified', true, event); startupReconciliation = { state: 'none' };
-            } else startupReconciliation = reconcileStartup(dataset.steps, progress, event, (step) => enabled(step));"""
-          new = """  updateCurrentArea(event);
-            const activeSteps = progressionSteps();
-            const decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
-            if (decision && decision.confidence === 'verified' && decision.to > progress && decision.to - progress <= 3) {
-              await setProgress(decision.to, `Startup reconciliation: ${decision.reason}`, 'verified', true, event); startupReconciliation = { state: 'none' };
-            } else startupReconciliation = reconcileStartup(activeSteps, progress, event, (step) => enabled(step));"""
-          if old not in text:
-              raise SystemExit('startup progression marker missing')
-          text = text.replace(old, new, 1)
+          startup = "const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"
+          startup_new = "const activeSteps = progressionSteps();\n  const decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });"
+          if startup not in text:
+              raise SystemExit('startup decideProgression call missing')
+          text = text.replace(startup, startup_new, 1)
+
+          reconciliation = "reconcileStartup(dataset.steps, progress, event, (step) => enabled(step))"
+          if reconciliation not in text:
+              raise SystemExit('startup reconcile call missing')
+          text = text.replace(reconciliation, "reconcileStartup(activeSteps, progress, event, (step) => enabled(step))", 1)
+
           path.write_text(text, encoding='utf-8')
       - name: Remove one-shot workflow and commit
         shell: bash
