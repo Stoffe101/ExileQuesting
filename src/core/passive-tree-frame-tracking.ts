@@ -63,7 +63,7 @@ const HYPOTHESIS_FEATURES = 26;
 const MIN_TEXTURE = 22;
 const MATCH_ERROR_LIMIT = 32;
 const NORMAL_SCALE_FACTORS = [0.64, 0.72, 0.8, 0.88, 0.94, 1, 1.06, 1.14, 1.24, 1.36, 1.38, 1.5, 1.62, 1.64, 1.76];
-const WIDE_SCALE_FACTORS = [0.48, 0.56, 0.64, 0.74, 0.84, 0.92, 1, 1.08, 1.18, 1.3, 1.38, 1.44, 1.6, 1.62, 1.78, 1.98, 2.18, 2.25];
+const WIDE_SCALE_FACTORS = [0.48, 0.56, 0.64, 0.74, 0.84, 0.92, 1, 1.08, 1.18, 1.3, 1.38, 1.44, 1.6, 1.62, 1.76, 1.78, 1.98, 2.18, 2.25];
 const REFINED_HYPOTHESES = 3;
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -247,7 +247,12 @@ function matchFeatureAtScale(
   const expected = expectedPointAtScale(previous, source, scale);
   const expectedX = expected.x + (preferredOffset?.x ?? 0);
   const expectedY = expected.y + (preferredOffset?.y ?? 0);
-  const searchRadius = preferredOffset ? Math.min(radius, 12) : radius;
+  // Ordinary frame-to-frame zoom keeps a tight residual-pan window to reject
+  // repeated tree artwork. Very large keyframe recovery can legitimately carry
+  // a larger residual pan after downsampling (the real 2.25x case is ~15 px on
+  // the working frame), so only extreme zoom hypotheses get the wider window.
+  const preferredRadius = scale >= 1.9 ? 22 : 12;
+  const searchRadius = preferredOffset ? Math.min(radius, preferredRadius) : radius;
   const coarseStep = preferredOffset ? 2 : searchRadius > 48 ? 5 : searchRadius > 30 ? 4 : 3;
   const minX = Math.max(scaledPatchMargin, Math.floor(expectedX - searchRadius));
   const maxX = Math.min(current.width - scaledPatchMargin - 1, Math.ceil(expectedX + searchRadius));
@@ -374,7 +379,12 @@ function hasUsefulSpread(motion: WorkingMotion, width: number, height: number): 
 }
 
 function hypothesisScore(motion: WorkingMotion, attemptedFeatures: number): number {
-  const coverage = motion.inliers.length / Math.max(1, attemptedFeatures);
+  // A zoom-in necessarily throws away old-frame area. Rank hypotheses against
+  // the features that can physically remain visible, not every point sampled
+  // from the old viewport, or a correct extreme recovery is unfairly buried.
+  const visibleFraction = motion.scale > 1 ? 1 / (motion.scale * motion.scale) : 1;
+  const visibleFeatureBudget = Math.max(4, attemptedFeatures * visibleFraction);
+  const coverage = clamp(motion.inliers.length / visibleFeatureBudget, 0, 1);
   const residual = 1 - clamp(motion.rms / 5.5, 0, 1);
   const patch = 1 - clamp(motion.meanPatchError / MATCH_ERROR_LIMIT, 0, 1);
   return coverage * 0.64 + residual * 0.22 + patch * 0.14;
