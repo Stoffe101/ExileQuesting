@@ -129,6 +129,26 @@ async function makeState(): Promise<RuntimeState> {
     currentAreaId: 'Hideout',
     currentAreaLevel: 83,
     characterLevel: 93,
+    characterTracking: {
+      activeProfileId: 'visual-character-main',
+      active: {
+        id: 'visual-character-main', runId: 'visual-run-main', characterName: 'VisualWitch', characterClass: 'Witch', characterLevel: 93, progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-maxroll', buildProfileName: 'Visual League Starter',
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual fixture: exact character name confirmed by the user.', updatedAt: now, lastSeenAt: now,
+      },
+      profiles: [
+        {
+          id: 'visual-character-main', runId: 'visual-run-main', characterName: 'VisualWitch', characterClass: 'Witch', characterLevel: 93, progress, act: dataset.steps[progress]?.act,
+          provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-maxroll', buildProfileName: 'Visual League Starter',
+          identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual fixture: exact character name confirmed by the user.', updatedAt: now, lastSeenAt: now,
+        },
+        {
+          id: 'visual-character-alt', runId: 'visual-run-alt', characterName: 'VisualRanger', characterClass: 'Ranger', characterLevel: 38, progress: Math.min(72, dataset.steps.length - 1), act: 4,
+          provisional: false, freshStart: false, archived: false, identitySource: 'route-match', identityConfidence: 'inferred',
+          identityReason: 'Visual fixture: saved route context matched this character conservatively.', updatedAt: now, lastSeenAt: '2026-09-03T17:00:00.000Z',
+        },
+      ],
+    },
     xpGuidance: calculateXpGuidance(93, 83),
     rewardProgress: rewardProgressFor(dataset, progress),
     rewardAudit: buildRewardAudit(dataset, progress, new Set()),
@@ -157,7 +177,7 @@ async function makeState(): Promise<RuntimeState> {
       reason: 'Current zone established without changing campaign progress.', raw: "You have entered Cartographer's Hideout.",
     }],
     runStats: visualRunStats(),
-    appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
+    appUpdate: { status: 'up-to-date', currentVersion: '0.2.5', latestVersion: '0.2.5', message: 'ExileQuesting 0.2.5 is up to date.' },
     recovery: { previousSessionUnclean: false, acknowledged: true },
     buildCoach: {
       profileId: 'visual-maxroll',
@@ -188,7 +208,7 @@ async function makeState(): Promise<RuntimeState> {
     },
     lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in this visual fixture.' },
     passiveTreeHud: passiveTreeHudIdle(false),
-    appVersion: '0.2.0',
+    appVersion: '0.2.5',
     diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
 }
@@ -234,11 +254,13 @@ interface Scenario { name: string; width: number; height: number; tab: string; e
 const scenarios: Scenario[] = [
   { name: 'overview-1920x1080', width: 1920, height: 1080, tab: 'Overview', expectScrollable: true },
   { name: 'campaign-1920x1080', width: 1920, height: 1080, tab: 'Campaign' },
+  { name: 'characters-1920x1080', width: 1920, height: 1080, tab: 'Characters' },
   { name: 'settings-1920x1080', width: 1920, height: 1080, tab: 'Settings', expectScrollable: true },
   { name: 'diagnostics-1920x1080', width: 1920, height: 1080, tab: 'Diagnostics', expectScrollable: true },
   { name: 'diagnostics-1536x864', width: 1536, height: 864, tab: 'Diagnostics', expectScrollable: true },
   { name: 'settings-1280x720', width: 1280, height: 720, tab: 'Settings', expectScrollable: true },
   { name: 'diagnostics-1000x700', width: 1000, height: 700, tab: 'Diagnostics', expectScrollable: true, expectCompactSidebar: true },
+  { name: 'characters-1000x700', width: 1000, height: 700, tab: 'Characters', expectCompactSidebar: true },
   { name: 'overview-2752x1152', width: 2752, height: 1152, tab: 'Overview', ultrawide: true },
   { name: 'overview-3440x1440', width: 3440, height: 1440, tab: 'Overview', ultrawide: true },
   { name: 'diagnostics-3440x1440', width: 3440, height: 1440, tab: 'Diagnostics', ultrawide: true },
@@ -279,6 +301,8 @@ async function main(): Promise<void> {
   await window.loadFile(path.resolve('dist/index.html'));
   await loading;
   await waitForManager(window);
+  const trackingText = await window.webContents.executeJavaScript(`document.querySelector('.topbar')?.textContent ?? ''`);
+  if (!trackingText.includes('VisualWitch')) throw new Error('Manager visual fixture did not render active character tracking in the top bar.');
 
   const captures: unknown[] = [];
   for (const scenario of scenarios) {
