@@ -34,7 +34,9 @@ interface BootstrapMatch {
 }
 
 const MAX_CAPTURE_PIXELS = 4_000_000;
-const DEFAULT_RADII = [3, 4, 5, 6, 8, 10, 12, 15, 18, 22];
+// Sparse logarithmic-ish ladder covers full zoom-out through roughly 3x node
+// size without multiplying bootstrap cost by every intermediate pixel radius.
+const DEFAULT_RADII = [3, 4, 6, 8, 11, 15, 20, 27, 36, 48, 62];
 const BOOTSTRAP_SCALE_FACTORS = [0.64, 0.76, 0.88, 1, 1.14, 1.32, 1.52, 1.76, 2.04, 2.36, 2.74, 3.18];
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -206,7 +208,13 @@ function matchBootstrapTransform(
   candidates: PassiveBootstrapCandidate[],
   tolerance: number,
 ): BootstrapMatch[] {
-  const matches: BootstrapMatch[] = [{ tree: anchor, candidate: anchorCandidate, candidateIndex: anchorIndex, distance: Math.hypot(projectPassiveTreePoint(transform, anchor).x - anchorCandidate.x, projectPassiveTreePoint(transform, anchor).y - anchorCandidate.y) }];
+  const projectedAnchor = projectPassiveTreePoint(transform, anchor);
+  const matches: BootstrapMatch[] = [{
+    tree: anchor,
+    candidate: anchorCandidate,
+    candidateIndex: anchorIndex,
+    distance: Math.hypot(projectedAnchor.x - anchorCandidate.x, projectedAnchor.y - anchorCandidate.y),
+  }];
   const used = new Set<number>([anchorIndex]);
   for (const tree of localAnchors) {
     if (tree.id === anchor.id) continue;
