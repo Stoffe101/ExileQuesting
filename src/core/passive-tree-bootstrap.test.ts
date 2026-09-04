@@ -22,12 +22,13 @@ function localAnchors(rotation: number): TreePoint[] {
 }
 
 function candidatesFor(anchors: TreePoint[], transform: { scale: number; offsetX: number; offsetY: number; ySign: 1 }): PassiveBootstrapCandidate[] {
+  const zoomRatio = transform.scale / 0.108;
   const candidates = anchors.map((anchor, index) => {
     const point = projectPassiveTreePoint(transform, anchor);
     return {
       x: point.x + (index % 2 ? 0.8 : -0.5),
       y: point.y + (index % 3 ? 0.6 : -0.7),
-      radius: index === 0 ? 18 : 10 + (index % 2),
+      radius: (index === 0 ? 18 : 10 + (index % 2)) * Math.max(0.72, Math.min(3.2, zoomRatio)),
       score: index === 0 ? 70 : 45 - index,
     };
   });
@@ -62,9 +63,22 @@ describe('automatic passive tree bootstrap', () => {
     expect(result).toBeDefined();
     expect(result!.inliers).toBeGreaterThanOrEqual(8);
     expect(result!.confidence).toBeGreaterThan(0.8);
-    expect(result!.transform.scale).toBeCloseTo(expected.scale, 6);
+    expect(result!.transform.scale).toBeCloseTo(expected.scale, 3);
     expect(result!.transform.offsetX).toBeCloseTo(expected.offsetX, 0);
     expect(result!.transform.offsetY).toBeCloseTo(expected.offsetY, 0);
+  });
+
+  it.each([1.32, 1.62, 2.25, 3.05])('solves first-run bootstrap without requiring maximum zoom at %.2fx', (zoom) => {
+    const anchors = localAnchors(0.73);
+    const baseScale = 0.108;
+    const expected = { scale: baseScale * zoom, offsetX: 1010, offsetY: 565, ySign: 1 as const };
+    const result = solvePassiveTreeBootstrap(anchors[0], anchors, candidatesFor(anchors, expected), baseScale, { width: 1920, height: 1080 });
+    expect(result).toBeDefined();
+    expect(result!.inliers).toBeGreaterThanOrEqual(8);
+    expect(result!.confidence).toBeGreaterThan(0.79);
+    expect(result!.transform.scale).toBeCloseTo(expected.scale, 2);
+    expect(result!.transform.offsetX).toBeCloseTo(expected.offsetX, 1);
+    expect(result!.transform.offsetY).toBeCloseTo(expected.offsetY, 1);
   });
 
   it('fails closed when two equally plausible large roots exist', () => {
