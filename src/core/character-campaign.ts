@@ -276,6 +276,10 @@ export function selectCharacterProfileForZone(
   const ranked = characterProfileMatchesForZone(document, event, steps, enabled);
   if (!ranked.length) return undefined;
   if (ranked[0].profile.id === currentProfileId) return ranked[0].profile;
-  if (ranked[1] && ranked[0].score - ranked[1].score < 8 && ranked[1].profile.id !== currentProfileId) return undefined;
+  // If two non-current candidates are close, or the current profile is the
+  // runner-up, the zone alone is not enough evidence to switch characters.
+  // Failing closed is safer than letting a revisit/party transition steal the
+  // active campaign cursor.
+  if (ranked[1] && ranked[0].score - ranked[1].score < 8) return undefined;
   return ranked[0].profile;
 }

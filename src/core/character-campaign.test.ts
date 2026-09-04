@@ -62,6 +62,17 @@ describe('per-character campaign progress', () => {
     expect(selectCharacterProfileForZone(document, { areaId: '2_7_1' }, steps, enabled, 'missing')).toBeUndefined();
   });
 
+  it('fails closed when another profile barely outranks the current profile', () => {
+    let document = emptyCharacterCampaignDocument();
+    document = upsertCharacterProfile(document, createCharacterCampaignProfile('candidate', '2026-09-04T10:00:00.000Z', { progress: 2 }));
+    document = upsertCharacterProfile(document, createCharacterCampaignProfile('current', '2026-09-04T11:00:00.000Z', { progress: 3 }));
+    const matches = characterProfileMatchesForZone(document, { areaId: '2_7_1' }, steps, enabled);
+    expect(matches[0].profile.id).toBe('candidate');
+    expect(matches[1].profile.id).toBe('current');
+    expect(matches[0].score - matches[1].score).toBeLessThan(8);
+    expect(selectCharacterProfileForZone(document, { areaId: '2_7_1' }, steps, enabled, 'current')).toBeUndefined();
+  });
+
   it('removes deleted build links without deleting character progress', () => {
     let document = upsertCharacterProfile(emptyCharacterCampaignDocument(), createCharacterCampaignProfile('x', '2026-09-04T10:00:00.000Z', { progress: 3, buildProfileId: 'build-a' }));
     document = unlinkBuildProfile(document, 'build-a', '2026-09-04T11:00:00.000Z');
