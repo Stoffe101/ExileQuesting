@@ -52,6 +52,16 @@ describe('strict Client.txt events', () => {
     const event = parseClientLogLine('2026/09/01 18:02:00 [INFO Client] Stoffe (Witch) is now level 19');
     expect(event?.type).toBe('character-level');
     expect(event?.characterLevel).toBe(19);
+    expect(event?.characterName).toBe('Stoffe');
+    expect(event?.characterClass).toBe('Witch');
+  });
+
+  it('pairs an entered-area startup line with its preceding generated area identity', () => {
+    const events = parseLogTail([
+      '2026/09/01 18:00:00 [DEBUG Client] Generating level 1 area "1_1_1" with seed 1',
+      '2026/09/01 18:00:01 [INFO Client] : You have entered Twilight Strand.',
+    ].join('\n'));
+    expect(latestZoneEvent(events)).toMatchObject({ areaId: '1_1_1', areaName: 'Twilight Strand', areaLevel: 1 });
   });
 
   it('finds the latest zone from a bounded log tail', () => {

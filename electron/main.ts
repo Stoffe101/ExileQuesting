@@ -37,6 +37,19 @@ import { isMaxrollGuideUrl } from '../src/core/maxroll';
 import { analyzeGearItem, type GearCoachAnalysis } from '../src/core/gear-coach';
 import { MAX_POB_XML_BYTES } from '../src/core/pob';
 import { calculateXpGuidance } from '../src/core/xp';
+import {
+  characterProfileById,
+  characterProfileByName,
+  createCharacterCampaignProfile,
+  emptyCharacterCampaignDocument,
+  isFreshCampaignStart,
+  normalizeCharacterCampaignDocument,
+  removeCharacterProfile,
+  selectCharacterProfileForZone,
+  upsertCharacterProfile,
+  type CharacterCampaignDocument,
+  type CharacterCampaignProfile,
+} from '../src/core/character-campaign';
 import type {
   AppSettings,
   AppUpdateState,
@@ -126,6 +139,8 @@ let currentZone = '';
 let currentAreaId = '';
 let currentAreaLevel: number | undefined;
 let characterLevel: number | undefined;
+let characterCampaign: CharacterCampaignDocument = emptyCharacterCampaignDocument();
+let activeCharacterProfileId = '';
 let recentAreaIds: string[] = [];
 let recentAreaNames: string[] = [];
 let startupReconciliation: StartupReconciliation = { state: 'none' };
@@ -204,9 +219,131 @@ async function loadPersistentState(): Promise<void> {
 }
 async function saveLootFilterState(): Promise<void> { await store.write('loot-filter.json', lootFilter); }
 async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
-async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
+function activeCharacterProfile(): CharacterCampaignProfile | undefined { return characterProfileById(characterCampaign, activeCharacterProfileId); }
+function snapshotActiveCharacter(now = new Date().toISOString()): void {
+  const active = activeCharacterProfile();
+  if (!active) return;
+  characterCampaign = upsertCharacterProfile(characterCampaign, {
+    ...active,
+    progress,
+    history: progressHistory.slice(-80),
+    confirmedRewardStepIds: [...confirmedRewardStepIds],
+    lastAreaId: currentAreaId || active.lastAreaId,
+    lastAreaName: currentZone || active.lastAreaName,
+    characterLevel: characterLevel ?? active.characterLevel,
+    updatedAt: now,
+  });
+}
+async function saveCharacterCampaign(): Promise<void> {
+  snapshotActiveCharacter();
+  characterCampaign = { ...characterCampaign, activeProfileId: activeCharacterProfileId || undefined };
+  await store.write('campaign-characters.json', characterCampaign);
+}
+async function saveProgress(): Promise<void> {
+  await Promise.all([store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }), saveCharacterCampaign()]);
+}
 async function saveRunState(): Promise<void> { await store.write('run.json', { session: runSession, history: runHistory, updatedAt: new Date().toISOString() }); }
-async function saveRewardConfirmations(): Promise<void> { await store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }); }
+async function saveRewardConfirmations(): Promise<void> {
+  await Promise.all([store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }), saveCharacterCampaign()]);
+}
+async function writeActiveCharacterMirrors(): Promise<void> {
+  await Promise.all([
+    store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }),
+    store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }),
+    store.write('campaign-characters.json', { ...characterCampaign, activeProfileId: activeCharacterProfileId || undefined }),
+  ]);
+}
+async function activateCharacterProfile(profileId: string, reason: string): Promise<boolean> {
+  if (!profileId || profileId === activeCharacterProfileId) return false;
+  snapshotActiveCharacter();
+  const target = characterProfileById(characterCampaign, profileId);
+  if (!target) return false;
+  activeCharacterProfileId = target.id;
+  characterCampaign = { ...characterCampaign, activeProfileId: target.id };
+  progress = target.progress;
+  progressHistory = [...target.history];
+  confirmedRewardStepIds = new Set(target.confirmedRewardStepIds);
+  characterLevel = target.characterLevel;
+  currentAreaId = '';
+  currentZone = '';
+  currentAreaLevel = undefined;
+  recentAreaIds = [];
+  recentAreaNames = [];
+  startupReconciliation = { state: 'none' };
+  runSession = emptyRunSession();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+  sessionGuard?.update(progress, app.getVersion());
+  log.info(`Activated campaign character profile ${target.characterName ?? target.id}: ${reason}`);
+  return true;
+}
+async function beginFreshCharacterProfile(reason: string): Promise<void> {
+  snapshotActiveCharacter();
+  const now = new Date().toISOString();
+  const id = `provisional:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+  const profile = createCharacterCampaignProfile(id, now, { provisional: true, progress: 0, history: [], confirmedRewardStepIds: [], characterLevel: 1 });
+  characterCampaign = upsertCharacterProfile(characterCampaign, profile);
+  activeCharacterProfileId = id;
+  progress = 0;
+  progressHistory = [];
+  confirmedRewardStepIds = new Set();
+  characterLevel = 1;
+  currentAreaId = '';
+  currentZone = '';
+  currentAreaLevel = undefined;
+  recentAreaIds = [];
+  recentAreaNames = [];
+  startupReconciliation = { state: 'none' };
+  runSession = emptyRunSession();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+  sessionGuard?.update(progress, app.getVersion());
+  log.info(`Started a fresh campaign character profile: ${reason}`);
+}
+async function bindCharacterIdentity(event: ZoneEvent): Promise<void> {
+  const name = event.characterName?.trim();
+  if (!name) return;
+  const active = activeCharacterProfile();
+  if (active?.characterName?.toLocaleLowerCase() === name.toLocaleLowerCase()) {
+    characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, characterClass: event.characterClass ?? active.characterClass, characterLevel: event.characterLevel ?? active.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
+    return;
+  }
+  const existing = characterProfileByName(characterCampaign, name);
+  if (existing && existing.id !== active?.id) {
+    const provisionalId = active?.provisional ? active.id : undefined;
+    await activateCharacterProfile(existing.id, `Client.txt identified ${name}${event.characterClass ? ` (${event.characterClass})` : ''}.`);
+    if (provisionalId) characterCampaign = removeCharacterProfile(characterCampaign, provisionalId);
+    const selected = activeCharacterProfile();
+    if (selected) characterCampaign = upsertCharacterProfile(characterCampaign, { ...selected, characterClass: event.characterClass ?? selected.characterClass, characterLevel: event.characterLevel ?? selected.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
+    await writeActiveCharacterMirrors();
+    return;
+  }
+  if (active) {
+    characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, characterName: name, characterClass: event.characterClass, characterLevel: event.characterLevel ?? active.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
+    await writeActiveCharacterMirrors();
+    return;
+  }
+  const now = new Date().toISOString();
+  const profile = createCharacterCampaignProfile(`character:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, now, { characterName: name, characterClass: event.characterClass, provisional: false, progress, history: progressHistory, confirmedRewardStepIds: [...confirmedRewardStepIds], lastAreaId: currentAreaId || undefined, lastAreaName: currentZone || undefined, characterLevel: event.characterLevel });
+  characterCampaign = upsertCharacterProfile(characterCampaign, profile);
+  activeCharacterProfileId = profile.id;
+  await writeActiveCharacterMirrors();
+}
+function campaignEvent(event: ZoneEvent): boolean {
+  if (event.areaId && dataset.areas.some((area) => area.id === event.areaId)) return true;
+  const name = event.areaName?.toLowerCase().replace(/^the\s+/, '').replace(/[.!]$/, '').trim();
+  return Boolean(name && dataset.areas.some((area) => area.name.toLowerCase().replace(/^the\s+/, '').trim() === name));
+}
+async function selectCharacterForZone(event: ZoneEvent, startup: boolean): Promise<void> {
+  if (event.type === 'character-level') return;
+  const effectiveEvent = { ...event, areaLevel: event.areaLevel ?? currentAreaLevel };
+  if (isFreshCampaignStart(effectiveEvent)) {
+    const active = activeCharacterProfile();
+    const alreadyFresh = Boolean(active && active.progress <= 3 && (active.lastAreaId === '1_1_1' || (active.provisional && !active.lastAreaId)));
+    if (!alreadyFresh) await beginFreshCharacterProfile(startup ? 'Detected Act 1 Twilight Strand during startup.' : 'Detected a new Act 1 Twilight Strand run.');
+    return;
+  }
+  const selected = selectCharacterProfileForZone(characterCampaign, effectiveEvent, progressionSteps(), (step, index) => enabled(step), activeCharacterProfileId);
+  if (selected && selected.id !== activeCharacterProfileId) await activateCharacterProfile(selected.id, `Zone ${event.areaId ?? event.areaName ?? 'unknown'} matched this saved character route.`);
+}
 
 async function loadAnnotations(): Promise<GuidanceAnnotation[]> { return readJson<GuidanceAnnotation[]>(bundledCampaignPath('annotations.json')); }
 async function loadLayoutHints(): Promise<LayoutHint[]> {
@@ -253,10 +390,28 @@ async function loadCampaign(): Promise<void> {
     if (error instanceof Error && !error.message.includes('ENOENT')) log.warn('Cached campaign rejected; using bundled fallback.', error);
   }
   const savedProgress = await store.loadProgress(dataset.steps.length - 1);
-  progress = savedProgress.progress;
-  progressHistory = savedProgress.history;
   const knownRewardIds = new Set(dataset.steps.filter((step) => step.permanentReward).map((step) => step.id));
-  confirmedRewardStepIds = await store.loadRewards(knownRewardIds);
+  const legacyRewards = await store.loadRewards(knownRewardIds);
+  try { characterCampaign = normalizeCharacterCampaignDocument(await store.readUnknown('campaign-characters.json'), dataset.steps.length - 1, knownRewardIds); }
+  catch { characterCampaign = emptyCharacterCampaignDocument(); }
+  if (!characterCampaign.profiles.length) {
+    const now = new Date().toISOString();
+    const legacy = createCharacterCampaignProfile(`legacy:${Date.now()}`, now, {
+      provisional: savedProgress.progress <= 3,
+      progress: savedProgress.progress,
+      history: savedProgress.history,
+      confirmedRewardStepIds: [...legacyRewards],
+    });
+    characterCampaign = upsertCharacterProfile(characterCampaign, legacy);
+  }
+  const active = characterProfileById(characterCampaign, characterCampaign.activeProfileId) ?? characterCampaign.profiles[0];
+  activeCharacterProfileId = active.id;
+  characterCampaign = { ...characterCampaign, activeProfileId: active.id };
+  progress = active.progress;
+  progressHistory = [...active.history];
+  confirmedRewardStepIds = new Set(active.confirmedRewardStepIds);
+  characterLevel = active.characterLevel;
+  await writeActiveCharacterMirrors();
 }
 
 async function loadBuildGameData(): Promise<void> {
@@ -521,6 +676,8 @@ async function updateRunFromZone(event: ZoneEvent): Promise<void> {
   if (runSession.state === 'running') { runSession = recordRunArea(runSession, event.areaId); await saveRunState(); }
 }
 async function handleZoneEvent(event: ZoneEvent): Promise<void> {
+  await selectCharacterForZone(event, false);
+  if (event.type === 'character-level') await bindCharacterIdentity(event);
   const progressBefore = progress;
   const stepIdBefore = dataset.steps[progressBefore]?.id;
   const previousAreaId = currentAreaId || undefined;
@@ -548,11 +705,14 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
   const reason = event.type === 'character-level' ? `Character level updated to ${event.characterLevel ?? '?'}.`
     : !settings.autoAdvance ? 'Automatic route progress is disabled.' : decision ? decision.reason : 'No bounded campaign transition matched this event.';
   appendDetectionTrace({ eventType: event.type, areaId: event.areaId, areaName: event.areaName, areaLevel: event.areaLevel, progressBefore, progressAfter: progress, stepIdBefore, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence, reason, raw: event.raw });
+  await saveCharacterCampaign();
   broadcastState();
-  if (event.type !== 'character-level' && settings.autoShowOnZoneChange && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
+  if (event.type !== 'character-level' && settings.autoShowOnZoneChange && campaignEvent(event) && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
 }
 async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
   if (!event) return;
+  await selectCharacterForZone(event, true);
+  if (event.characterName) await bindCharacterIdentity(event);
   const progressBefore = progress;
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
@@ -567,7 +727,9 @@ async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
     stepIdBefore: dataset.steps[progressBefore]?.id, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence,
     reason: startupReconciliation.state === 'suggested' ? startupReconciliation.message ?? 'Startup zone requires confirmation.' : decision?.reason ?? 'Startup tail established the current zone without changing progress.', raw: event.raw,
   });
+  await saveCharacterCampaign();
   broadcastState();
+  if (settings.autoShowOnZoneChange && campaignEvent(event) && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
 }
 async function startLogWatcher(): Promise<void> {
   if (logWatcher) await logWatcher.stop();

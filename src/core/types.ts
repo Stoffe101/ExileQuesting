@@ -223,6 +223,8 @@ export interface LogDiagnostics {
   lastAreaName?: string;
   areaLevel?: number;
   characterLevel?: number;
+  characterName?: string;
+  characterClass?: string;
   lastError?: string;
 }
 
@@ -453,6 +455,8 @@ export interface ZoneEvent {
   areaId?: string;
   areaLevel?: number;
   characterLevel?: number;
+  characterName?: string;
+  characterClass?: string;
   timestamp?: string;
   raw: string;
 }
