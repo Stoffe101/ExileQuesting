@@ -2,6 +2,7 @@ import {
   mapCapturePointToDisplay,
   passiveFixedNodePoint,
   projectPassiveTreePoint,
+  solvePassiveTreeTransform,
   type PassiveTreeTransform,
   type ScreenPoint,
   type TreePoint,
@@ -25,8 +26,16 @@ interface RadialCandidate extends PassiveBootstrapCandidate {
   coverage: number;
 }
 
+interface BootstrapMatch {
+  tree: TreePoint;
+  candidate: PassiveBootstrapCandidate;
+  candidateIndex: number;
+  distance: number;
+}
+
 const MAX_CAPTURE_PIXELS = 4_000_000;
 const DEFAULT_RADII = [3, 4, 5, 6, 8, 10, 12, 15, 18, 22];
+const BOOTSTRAP_SCALE_FACTORS = [0.64, 0.76, 0.88, 1, 1.14, 1.32, 1.52, 1.76, 2.04, 2.36, 2.74, 3.18];
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -188,11 +197,95 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function matchBootstrapTransform(
+  transform: PassiveTreeTransform,
+  anchor: TreePoint,
+  anchorCandidate: PassiveBootstrapCandidate,
+  anchorIndex: number,
+  localAnchors: TreePoint[],
+  candidates: PassiveBootstrapCandidate[],
+  tolerance: number,
+): BootstrapMatch[] {
+  const matches: BootstrapMatch[] = [{ tree: anchor, candidate: anchorCandidate, candidateIndex: anchorIndex, distance: Math.hypot(projectPassiveTreePoint(transform, anchor).x - anchorCandidate.x, projectPassiveTreePoint(transform, anchor).y - anchorCandidate.y) }];
+  const used = new Set<number>([anchorIndex]);
+  for (const tree of localAnchors) {
+    if (tree.id === anchor.id) continue;
+    const nearest = nearestUnused(projectPassiveTreePoint(transform, tree), candidates, used, tolerance);
+    if (!nearest) continue;
+    used.add(nearest.index);
+    matches.push({ tree, candidate: nearest.candidate, candidateIndex: nearest.index, distance: nearest.distance });
+  }
+  return matches;
+}
+
+function bootstrapResultForRoot(
+  anchor: TreePoint,
+  localAnchors: TreePoint[],
+  candidates: PassiveBootstrapCandidate[],
+  anchorCandidate: PassiveBootstrapCandidate,
+  anchorIndex: number,
+  baseScale: number,
+  display: { width: number; height: number },
+  candidateMedianRadius: number,
+): PassiveTreeBootstrapResult | undefined {
+  const tolerance = clamp(display.height / 1080 * 9, 7, 16);
+  const minimumInliers = Math.max(6, Math.ceil(localAnchors.length * 0.58));
+  let best: PassiveTreeBootstrapResult | undefined;
+
+  for (const factor of BOOTSTRAP_SCALE_FACTORS) {
+    const scale = baseScale * factor;
+    if (!Number.isFinite(scale) || scale <= 0 || scale > 1.2) continue;
+    const seed: PassiveTreeTransform = {
+      scale,
+      offsetX: anchorCandidate.x - anchor.x * scale,
+      offsetY: anchorCandidate.y - anchor.y * scale,
+      ySign: 1,
+    };
+    const seededMatches = matchBootstrapTransform(seed, anchor, anchorCandidate, anchorIndex, localAnchors, candidates, tolerance);
+    if (seededMatches.length < minimumInliers) continue;
+
+    const refined = solvePassiveTreeTransform(seededMatches.map((match) => ({
+      tree: match.tree,
+      screen: { x: match.candidate.x, y: match.candidate.y },
+    })), 1);
+    if (!refined || refined.scale < baseScale * 0.55 || refined.scale > baseScale * 3.35) continue;
+    // The known root correspondence is non-negotiable. Refinement may absorb
+    // sub-pixel detection noise but cannot drift to a different circle.
+    if (Math.hypot(projectPassiveTreePoint(refined, anchor).x - anchorCandidate.x, projectPassiveTreePoint(refined, anchor).y - anchorCandidate.y) > tolerance * 0.65) continue;
+
+    const matches = matchBootstrapTransform(refined, anchor, anchorCandidate, anchorIndex, localAnchors, candidates, tolerance);
+    if (matches.length < minimumInliers) continue;
+    const neighbourRadii = matches.filter((match) => match.tree.id !== anchor.id).map((match) => match.candidate.radius);
+    if (neighbourRadii.length < 4) continue;
+    const neighbourRadius = median(neighbourRadii);
+    const anchorRadiusRatio = anchorCandidate.radius / Math.max(1, neighbourRadius);
+    if (anchorRadiusRatio < 1.12 || anchorCandidate.radius < Math.max(3, candidateMedianRadius * 1.08)) continue;
+
+    const rms = Math.sqrt(matches.reduce((sum, match) => sum + match.distance * match.distance, 0) / matches.length);
+    const coverage = matches.length / localAnchors.length;
+    const residual = 1 - clamp(rms / tolerance, 0, 1);
+    const radiusEvidence = clamp((anchorRadiusRatio - 1.1) / 0.55, 0, 1);
+    // Mild preference for the deterministic max-zoom prior only breaks ties;
+    // local graph coverage and residual dominate acceptance.
+    const scalePrior = 1 - clamp(Math.abs(Math.log(refined.scale / baseScale)) / Math.log(3.35), 0, 1);
+    const confidence = clamp(coverage * 0.59 + residual * 0.25 + radiusEvidence * 0.12 + scalePrior * 0.04, 0, 1);
+    if (confidence < 0.79) continue;
+    const result = { transform: refined, inliers: matches.length, rms, confidence, anchorRadiusRatio };
+    if (!best || result.inliers > best.inliers || (result.inliers === best.inliers && (result.confidence > best.confidence || (result.confidence === best.confidence && result.rms < best.rms)))) best = result;
+  }
+  return best;
+}
+
 /**
- * Bootstrap only translation at the deterministic maximum-zoom scale. The
- * known class/root node is required to be visually larger than its matched
- * local neighbours, and the entire PoB/GGG local geometry must agree. A unique
- * winner is mandatory. Failure simply leaves the manual emergency anchor.
+ * Bootstrap a trusted transform around the known class/Ascendancy root.
+ *
+ * The supplied scale is the deterministic maximum-zoom scale prior, not a
+ * mandatory zoom level. A bounded set of zoom hypotheses is tested, then
+ * refined from the exact local PoB/GGG geometry. The root itself must be the
+ * visually larger candidate and a unique root winner is mandatory. This keeps
+ * the convenience of automatic arbitrary-zoom setup without reintroducing the
+ * old steady-state anonymous-circle tracker. Failure simply leaves the manual
+ * emergency anchor available.
  */
 export function solvePassiveTreeBootstrap(
   anchor: TreePoint,
@@ -202,7 +295,6 @@ export function solvePassiveTreeBootstrap(
   display: { width: number; height: number },
 ): PassiveTreeBootstrapResult | undefined {
   if (localAnchors.length < 6 || candidates.length < 8 || !Number.isFinite(scale) || scale <= 0) return undefined;
-  const tolerance = clamp(display.height / 1080 * 9, 7, 16);
   const candidateMedianRadius = median(candidates.map((candidate) => candidate.radius));
   const anchorCandidates = candidates
     .map((candidate, index) => ({ candidate, index }))
@@ -212,37 +304,9 @@ export function solvePassiveTreeBootstrap(
   if (!anchorCandidates.length) return undefined;
 
   const results: PassiveTreeBootstrapResult[] = [];
-  for (const { candidate: anchorCandidate, index: anchorIndex } of anchorCandidates) {
-    const transform: PassiveTreeTransform = {
-      scale,
-      offsetX: anchorCandidate.x - anchor.x * scale,
-      offsetY: anchorCandidate.y - anchor.y * scale,
-      ySign: 1,
-    };
-    const used = new Set<number>([anchorIndex]);
-    const matchedRadii: number[] = [];
-    const distances: number[] = [0];
-    let inliers = 1;
-    for (const tree of localAnchors) {
-      if (tree.id === anchor.id) continue;
-      const nearest = nearestUnused(projectPassiveTreePoint(transform, tree), candidates, used, tolerance);
-      if (!nearest) continue;
-      used.add(nearest.index);
-      matchedRadii.push(nearest.candidate.radius);
-      distances.push(nearest.distance);
-      inliers += 1;
-    }
-    const minimumInliers = Math.max(6, Math.ceil(localAnchors.length * 0.58));
-    if (inliers < minimumInliers || matchedRadii.length < 4) continue;
-    const neighbourRadius = median(matchedRadii);
-    const anchorRadiusRatio = anchorCandidate.radius / Math.max(1, neighbourRadius);
-    if (anchorRadiusRatio < 1.12) continue;
-    const rms = Math.sqrt(distances.reduce((sum, distance) => sum + distance * distance, 0) / distances.length);
-    const coverage = inliers / localAnchors.length;
-    const residual = 1 - clamp(rms / tolerance, 0, 1);
-    const radiusEvidence = clamp((anchorRadiusRatio - 1.1) / 0.55, 0, 1);
-    const confidence = clamp(coverage * 0.62 + residual * 0.25 + radiusEvidence * 0.13, 0, 1);
-    if (confidence >= 0.78) results.push({ transform, inliers, rms, confidence, anchorRadiusRatio });
+  for (const { candidate, index } of anchorCandidates) {
+    const result = bootstrapResultForRoot(anchor, localAnchors, candidates, candidate, index, scale, display, candidateMedianRadius);
+    if (result) results.push(result);
   }
   if (!results.length) return undefined;
   results.sort((a, b) => b.inliers - a.inliers || b.confidence - a.confidence || a.rms - b.rms);
