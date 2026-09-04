@@ -39,7 +39,7 @@ Passive Plan uses existing build-source evidence:
 - bundled passive-tree node names are only applied when the PoB/tree versions are compatible;
 - when PoB does not author a safe click order, ExileQuesting does not invent one.
 
-`Ctrl+K → Open Passive Plan` opens the full Passive Plan surface. Its controls update ExileQuesting's build-plan cursor only. They do not click Path of Exile.
+The full Passive Plan is available directly from the Overview card, the Campaign Guide Passive Plan card, and `Ctrl+K → Open Passive Plan`. Its controls update ExileQuesting's build-plan cursor only. They do not click Path of Exile.
 
 The passive HUD runtime is not started during normal application startup. ExileQuesting no longer creates the retired full-screen Passive Tree HUD BrowserWindow, so its old content-protection/capture surface cannot interfere with recording. Legacy settings/types remain temporarily only so older persisted settings can migrate safely.
 
