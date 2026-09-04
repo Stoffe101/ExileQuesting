@@ -37,4 +37,16 @@ describe('campaign action regression coverage', () => {
     expect(decisive.some((action) => action.type === 'kill' && /Fairgraves/i.test(action.title))).toBe(true);
     expect(decisive.some((action) => action.type === 'kill' && /Fidelitas/i.test(action.title))).toBe(true);
   });
+
+  it('distinguishes Labyrinth runs from Trials of Ascendancy', () => {
+    const normalLab = summarizeActions(buildRouteActions(['regular option: (img:lab) normal_lab'], areas));
+    const trial = summarizeActions(buildRouteActions(['leaguestart: complete (img:lab) trial'], areas));
+    expect(normalLab.now?.title).toBe('Run the Normal Labyrinth now');
+    expect(trial.now?.title).toBe('Complete the Ascendancy Trial in this area');
+  });
+
+  it('uses explicit passive skill point wording for Book of Skill rewards', () => {
+    const actions = buildRouteActions(['(img:quest) eran: (quest:book_of_skill)'], areas);
+    expect(actions.some((action) => action.type === 'passive' && /passive skill point/i.test(action.title))).toBe(true);
+  });
 });
