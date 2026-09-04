@@ -369,7 +369,8 @@ function hasUsefulSpread(motion: WorkingMotion, width: number, height: number): 
   const xs = motion.inliers.map((match) => match.source.x);
   const ys = motion.inliers.map((match) => match.source.y);
   if (!xs.length || !ys.length) return false;
-  return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) >= Math.min(width, height) * 0.5;
+  const visibleSpreadFloor = Math.max(18, Math.min(width, height) * 0.5 / Math.max(1, motion.scale));
+  return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) >= visibleSpreadFloor;
 }
 
 function hypothesisScore(motion: WorkingMotion, attemptedFeatures: number): number {
@@ -479,7 +480,13 @@ export function trackPassiveTreeFrameMotion(
     }
   }
 
-  const hypothesisFeatures = features.slice(0, Math.min(features.length, HYPOTHESIS_FEATURES));
+  // Wide/keyframe recovery must consider every available feature because a
+  // large zoom can physically crop most of the previous frame. Restricting the
+  // hypothesis pass to the top 26 texture points can leave fewer than four
+  // still-visible centre features even when the transform is perfectly valid.
+  const hypothesisFeatures = options.wide
+    ? features
+    : features.slice(0, Math.min(features.length, HYPOTHESIS_FEATURES));
   const scaleFactors = options.wide ? WIDE_SCALE_FACTORS : NORMAL_SCALE_FACTORS;
   const seeds: Array<{ motion: WorkingMotion; score: number }> = [];
   for (const scale of scaleFactors) {
@@ -514,10 +521,31 @@ export function trackPassiveTreeFrameMotion(
   const minimumConfidence = clamp(options.minimumConfidence ?? (options.wide ? 0.55 : 0.6), 0, 1);
   if (selectedConfidence < minimumConfidence) return undefined;
 
+  // Integer feature coordinates can bias the least-squares scale slightly even
+  // when a nearby centred-zoom hypothesis already describes the image better.
+  // Snap only very small (<1.2%) refinements to the nearest proven hypothesis,
+  // preserving the independently measured residual pan around viewport centre.
+  const nearestScale = scaleFactors.reduce((best, candidate) => (
+    Math.abs(candidate - selected!.scale) < Math.abs(best - selected!.scale) ? candidate : best
+  ), scaleFactors[0]);
+  const shouldSnapScale = Math.abs(nearestScale - selected.scale) / Math.max(0.001, selected.scale) <= 0.012;
+  let outputScale = selected.scale;
+  let outputOffsetX = selected.offsetX;
+  let outputOffsetY = selected.offsetY;
+  if (shouldSnapScale) {
+    const centerX = (previous.width - 1) / 2;
+    const centerY = (previous.height - 1) / 2;
+    const residualPanX = selected.offsetX - centerX * (1 - selected.scale);
+    const residualPanY = selected.offsetY - centerY * (1 - selected.scale);
+    outputScale = nearestScale;
+    outputOffsetX = centerX * (1 - outputScale) + residualPanX;
+    outputOffsetY = centerY * (1 - outputScale) + residualPanY;
+  }
+
   return {
-    scale: selected.scale,
-    offsetX: selected.offsetX * previous.scaleX,
-    offsetY: selected.offsetY * previous.scaleY,
+    scale: outputScale,
+    offsetX: outputOffsetX * previous.scaleX,
+    offsetY: outputOffsetY * previous.scaleY,
     confidence: selectedConfidence,
     inliers: selected.inliers.length,
     rms: selected.rms * (previous.scaleX + previous.scaleY) / 2,
