@@ -29,13 +29,22 @@ import {
   trackPassiveTreeFrameMotion,
   type PassiveTreeFrameMotion,
 } from '../../src/core/passive-tree-frame-tracking';
+import {
+  comparePassiveTargetPatches,
+  passiveTargetOperationLooksComplete,
+  passiveTargetPatchIsGrossMismatch,
+  samplePassiveTargetPatch,
+  type PassiveTargetPatch,
+} from '../../src/core/passive-target-visual';
+import {
+  adaptPassiveTreeTransformToDisplay,
+  passiveTreeTransformsAreDistinct,
+} from '../../src/core/passive-tree-reference-bank';
 
 export interface PassiveTreeHudContext {
   enabled: boolean;
   pathPreview: boolean;
-  /** Manager/UI focus suppresses the game HUD completely. */
   appWindowFocused?: boolean;
-  /** Kept in the runtime context for other guidance surfaces. Target Lock always shows the next node. */
   characterLevel?: number;
   expectedQuestPassivePoints?: number;
   knownUnspentPassivePoints?: number;
@@ -48,9 +57,17 @@ export interface PassiveTreeHudLogger {
   warn: (...args: unknown[]) => void;
 }
 
+export interface PassiveTargetOperationDetected {
+  nodeId: number;
+  operation: 'allocate' | 'refund';
+  confidence: number;
+}
+
 export interface PassiveTreeHudServiceOptions {
   context: () => PassiveTreeHudContext;
   onState: (state: PassiveTreeHudState) => void;
+  /** Returns true only when the build cursor really advanced. */
+  onTargetOperationDetected?: (event: PassiveTargetOperationDetected) => boolean | Promise<boolean>;
   log?: PassiveTreeHudLogger;
   captureWidth?: number;
   searchIntervalMs?: number;
@@ -69,14 +86,19 @@ interface StoredKeyframe {
   bitmapBase64: string;
 }
 
-interface StoredCalibration {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-  ySign: 1 | -1;
+interface StoredReferenceFrame extends StoredKeyframe, PassiveTreeTransform {
+  capturedAt: string;
+}
+
+interface StoredCalibration extends PassiveTreeTransform {
   captureAspect: number;
   screenCheck: PassiveTreeScreenSignature;
   keyframe?: StoredKeyframe;
+  references?: StoredReferenceFrame[];
+  displayWidth?: number;
+  displayHeight?: number;
+  displayScaleFactor?: number;
+  scopeKey?: PassiveTreeScopeKey;
   updatedAt: string;
 }
 
@@ -104,6 +126,26 @@ interface RecenterRequest {
   displayId: number;
 }
 
+interface ReferenceCandidate {
+  capture: PoeWindowCapture;
+  transform: PassiveTreeTransform;
+}
+
+interface TrackingResult {
+  projection: ProjectionContext;
+  motion: PassiveTreeFrameMotion;
+  mode: 'stationary' | 'motion' | 'reacquired';
+}
+
+interface TargetVisualState {
+  identity: string;
+  reference?: PassiveTargetPatch;
+  verification: 'learning' | 'verified' | 'changed' | 'mismatch';
+  stableChangeCount: number;
+  mismatchCount: number;
+  pendingOperation: boolean;
+}
+
 const RECENTER_HOTKEY = 'CommandOrControl+Shift+C';
 const RESET_HOTKEY = 'CommandOrControl+Shift+0';
 const CALIBRATION_FILE = 'passive-tree-hud-calibration.json';
@@ -117,6 +159,9 @@ const REQUIRED_TREE_MATCHES = 2;
 const MAX_CAPTURE_ASPECT_DRIFT = 0.06;
 const REFERENCE_SAVE_INTERVAL_MS = 5_000;
 const MAX_KEYFRAME_BASE64_LENGTH = 6_000_000;
+const MAX_REFERENCE_FRAMES = 5;
+const AUTO_ADVANCE_CONFIRMATIONS = 3;
+const LOCAL_MISMATCH_CONFIRMATIONS = 3;
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -152,6 +197,21 @@ function validKeyframe(value: unknown): StoredKeyframe | undefined {
   return { width, height, bitmapBase64: item.bitmapBase64 };
 }
 
+function validReference(value: unknown): StoredReferenceFrame | undefined {
+  const keyframe = validKeyframe(value);
+  if (!keyframe || !value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const item = value as Record<string, unknown>;
+  if (!finite(item.scale) || !finite(item.offsetX) || !finite(item.offsetY) || item.scale < MIN_SCALE || item.scale > MAX_SCALE) return undefined;
+  return {
+    ...keyframe,
+    scale: item.scale,
+    offsetX: item.offsetX,
+    offsetY: item.offsetY,
+    ySign: item.ySign === -1 ? -1 : 1,
+    capturedAt: typeof item.capturedAt === 'string' ? item.capturedAt : new Date(0).toISOString(),
+  };
+}
+
 function validCalibration(value: unknown): StoredCalibration | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const item = value as Record<string, unknown>;
@@ -159,6 +219,12 @@ function validCalibration(value: unknown): StoredCalibration | undefined {
   if (item.scale < MIN_SCALE || item.scale > MAX_SCALE || item.captureAspect < 0.5 || item.captureAspect > 5) return undefined;
   const screenCheck = validatePassiveTreeScreenSignature(item.screenCheck);
   if (!screenCheck) return undefined;
+  const references = Array.isArray(item.references)
+    ? item.references.map(validReference).filter((entry): entry is StoredReferenceFrame => Boolean(entry)).slice(0, MAX_REFERENCE_FRAMES)
+    : undefined;
+  const scopeKey = typeof item.scopeKey === 'string' && (item.scopeKey === 'base' || item.scopeKey.startsWith('ascendancy:'))
+    ? item.scopeKey as PassiveTreeScopeKey
+    : undefined;
   return {
     scale: item.scale,
     offsetX: item.offsetX,
@@ -167,13 +233,17 @@ function validCalibration(value: unknown): StoredCalibration | undefined {
     captureAspect: item.captureAspect,
     screenCheck,
     keyframe: validKeyframe(item.keyframe),
+    references,
+    displayWidth: finite(item.displayWidth) && item.displayWidth > 0 ? item.displayWidth : undefined,
+    displayHeight: finite(item.displayHeight) && item.displayHeight > 0 ? item.displayHeight : undefined,
+    displayScaleFactor: finite(item.displayScaleFactor) && item.displayScaleFactor > 0 ? item.displayScaleFactor : undefined,
+    scopeKey,
     updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date(0).toISOString(),
   };
 }
 
 function targetScope(context: PassiveTreeHudContext): PassiveTreeScopeKey | undefined {
-  const nodeId = context.guide?.target?.nodeId;
-  return passiveHudScopeForNode(context.snapshot, nodeId);
+  return passiveHudScopeForNode(context.snapshot, context.guide?.target?.nodeId);
 }
 
 function scopeAnchor(context: PassiveTreeHudContext, scopeKey: PassiveTreeScopeKey) {
@@ -212,6 +282,28 @@ function cloneCapture(capture: PoeWindowCapture): PoeWindowCapture {
   };
 }
 
+function decodeCapture(frame: StoredKeyframe, displayId: number): PoeWindowCapture | undefined {
+  try {
+    const bitmap = Buffer.from(frame.bitmapBase64, 'base64');
+    if (bitmap.length < frame.width * frame.height * 4) return undefined;
+    return { bitmap, capture: { width: frame.width, height: frame.height }, displayId: String(displayId) };
+  } catch {
+    return undefined;
+  }
+}
+
+function compassDirection(angle: number): string {
+  const names = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+  const normalized = (angle + Math.PI * 2) % (Math.PI * 2);
+  return names[Math.round(normalized / (Math.PI / 4)) % names.length];
+}
+
+function targetMarkerRadius(transform: PassiveTreeTransform, display: Display, operation: 'allocate' | 'refund'): number {
+  const ratio = clamp(transform.scale / Math.max(MIN_SCALE, seedScale(display)), 0.72, 3.2);
+  const base = operation === 'refund' ? 30 : 28;
+  return clamp(base * Math.pow(ratio, 0.78), 24, 54);
+}
+
 function stateFingerprint(state: PassiveTreeHudState): string {
   const target = state.target;
   return [
@@ -226,10 +318,14 @@ function stateFingerprint(state: PassiveTreeHudState): string {
     state.confidence === undefined ? '' : state.confidence.toFixed(3),
     state.inliers ?? '',
     state.rms === undefined ? '' : state.rms.toFixed(2),
+    state.trackingMode ?? '',
+    state.targetVerification ?? '',
+    state.autoAdvanceArmed ?? '',
     target?.nodeId ?? '',
     target ? Math.round(target.x) : '',
     target ? Math.round(target.y) : '',
     target?.offscreen ?? '',
+    target?.offscreenDistancePx ?? '',
   ].join(';');
 }
 
@@ -250,6 +346,7 @@ export class PassiveTreeHudService {
   private readonly trackingFailures = new Map<string, number>();
   private readonly lastReferenceSave = new Map<string, number>();
   private readonly dirtyReferences = new Set<string>();
+  private targetVisual?: TargetVisualState;
   private consecutiveTreeMatches = 0;
 
   constructor(options: PassiveTreeHudServiceOptions) {
@@ -276,6 +373,7 @@ export class PassiveTreeHudService {
   stop(): void {
     this.stopped = true;
     this.recenterRequest = undefined;
+    this.targetVisual = undefined;
     this.consecutiveTreeMatches = 0;
     if (this.timer) clearTimeout(this.timer);
     if (this.hotkeyRepairTimer) clearInterval(this.hotkeyRepairTimer);
@@ -422,9 +520,7 @@ export class PassiveTreeHudService {
       return { ...passiveTreeHudIdle(true), status: 'waiting-tree', message: 'Passive Target Lock is paused while the ExileQuesting manager is focused.' };
     }
     const guide = context.guide;
-    if (!guide) {
-      return { ...passiveTreeHudIdle(true), status: 'waiting-build', message: 'Import and activate a build with passive progression.' };
-    }
+    if (!guide) return { ...passiveTreeHudIdle(true), status: 'waiting-build', message: 'Import and activate a build with passive progression.' };
     if (!guide.target) {
       return {
         ...passiveTreeHudIdle(true),
@@ -488,31 +584,33 @@ export class PassiveTreeHudService {
     }
     const capture = source.thumbnail.getSize();
     if (capture.width < 240 || capture.height < 120) throw new Error(`POE_CAPTURE_SMALL:${capture.width}x${capture.height}`);
-    return {
-      bitmap: source.thumbnail.toBitmap(),
-      capture,
-      ...(source.display_id ? { displayId: source.display_id } : {}),
-    };
+    return { bitmap: source.thumbnail.toBitmap(), capture, ...(source.display_id ? { displayId: source.display_id } : {}) };
   }
 
-  private keyframeCapture(projection: ProjectionContext): PoeWindowCapture | undefined {
+  private latestReference(projection: ProjectionContext): ReferenceCandidate | undefined {
     const cached = this.trustedFrames.get(projection.calibrationKey);
-    if (cached) return cached;
+    if (cached) return { capture: cached, transform: projection.transform };
     const stored = projection.calibration.keyframe;
     if (!stored) return undefined;
-    try {
-      const bitmap = Buffer.from(stored.bitmapBase64, 'base64');
-      if (bitmap.length < stored.width * stored.height * 4) return undefined;
-      const restored: PoeWindowCapture = {
-        bitmap,
-        capture: { width: stored.width, height: stored.height },
-        displayId: String(projection.display.id),
-      };
-      this.trustedFrames.set(projection.calibrationKey, restored);
-      return restored;
-    } catch {
-      return undefined;
+    const capture = decodeCapture(stored, projection.display.id);
+    if (!capture) return undefined;
+    this.trustedFrames.set(projection.calibrationKey, capture);
+    return { capture, transform: projection.transform };
+  }
+
+  private referenceBank(projection: ProjectionContext): ReferenceCandidate[] {
+    const references: ReferenceCandidate[] = [];
+    const latest = this.latestReference(projection);
+    if (latest) references.push(latest);
+    for (const stored of projection.calibration.references ?? []) {
+      const capture = decodeCapture(stored, projection.display.id);
+      if (!capture) continue;
+      references.push({
+        capture,
+        transform: { scale: stored.scale, offsetX: stored.offsetX, offsetY: stored.offsetY, ySign: stored.ySign },
+      });
     }
+    return references;
   }
 
   private async persistReference(projection: ProjectionContext, frame: PoeWindowCapture, force = false): Promise<void> {
@@ -522,14 +620,32 @@ export class PassiveTreeHudService {
     const last = this.lastReferenceSave.get(key) ?? 0;
     if (!force && now - last < REFERENCE_SAVE_INTERVAL_MS) return;
     const transform = this.liveTransforms.get(key) ?? projection.transform;
+    const encoded = frame.bitmap.toString('base64');
+    const candidate: StoredReferenceFrame = {
+      width: frame.capture.width,
+      height: frame.capture.height,
+      bitmapBase64: encoded,
+      ...transform,
+      capturedAt: new Date().toISOString(),
+    };
+    const displaySize = { width: projection.display.bounds.width, height: projection.display.bounds.height };
+    const existing = projection.calibration.references ?? [];
+    const keepAsDistinct = existing.every((entry) => passiveTreeTransformsAreDistinct(
+      transform,
+      { scale: entry.scale, offsetX: entry.offsetX, offsetY: entry.offsetY, ySign: entry.ySign },
+      displaySize,
+    ));
+    const references = keepAsDistinct ? [candidate, ...existing].slice(0, MAX_REFERENCE_FRAMES) : existing;
     this.calibrations[key] = {
       ...projection.calibration,
       ...transform,
-      keyframe: {
-        width: frame.capture.width,
-        height: frame.capture.height,
-        bitmapBase64: frame.bitmap.toString('base64'),
-      },
+      captureAspect: captureAspect(frame),
+      keyframe: { width: frame.capture.width, height: frame.capture.height, bitmapBase64: encoded },
+      references,
+      displayWidth: projection.display.bounds.width,
+      displayHeight: projection.display.bounds.height,
+      displayScaleFactor: projection.display.scaleFactor,
+      scopeKey: projection.scopeKey,
       updatedAt: new Date().toISOString(),
     };
     this.lastReferenceSave.set(key, now);
@@ -537,14 +653,235 @@ export class PassiveTreeHudService {
     await this.saveCalibrations();
   }
 
-  private visibleState(context: PassiveTreeHudContext, projection: ProjectionContext, capture: PoeWindowCapture): PassiveTreeHudState {
+  private solveFromReference(
+    projection: ProjectionContext,
+    reference: ReferenceCandidate,
+    capture: PoeWindowCapture,
+    wide: boolean,
+  ): { transform: PassiveTreeTransform; motion: PassiveTreeFrameMotion } | undefined {
+    if (reference.capture.capture.width !== capture.capture.width || reference.capture.capture.height !== capture.capture.height) return undefined;
+    const motion = trackPassiveTreeFrameMotion(
+      reference.capture.bitmap,
+      capture.bitmap,
+      capture.capture.width,
+      capture.capture.height,
+      { wide, searchRadiusPx: wide ? 104 : 78, minimumConfidence: wide ? 0.62 : 0.6 },
+    );
+    if (!motion) return undefined;
+    const transform = applyPassiveTreeFrameMotion(
+      reference.transform,
+      motion,
+      capture.capture,
+      { width: projection.display.bounds.width, height: projection.display.bounds.height },
+    );
+    if (!finite(transform.scale) || transform.scale < MIN_SCALE || transform.scale > MAX_SCALE || !finite(transform.offsetX) || !finite(transform.offsetY)) return undefined;
+    return { transform, motion };
+  }
+
+  private solveProjection(projection: ProjectionContext, capture: PoeWindowCapture): TrackingResult | undefined {
+    const references = this.referenceBank(projection);
+    if (!references.length) return undefined;
+    const failures = this.trackingFailures.get(projection.calibrationKey) ?? 0;
+    const primary = this.solveFromReference(projection, references[0], capture, failures > 0);
+    if (primary) {
+      return {
+        projection: { ...projection, transform: primary.transform },
+        motion: primary.motion,
+        mode: primary.motion.stationary ? 'stationary' : 'motion',
+      };
+    }
+
+    let best: TrackingResult | undefined;
+    for (const reference of references.slice(1)) {
+      const solved = this.solveFromReference(projection, reference, capture, true);
+      if (!solved) continue;
+      const candidate: TrackingResult = {
+        projection: { ...projection, transform: solved.transform },
+        motion: solved.motion,
+        mode: 'reacquired',
+      };
+      if (!best || candidate.motion.confidence > best.motion.confidence
+        || (candidate.motion.confidence === best.motion.confidence && candidate.motion.inliers > best.motion.inliers)) best = candidate;
+    }
+    return best;
+  }
+
+  private commitTracking(result: TrackingResult, capture: PoeWindowCapture): void {
+    const key = result.projection.calibrationKey;
+    this.liveTransforms.set(key, result.projection.transform);
+    this.trustedFrames.set(key, cloneCapture(capture));
+    this.diagnostics.set(key, { confidence: result.motion.confidence, inliers: result.motion.inliers, rms: result.motion.rms });
+    this.trackingFailures.set(key, 0);
+    this.dirtyReferences.add(key);
+    void this.persistReference(result.projection, capture);
+  }
+
+  private async automaticProjectionFromCompatibleReference(context: PassiveTreeHudContext, capture: PoeWindowCapture): Promise<ProjectionContext | undefined> {
+    const scopeKey = targetScope(context);
+    if (!scopeKey) return undefined;
+    const displays = screen.getAllDisplays();
+    const display = capture.displayId
+      ? displays.find((candidate) => String(candidate.id) === capture.displayId)
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    if (!display) return undefined;
+    const key = calibrationKey(display, scopeKey);
+    if (this.calibrations[key]) return this.projectionContext(context, capture.displayId);
+
+    let best: { calibration: StoredCalibration; transform: PassiveTreeTransform; motion: PassiveTreeFrameMotion } | undefined;
+    for (const [sourceKey, calibration] of Object.entries(this.calibrations)) {
+      const sameScope = calibration.scopeKey ? calibration.scopeKey === scopeKey : sourceKey.endsWith(`:${scopeKey}`);
+      if (!sameScope || !calibration.keyframe || !calibration.displayWidth || !calibration.displayHeight) continue;
+      if (!captureAspectStable(calibration.captureAspect, capture)) continue;
+      const screenMatch = matchPassiveTreeScreenSignature(calibration.screenCheck, capture.bitmap, capture.capture.width, capture.capture.height);
+      if (!screenMatch.matched) continue;
+      const adapted = adaptPassiveTreeTransformToDisplay({
+        transform: { scale: calibration.scale, offsetX: calibration.offsetX, offsetY: calibration.offsetY, ySign: calibration.ySign },
+        displayWidth: calibration.displayWidth,
+        displayHeight: calibration.displayHeight,
+      }, { width: display.bounds.width, height: display.bounds.height });
+      if (!adapted) continue;
+      const sourceCapture = decodeCapture(calibration.keyframe, display.id);
+      if (!sourceCapture || sourceCapture.capture.width !== capture.capture.width || sourceCapture.capture.height !== capture.capture.height) continue;
+      const motion = trackPassiveTreeFrameMotion(sourceCapture.bitmap, capture.bitmap, capture.capture.width, capture.capture.height, {
+        wide: true,
+        searchRadiusPx: 104,
+        minimumConfidence: 0.68,
+      });
+      if (!motion) continue;
+      const transform = applyPassiveTreeFrameMotion(adapted, motion, capture.capture, { width: display.bounds.width, height: display.bounds.height });
+      if (!best || motion.confidence > best.motion.confidence) best = { calibration, transform, motion };
+    }
+    if (!best) return undefined;
+
+    const signature = createPassiveTreeScreenSignature(capture.bitmap, capture.capture.width, capture.capture.height);
+    if (!signature) return undefined;
+    const calibration: StoredCalibration = {
+      ...best.transform,
+      captureAspect: captureAspect(capture),
+      screenCheck: signature,
+      keyframe: { width: capture.capture.width, height: capture.capture.height, bitmapBase64: capture.bitmap.toString('base64') },
+      references: [],
+      displayWidth: display.bounds.width,
+      displayHeight: display.bounds.height,
+      displayScaleFactor: display.scaleFactor,
+      scopeKey,
+      updatedAt: new Date().toISOString(),
+    };
+    this.calibrations[key] = calibration;
+    this.liveTransforms.set(key, best.transform);
+    this.trustedFrames.set(key, cloneCapture(capture));
+    this.diagnostics.set(key, { confidence: best.motion.confidence, inliers: best.motion.inliers, rms: best.motion.rms });
+    this.trackingFailures.set(key, 0);
+    this.lastReferenceSave.set(key, Date.now());
+    await this.saveCalibrations();
+    this.options.log?.info(`Passive Target Lock automatically recovered ${scopeKey} on ${display.bounds.width}x${display.bounds.height} from a compatible trusted reference.`);
+    return { display, scopeKey, calibrationKey: key, transform: best.transform, calibration };
+  }
+
+  private targetVisualIdentity(projection: ProjectionContext, context: PassiveTreeHudContext): string {
+    return `${projection.calibrationKey}:${context.guide?.target?.nodeId ?? 0}:${context.guide?.target?.type ?? 'none'}`;
+  }
+
+  private ensureTargetVisual(projection: ProjectionContext, context: PassiveTreeHudContext): TargetVisualState {
+    const identity = this.targetVisualIdentity(projection, context);
+    if (!this.targetVisual || this.targetVisual.identity !== identity) {
+      this.targetVisual = { identity, verification: 'learning', stableChangeCount: 0, mismatchCount: 0, pendingOperation: false };
+    }
+    return this.targetVisual;
+  }
+
+  private triggerAutomaticProgress(context: PassiveTreeHudContext, visual: TargetVisualState, confidence: number): void {
+    const target = context.guide?.target;
+    if (!target || context.guide?.mode !== 'exact' || visual.pendingOperation || !this.options.onTargetOperationDetected) return;
+    visual.pendingOperation = true;
+    const event: PassiveTargetOperationDetected = { nodeId: target.nodeId, operation: target.type, confidence };
+    void Promise.resolve(this.options.onTargetOperationDetected(event)).then((advanced) => {
+      if (!advanced && this.targetVisual?.identity === visual.identity) visual.pendingOperation = false;
+      this.poke();
+    }).catch((error) => {
+      if (this.targetVisual?.identity === visual.identity) visual.pendingOperation = false;
+      this.options.log?.warn('Passive Target Lock automatic build progression callback failed safely.', error);
+      this.poke();
+    });
+  }
+
+  private inspectTargetVisual(
+    context: PassiveTreeHudContext,
+    result: TrackingResult,
+    capture: PoeWindowCapture,
+  ): { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean; mismatch: boolean } {
+    const target = context.guide?.target;
+    const snapshot = context.snapshot;
+    if (!target || !snapshot) return { verification: 'learning', autoAdvanceArmed: false, mismatch: false };
+    const point = passiveHudTarget(snapshot, target.nodeId);
+    if (!point) return { verification: 'learning', autoAdvanceArmed: false, mismatch: false };
+    const projected = projectPassiveTreePoint(result.projection.transform, point);
+    const markerRadius = targetMarkerRadius(result.projection.transform, result.projection.display, target.type);
+    const edge = edgeIndicatorForTarget(projected, result.projection.display.bounds.width, result.projection.display.bounds.height);
+    const visual = this.ensureTargetVisual(result.projection, context);
+    if (edge.visible) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+
+    const cursor = screen.getCursorScreenPoint();
+    const localCursor = { x: cursor.x - result.projection.display.bounds.x, y: cursor.y - result.projection.display.bounds.y };
+    const cursorNearTarget = Math.hypot(localCursor.x - projected.x, localCursor.y - projected.y) <= Math.max(44, markerRadius * 1.75);
+    if (cursorNearTarget || !result.motion.stationary) {
+      return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    }
+
+    const patch = samplePassiveTargetPatch(
+      capture.bitmap,
+      capture.capture,
+      { width: result.projection.display.bounds.width, height: result.projection.display.bounds.height },
+      { x: projected.x, y: projected.y, radius: markerRadius },
+    );
+    if (!patch) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    if (!visual.reference) {
+      visual.reference = patch;
+      visual.verification = 'learning';
+      return { verification: visual.verification, autoAdvanceArmed: true, mismatch: false };
+    }
+
+    const comparison = comparePassiveTargetPatches(visual.reference, patch);
+    if (!comparison) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    const operationComplete = passiveTargetOperationLooksComplete(comparison, target.type);
+    if (operationComplete) {
+      visual.stableChangeCount += 1;
+      visual.mismatchCount = 0;
+      visual.verification = 'changed';
+      if (visual.stableChangeCount >= AUTO_ADVANCE_CONFIRMATIONS) {
+        this.triggerAutomaticProgress(context, visual, clamp(1 - comparison.difference * 0.35, 0.7, 0.99));
+      }
+      return { verification: visual.verification, autoAdvanceArmed: !visual.pendingOperation, mismatch: false };
+    }
+
+    visual.stableChangeCount = 0;
+    if (passiveTargetPatchIsGrossMismatch(comparison)) {
+      visual.mismatchCount += 1;
+      visual.verification = visual.mismatchCount >= LOCAL_MISMATCH_CONFIRMATIONS ? 'mismatch' : 'changed';
+      return { verification: visual.verification, autoAdvanceArmed: false, mismatch: visual.verification === 'mismatch' };
+    }
+
+    visual.mismatchCount = 0;
+    visual.verification = comparison.difference <= 0.075 ? 'verified' : 'changed';
+    return { verification: visual.verification, autoAdvanceArmed: true, mismatch: false };
+  }
+
+  private visibleState(
+    context: PassiveTreeHudContext,
+    result: TrackingResult,
+    capture: PoeWindowCapture,
+    visual: { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean },
+  ): PassiveTreeHudState {
     const guide = context.guide!;
     const snapshot = context.snapshot!;
+    const projection = result.projection;
     const targetPoint = passiveHudTarget(snapshot, guide.target!.nodeId)!;
     const projectedTarget = projectPassiveTreePoint(projection.transform, targetPoint);
     const edge = edgeIndicatorForTarget(projectedTarget, projection.display.bounds.width, projection.display.bounds.height);
     const diagnostics = this.diagnostics.get(projection.calibrationKey);
     const ascendancyName = projection.scopeKey === 'base' ? undefined : passiveAscendancyNameFromScope(projection.scopeKey);
+    const markerRadius = targetMarkerRadius(projection.transform, projection.display, guide.target!.type);
+    const offscreenDistancePx = edge.visible ? Math.round(Math.hypot(projectedTarget.x - edge.x, projectedTarget.y - edge.y)) : undefined;
     return {
       status: 'locked',
       enabled: true,
@@ -555,10 +892,13 @@ export class PassiveTreeHudService {
       classStartNodeId: guide.classStartNodeId,
       treeScope: projection.scopeKey === 'base' ? 'base' : 'ascendancy',
       ascendancyName,
-      message: `Target Lock is glued to PoB node ${guide.target!.nodeId}. Vision only follows passive-tree pan and zoom.`,
-      confidence: diagnostics?.confidence ?? 1,
-      inliers: diagnostics?.inliers,
-      rms: diagnostics?.rms,
+      message: `Target Lock is glued to PoB node ${guide.target!.nodeId}. Build progression alone controls target identity.`,
+      confidence: diagnostics?.confidence ?? result.motion.confidence,
+      inliers: diagnostics?.inliers ?? result.motion.inliers,
+      rms: diagnostics?.rms ?? result.motion.rms,
+      trackingMode: result.mode,
+      targetVerification: visual.verification,
+      autoAdvanceArmed: visual.autoAdvanceArmed,
       displayId: projection.display.id,
       displayBounds: { ...projection.display.bounds },
       captureSize: { ...capture.capture },
@@ -568,7 +908,7 @@ export class PassiveTreeHudService {
         kind: guide.target!.nodeKind,
         x: projectedTarget.x,
         y: projectedTarget.y,
-        markerRadius: guide.target!.type === 'refund' ? 30 : 28,
+        markerRadius,
         operation: guide.target!.type,
         index: guide.target!.index,
         total: guide.target!.total,
@@ -577,6 +917,8 @@ export class PassiveTreeHudService {
         arrowX: edge.visible ? edge.x : undefined,
         arrowY: edge.visible ? edge.y : undefined,
         arrowAngle: edge.visible ? edge.angle : undefined,
+        offscreenDistancePx,
+        offscreenDirection: edge.visible ? compassDirection(edge.angle) : undefined,
       },
       path: [],
       lastLockedAt: new Date().toISOString(),
@@ -587,10 +929,7 @@ export class PassiveTreeHudService {
     if (this.stopped) return;
     const context = this.options.context();
     const idle = this.eligibilityState(context);
-    if (idle) {
-      this.emit(idle);
-      return;
-    }
+    if (idle) { this.emit(idle); return; }
     const snapshot = context.snapshot;
     const guide = context.guide;
     const scopeKey = targetScope(context);
@@ -601,10 +940,9 @@ export class PassiveTreeHudService {
       return;
     }
 
-    const display = screen.getAllDisplays().find((candidate) => candidate.id === request.displayId)
-      ?? screen.getDisplayNearestPoint(request.cursor);
+    const display = screen.getAllDisplays().find((candidate) => candidate.id === request.displayId) ?? screen.getDisplayNearestPoint(request.cursor);
     this.consecutiveTreeMatches = 0;
-    this.emit(this.waitingTreeState(context, 'Capturing Target Lock anchor. Keep the passive tree at maximum zoom-out while the reference frames are sampled.'));
+    this.emit(this.waitingTreeState(context, 'Capturing the emergency Target Lock reference. Keep the passive tree at maximum zoom-out while the reference frames are sampled.'));
     try {
       await new Promise((resolve) => setTimeout(resolve, 60));
       const first = await this.capturePoeWindow();
@@ -632,22 +970,18 @@ export class PassiveTreeHudService {
       const scale = seedScale(display);
       const localX = request.cursor.x - display.bounds.x;
       const localY = request.cursor.y - display.bounds.y;
-      const transform: PassiveTreeTransform = {
-        scale,
-        offsetX: localX - anchor.x * scale,
-        offsetY: localY - anchor.y * scale,
-        ySign: 1,
-      };
+      const transform: PassiveTreeTransform = { scale, offsetX: localX - anchor.x * scale, offsetY: localY - anchor.y * scale, ySign: 1 };
       const key = calibrationKey(display, scopeKey);
       const calibration: StoredCalibration = {
         ...transform,
         captureAspect: captureAspect(first),
         screenCheck: signature,
-        keyframe: {
-          width: second.capture.width,
-          height: second.capture.height,
-          bitmapBase64: second.bitmap.toString('base64'),
-        },
+        keyframe: { width: second.capture.width, height: second.capture.height, bitmapBase64: second.bitmap.toString('base64') },
+        references: [],
+        displayWidth: display.bounds.width,
+        displayHeight: display.bounds.height,
+        displayScaleFactor: display.scaleFactor,
+        scopeKey,
         updatedAt: new Date().toISOString(),
       };
       this.calibrations[key] = calibration;
@@ -657,14 +991,14 @@ export class PassiveTreeHudService {
       this.trackingFailures.set(key, 0);
       this.lastReferenceSave.set(key, Date.now());
       this.dirtyReferences.delete(key);
+      this.targetVisual = undefined;
       this.consecutiveTreeMatches = REQUIRED_TREE_MATCHES;
       await this.saveCalibrations();
-      this.options.log?.info(`Passive Target Lock anchored for ${key}; target node identity will remain build-controlled while image motion follows pan/zoom.`);
+      this.options.log?.info(`Passive Target Lock reference captured for ${key}; future compatible views recover automatically.`);
       this.poke();
     } catch (error) {
-      if (String(error).includes('POE_NOT_RUNNING')) {
-        this.emit(this.waitingTreeState(context, 'Target Lock needs Path of Exile running with the passive tree open.'));
-      } else {
+      if (String(error).includes('POE_NOT_RUNNING')) this.emit(this.waitingTreeState(context, 'Target Lock needs Path of Exile running with the passive tree open.'));
+      else {
         this.options.log?.warn('Passive Target Lock anchor capture failed.', error);
         this.emit({ status: 'capture-error', enabled: true, visible: false, message: `Passive Target Lock anchor failed safely: ${String(error)}`, path: [] });
       }
@@ -683,57 +1017,10 @@ export class PassiveTreeHudService {
     this.trackingFailures.delete(key);
     this.lastReferenceSave.delete(key);
     this.dirtyReferences.delete(key);
+    this.targetVisual = undefined;
     this.consecutiveTreeMatches = 0;
     void this.saveCalibrations();
-    this.emit(this.waitingTreeState(context, `Target Lock anchor cleared. Fully zoom out the passive tree, hover the class/Ascendancy start node once, then press ${RECENTER_HOTKEY}.`));
-  }
-
-  private trackProjection(projection: ProjectionContext, capture: PoeWindowCapture): ProjectionContext | undefined {
-    const previous = this.keyframeCapture(projection);
-    if (!previous) return undefined;
-    if (previous.capture.width !== capture.capture.width || previous.capture.height !== capture.capture.height) return undefined;
-    const failures = this.trackingFailures.get(projection.calibrationKey) ?? 0;
-    let motion: PassiveTreeFrameMotion | undefined = trackPassiveTreeFrameMotion(
-      previous.bitmap,
-      capture.bitmap,
-      capture.capture.width,
-      capture.capture.height,
-      {
-        wide: failures > 0,
-        searchRadiusPx: failures > 1 ? 96 : 78,
-        minimumConfidence: failures > 0 ? 0.55 : 0.6,
-      },
-    );
-    if (!motion && failures === 0) {
-      motion = trackPassiveTreeFrameMotion(
-        previous.bitmap,
-        capture.bitmap,
-        capture.capture.width,
-        capture.capture.height,
-        { wide: true, searchRadiusPx: 104, minimumConfidence: 0.55 },
-      );
-    }
-    if (!motion) return undefined;
-    const transform = applyPassiveTreeFrameMotion(
-      projection.transform,
-      motion,
-      capture.capture,
-      { width: projection.display.bounds.width, height: projection.display.bounds.height },
-    );
-    if (!finite(transform.scale) || transform.scale < MIN_SCALE || transform.scale > MAX_SCALE
-      || !finite(transform.offsetX) || !finite(transform.offsetY)) return undefined;
-    this.liveTransforms.set(projection.calibrationKey, transform);
-    this.trustedFrames.set(projection.calibrationKey, cloneCapture(capture));
-    this.diagnostics.set(projection.calibrationKey, {
-      confidence: motion.confidence,
-      inliers: motion.inliers,
-      rms: motion.rms,
-    });
-    this.trackingFailures.set(projection.calibrationKey, 0);
-    this.dirtyReferences.add(projection.calibrationKey);
-    const tracked: ProjectionContext = { ...projection, transform };
-    void this.persistReference(tracked, capture);
-    return tracked;
+    this.emit(this.waitingTreeState(context, `Target Lock reference cleared. Automatic recovery will be attempted first; ${RECENTER_HOTKEY} remains the emergency manual fallback.`));
   }
 
   private async poll(): Promise<void> {
@@ -744,34 +1031,31 @@ export class PassiveTreeHudService {
       const idle = this.eligibilityState(context);
       if (idle) {
         this.consecutiveTreeMatches = 0;
+        this.targetVisual = undefined;
         this.emit(idle);
         return;
       }
 
       const capture = await this.capturePoeWindow();
-      const projection = this.projectionContext(context, capture.displayId);
+      let projection = this.projectionContext(context, capture.displayId);
+      if (!projection) projection = await this.automaticProjectionFromCompatibleReference(context, capture);
       if (!projection) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `One-time Target Lock anchor required. Fully zoom out the passive tree, hover the ${context.guide?.className ?? 'class/Ascendancy'} start node and press ${RECENTER_HOTKEY}.`));
+        this.emit(this.waitingTreeState(context, `No trusted reference exists for this first tree/display shape yet. Fully zoom out, hover the ${context.guide?.className ?? 'class/Ascendancy'} start node and press ${RECENTER_HOTKEY} once; later reopen/resolution recovery is automatic.`));
         return;
       }
       if (!captureDisplayMatches(capture, projection.display)) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `Target Lock is hidden because Path of Exile moved to another display. Re-anchor once with ${RECENTER_HOTKEY} on that display.`));
+        this.emit(this.waitingTreeState(context, `Target Lock is hidden because Path of Exile moved to another display. Automatic compatible-reference recovery will keep trying; ${RECENTER_HOTKEY} is only the fallback.`));
         return;
       }
       if (!captureAspectStable(projection.calibration.captureAspect, capture)) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `Target Lock is hidden because the PoE window shape changed. Fully zoom out and press ${RECENTER_HOTKEY} once to refresh the anchor.`));
+        this.emit(this.waitingTreeState(context, `Target Lock is hidden because the PoE window shape changed materially. Automatic same-aspect recovery is unavailable; use ${RECENTER_HOTKEY} once for this new aspect.`));
         return;
       }
 
-      const match = matchPassiveTreeScreenSignature(
-        projection.calibration.screenCheck,
-        capture.bitmap,
-        capture.capture.width,
-        capture.capture.height,
-      );
+      const match = matchPassiveTreeScreenSignature(projection.calibration.screenCheck, capture.bitmap, capture.capture.width, capture.capture.height);
       if (!match.matched) {
         this.consecutiveTreeMatches = 0;
         const trusted = this.trustedFrames.get(projection.calibrationKey);
@@ -782,37 +1066,38 @@ export class PassiveTreeHudService {
 
       this.consecutiveTreeMatches += 1;
       if (this.consecutiveTreeMatches < REQUIRED_TREE_MATCHES) {
-        this.emit(this.waitingTreeState(context, 'Passive-tree UI found; confirming before showing the target crosshair.', 'searching'));
+        this.emit(this.waitingTreeState(context, 'Passive-tree UI found; confirming before showing the target reticle.', 'searching'));
         return;
       }
 
-      const tracked = this.trackProjection(projection, capture);
-      if (!tracked) {
+      const result = this.solveProjection(projection, capture);
+      if (!result) {
         const failures = (this.trackingFailures.get(projection.calibrationKey) ?? 0) + 1;
         this.trackingFailures.set(projection.calibrationKey, failures);
         const message = failures >= 3
-          ? `Target Lock refused an uncertain camera jump. The crosshair is hidden instead of guessing. Fully zoom out, hover the class/Ascendancy start node and press ${RECENTER_HOTKEY} once to recover.`
-          : 'Target Lock lost confidence in passive-tree motion. The crosshair is hidden while it safely reacquires the same tree view.';
+          ? `Target Lock refused an uncertain camera jump. The reticle is hidden instead of guessing. Trusted keyframes will keep trying automatically; ${RECENTER_HOTKEY} is the emergency fallback.`
+          : 'Target Lock lost confidence in passive-tree motion. The reticle is hidden while trusted keyframes try to recover the same tree view.';
         this.emit(this.waitingTreeState(context, message, 'searching'));
         return;
       }
 
-      this.emit(this.visibleState(context, tracked, capture));
+      const visual = this.inspectTargetVisual(context, result, capture);
+      if (visual.mismatch) {
+        const failures = (this.trackingFailures.get(projection.calibrationKey) ?? 0) + 1;
+        this.trackingFailures.set(projection.calibrationKey, failures);
+        this.emit(this.waitingTreeState(context, 'The local target watchdog disagreed with the proposed viewport transform. The reticle is hidden and the untrusted transform was not committed.', 'searching'));
+        return;
+      }
+
+      this.commitTracking(result, capture);
+      this.emit(this.visibleState(context, result, capture, visual));
     } catch (error) {
       this.consecutiveTreeMatches = 0;
-      if (String(error).includes('POE_NOT_RUNNING')) {
-        this.emit(this.waitingTreeState(this.options.context(), 'Path of Exile is not running. Passive Target Lock capture is suspended.'));
-      } else if (String(error).includes('POE_CAPTURE_EMPTY')) {
-        this.emit(this.waitingTreeState(this.options.context(), 'Path of Exile is running, but its window capture is unavailable.'));
-      } else {
+      if (String(error).includes('POE_NOT_RUNNING')) this.emit(this.waitingTreeState(this.options.context(), 'Path of Exile is not running. Passive Target Lock capture is suspended.'));
+      else if (String(error).includes('POE_CAPTURE_EMPTY')) this.emit(this.waitingTreeState(this.options.context(), 'Path of Exile is running, but its window capture is unavailable.'));
+      else {
         this.options.log?.warn('Passive Target Lock screen check failed.', error);
-        this.emit({
-          status: 'capture-error',
-          enabled: true,
-          visible: false,
-          message: `Passive Target Lock could not inspect the Path of Exile window safely: ${String(error)}`,
-          path: [],
-        });
+        this.emit({ status: 'capture-error', enabled: true, visible: false, message: `Passive Target Lock could not inspect the Path of Exile window safely: ${String(error)}`, path: [] });
       }
     } finally {
       this.polling = false;
