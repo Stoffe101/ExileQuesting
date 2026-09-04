@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isStepEnabled } from '../core/campaign';
 import { summarizeActions } from '../core/actions';
-import { focusHint } from '../core/layouts';
+import { focusHint, layoutAuditStatus } from '../core/layouts';
 import {
   campaignCompletionAudit,
   guideCalloutsForStep,
@@ -92,6 +92,7 @@ function Callout({ callout }: { callout: GuideCallout }) {
 function LayoutSketch({ step }: { step: CampaignStep }) {
   const hint = focusHint(step.layoutHints ?? []);
   if (!hint) return null;
+  const audit = layoutAuditStatus(hint);
   const text = hint.text.toLowerCase();
   const kind = /hub|branch/.test(text) ? 'hub'
     : /opposite|away from|other side/.test(text) ? 'opposite'
@@ -99,11 +100,16 @@ function LayoutSketch({ step }: { step: CampaignStep }) {
         : /wall|edge|shore|stream|road/.test(text) ? 'edge'
           : 'route';
   return (
-    <section className="g2-layout-sketch">
+    <section className={`g2-layout-sketch layout-audit-${audit}`}>
       <div className={`g2-sketch sketch-${kind}`} aria-hidden="true">
         <i className="start">START</i><i className="path-one" /><i className="path-two" /><i className="goal">GOAL</i><i className="branch" />
       </div>
-      <div><span>LAYOUT CLUE · {hint.confidence.toUpperCase()}</span><strong>Route sketch, not an exact map</strong><p>{hint.text}</p></div>
+      <div>
+        <span>LAYOUT CLUE · {audit.toUpperCase()} · {hint.confidence.toUpperCase()}</span>
+        <strong>Route sketch, not an exact map</strong>
+        <p>{hint.text}</p>
+        <small>{hint.auditNote ?? `${hint.gameVersion ?? 'Current patch'} · ${hint.source ?? 'ExileQuesting maintained knowledge'}`}</small>
+      </div>
     </section>
   );
 }
@@ -154,7 +160,7 @@ function LostPanel({ state, currentIndex, onInspect, onClose }: { state: Runtime
         <div className="g2-lost-grid">
           <article><span>YOU ARE</span><strong>{state.currentZone ?? recovery.matchedStep?.targetArea ?? 'Zone not detected'}</strong><small>{state.currentAreaId ?? 'Waiting for Client.txt'}</small></article>
           <article><span>YOUR GOAL</span><strong>{summarizeActions(current.actions).now?.title ?? current.title}</strong><small>{current.targetArea ?? `Act ${current.act}`}</small></article>
-          <article><span>LOOK FOR</span><strong>{hint?.text ?? current.annotation?.summary ?? 'Follow the current route objective and zone transitions.'}</strong><small>{hint ? `${hint.confidence} confidence layout clue` : 'Objective context'}</small></article>
+          <article><span>LOOK FOR</span><strong>{hint?.text ?? current.annotation?.summary ?? 'Follow the current route objective and zone transitions.'}</strong><small>{hint ? `${layoutAuditStatus(hint)} · ${hint.confidence} confidence layout clue` : 'Objective context'}</small></article>
           <article><span>AFTERWARDS</span><strong>{next ? summarizeActions(next.step.actions).now?.title ?? next.step.title : 'Campaign complete'}</strong><small>{next?.step.targetArea ?? 'Review completion audit'}</small></article>
         </div>
         {unresolved.length > 0 && <div className="g2-catchup"><b>UNCONFIRMED PERMANENT REWARDS</b>{unresolved.map((item) => <button key={item.stepId} onClick={() => { onInspect(item.stepIndex); onClose(); }}>Act {item.act} · {item.label}<span>{item.type === 'passive' ? '+1 PASSIVE' : 'TRIAL'}</span></button>)}</div>}
