@@ -5,7 +5,7 @@ export interface BuildPlannerState {
   schemaVersion: 1;
   activeProfileId?: string;
   activeStageByProfile: Record<string, string>;
-  /** Number of Maxroll passive operations the player has explicitly acknowledged. */
+  /** Number of ordered/derived passive operations the player has acknowledged in the active route context. */
   passiveCursorByProfile: Record<string, number>;
 }
 
@@ -21,6 +21,8 @@ export interface BuildPlannerSnapshot {
   profiles: BuildPlannerProfileView[];
 }
 
+const MAX_DERIVED_STAGE_CURSOR = 1_000;
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -29,6 +31,10 @@ function safeCursor(value: unknown, maximum: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.min(maximum, Math.trunc(parsed)));
+}
+
+function passiveCursorMaximum(profile: BuildProfile): number {
+  return profile.maxroll?.passiveOperations.length ?? MAX_DERIVED_STAGE_CURSOR;
 }
 
 export function defaultBuildPlannerState(): BuildPlannerState {
@@ -70,8 +76,7 @@ export function normalizeBuildPlannerState(value: unknown, profiles: BuildProfil
     const requested = typeof requestedStages[profile.id] === 'string' ? requestedStages[profile.id] as string : undefined;
     const selected = requested && stageIds.has(requested) ? requested : defaultActiveStageId(profile);
     if (selected) activeStageByProfile[profile.id] = selected;
-    const maximum = profile.maxroll?.passiveOperations.length ?? 0;
-    passiveCursorByProfile[profile.id] = safeCursor(requestedCursors[profile.id], maximum);
+    passiveCursorByProfile[profile.id] = safeCursor(requestedCursors[profile.id], passiveCursorMaximum(profile));
   }
 
   return { schemaVersion: 1, activeProfileId, activeStageByProfile, passiveCursorByProfile };
@@ -99,17 +104,23 @@ export function activateBuildStage(state: BuildPlannerState, profiles: BuildProf
   const profile = profiles.find((candidate) => candidate.id === profileId);
   if (!profile) return normalizeBuildPlannerState(state, profiles);
   if (!alignedStagesForProfile(profile).some((stage) => stage.id === stageId)) return normalizeBuildPlannerState(state, profiles);
+  const stageChanged = state.activeStageByProfile[profileId] !== stageId;
   return normalizeBuildPlannerState({
     ...state,
     activeProfileId: profileId,
     activeStageByProfile: { ...state.activeStageByProfile, [profileId]: stageId },
+    // Maxroll cursor is global across its ordered operation list. A PoB-derived
+    // cursor is stage-local and must restart when the user picks another stage.
+    passiveCursorByProfile: !profile.maxroll && stageChanged
+      ? { ...state.passiveCursorByProfile, [profileId]: 0 }
+      : state.passiveCursorByProfile,
   }, profiles);
 }
 
 export function setBuildPassiveCursor(state: BuildPlannerState, profiles: BuildProfile[], profileId: string, cursor: number): BuildPlannerState {
   const profile = profiles.find((candidate) => candidate.id === profileId);
-  if (!profile?.maxroll) return normalizeBuildPlannerState(state, profiles);
-  const next = safeCursor(cursor, profile.maxroll.passiveOperations.length);
+  if (!profile) return normalizeBuildPlannerState(state, profiles);
+  const next = safeCursor(cursor, passiveCursorMaximum(profile));
   return normalizeBuildPlannerState({
     ...state,
     activeProfileId: profileId,
