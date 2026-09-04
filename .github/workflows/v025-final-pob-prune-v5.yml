@@ -1,0 +1,48 @@
+name: v0.2.5 final PoB pruning commit
+
+on:
+  push:
+    branches:
+      - feature/campaign-guide-2
+    paths:
+      - .github/workflows/v025-final-pob-prune-v5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  commit-proven-source:
+    runs-on: windows-2025
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply already-proven pruning patch and remove scaffolding
+        shell: pwsh
+        run: |
+          python tools/apply-v025-pob-prune.py
+          Remove-Item .github/workflows/v025-final-pob-prune-v5.yml -Force
+      - run: npm run typecheck
+      - run: npm test
+      - name: Rebuild and prove pinned slim PoB runtime
+        run: npm run prepare:pob-runtime:win
+      - name: Re-run staged PoB proof
+        run: npm run smoke:pob-runtime
+      - name: Commit clean validated source
+        shell: pwsh
+        run: |
+          git config user.name "Skrra"
+          git config user.email "94893570+Stoffe101@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git status --short
+          git commit -m "Slim pinned PoB runtime for v0.2.5 playtest"
+          git push origin HEAD:feature/campaign-guide-2
