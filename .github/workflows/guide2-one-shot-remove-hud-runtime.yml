@@ -1,118 +1,34 @@
-name: Guide 2 one-shot remove HUD runtime
+name: Guide 2 retired HUD cleanup
 
 on:
   push:
-    branches: [feature/campaign-guide-2]
+    branches:
+      - feature/campaign-guide-2
 
 permissions:
   contents: write
 
 jobs:
   cleanup:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/campaign-guide-2
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.x'
-      - name: Remove retired Passive Tree HUD runtime and renderer
-        shell: python
-        run: |
-          from pathlib import Path
-          import re
-
-          main = Path('electron/main.ts')
-          text = main.read_text(encoding='utf-8')
-          text = text.replace('  screen,\n', '', 1)
-          text = text.replace("import { PassiveTreeHudService, type PassiveTreeHudContext } from './services/passive-tree-hud';\n", '', 1)
-          text = text.replace("import { buildPassiveTreeGuidePlan } from '../src/core/passive-tree-guide';\n", '', 1)
-          text = text.replace('passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true', 'passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false', 1)
-          text = text.replace('let passiveTreeHudWindow: BrowserWindow | null = null;\n', '', 1)
-          text = text.replace('let passiveTreeHudService: PassiveTreeHudService | null = null;\n', '', 1)
-          text = text.replace('let passiveTreeHudState: PassiveTreeHudState = passiveTreeHudIdle(true);', 'let passiveTreeHudState: PassiveTreeHudState = passiveTreeHudIdle(false);', 1)
-
-          load_settings = "  settings = await store.loadSettings(DEFAULT_SETTINGS);"
-          migrated = load_settings + "\n  // Passive Tree HUD was retired by Campaign Guide 2. Preserve the legacy keys only for settings compatibility.\n  settings.passiveTreeHudEnabled = false;\n  settings.passiveTreeHudPathPreview = false;"
-          if load_settings not in text:
-              raise SystemExit('settings load marker missing')
-          text = text.replace(load_settings, migrated, 1)
-
-          text, count = re.subn(
-              r'\nfunction passiveTreeHudContext\(\): PassiveTreeHudContext \{.*?\n\}\n\nfunction rebuildBuildGuidance\(\): void \{',
-              '\nfunction rebuildBuildGuidance(): void {',
-              text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit(f'expected one passive HUD runtime block, removed {count}')
-          text = text.replace('  passiveTreeHudService?.poke();\n', '', 1)
-          text = text.replace("  if (passiveTreeHudWindow && !passiveTreeHudWindow.isDestroyed()) passiveTreeHudWindow.webContents.send('state:changed', real);\n", '', 1)
-
-          text, count = re.subn(
-              r'\nfunction createPassiveTreeHudWindow\(\): BrowserWindow \{.*?\n\}\nfunction toggleOverlay',
-              '\nfunction toggleOverlay',
-              text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit(f'expected one Passive Tree HUD BrowserWindow block, removed {count}')
-          text = text.replace("mode: 'manager' | 'overlay' | 'lab' | 'passive-tree-hud'", "mode: 'manager' | 'overlay' | 'lab'", 1)
-
-          settings_block = """    if (safePatch.passiveTreeHudEnabled !== undefined || safePatch.passiveTreeHudPathPreview !== undefined) {
-              if (!settings.passiveTreeHudEnabled) passiveTreeHudWindow?.hide();
-              passiveTreeHudService?.poke();
-            }
-"""
-          text = text.replace(settings_block, '', 1)
-          text = text.replace('  passiveTreeHudService?.stop();\n', '', 1)
-          main.write_text(text, encoding='utf-8')
-
-          app = Path('src/ui/App.tsx')
-          text = app.read_text(encoding='utf-8')
-          text = text.replace("import PassiveTreeHudOverlay from './PassiveTreeHudOverlay';\n", '', 1)
-          text = text.replace("  if (mode === 'passive-tree-hud') return <PassiveTreeHudOverlay state={state} />;\n", '', 1)
-          app.write_text(text, encoding='utf-8')
-
-          renderer = Path('src/main.tsx')
-          text = renderer.read_text(encoding='utf-8')
-          text = text.replace("import './ui/passive-tree-hud.css';\n", '', 1)
-          renderer.write_text(text, encoding='utf-8')
-
-          package = Path('package.json')
-          text = package.read_text(encoding='utf-8')
-          text, count = re.subn(r'^\s*"visual:passive-hud":.*\n', '', text, count=1, flags=re.M)
-          if count != 1:
-              raise SystemExit('visual:passive-hud script marker missing')
-          package.write_text(text, encoding='utf-8')
-
-          forbidden = [
-              'PassiveTreeHudService',
-              'passiveTreeHudWindow',
-              'createPassiveTreeHudWindow',
-              'initializePassiveTreeHud',
-              "setContentProtection(true)",
-              "mode === 'passive-tree-hud'",
-          ]
-          main_text = main.read_text(encoding='utf-8')
-          app_text = app.read_text(encoding='utf-8')
-          for token in forbidden:
-              if token in main_text or token in app_text:
-                  raise SystemExit(f'retired HUD token survived cleanup: {token}')
-
-      - name: Remove obsolete HUD-only files and this workflow
-        shell: bash
+          node-version: 24
+      - name: Remove retired HUD runtime
+        run: node tools/remove-retired-passive-hud.mjs
+      - name: Remove obsolete files and commit
         run: |
           git rm electron/services/passive-tree-hud.ts
           git rm src/ui/PassiveTreeHudOverlay.tsx
           git rm src/ui/passive-tree-hud.css
           git rm src/ui/passive-tree-hud-style.test.ts
           git rm tools/visual-passive-tree-hud.ts
+          git rm tools/remove-retired-passive-hud.mjs
           git rm .github/workflows/guide2-one-shot-remove-hud-runtime.yml
           git add electron/main.ts src/ui/App.tsx src/main.tsx package.json
           git config user.name github-actions[bot]
