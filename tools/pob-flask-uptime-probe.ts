@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { materializeCurrentParityFixture, POB_PARITY_FIXTURES } from './pob-kernel/current-parity-fixture';
 
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_FLASK_UPTIME_REFERENCE@@';
 const PROCESS_TIMEOUT_MS = 45_000;
@@ -25,11 +26,7 @@ interface ProbeReport {
   passed: boolean;
 }
 
-const FIXTURES = [
-  'spec/TestBuilds/3.13/OccVortex.xml',
-  'spec/TestBuilds/3.13/Dual Wield Cospris CoC.xml',
-  'spec/TestBuilds/3.13/Mirage Archer Toxic Rain.xml',
-] as const;
+const FIXTURES = POB_PARITY_FIXTURES;
 
 function luaModulePath(pobRoot: string): string {
   const paths = [
@@ -138,7 +135,8 @@ async function main(): Promise<void> {
   const reports: ProbeReport[] = [];
   for (const fixture of FIXTURES) {
     process.stdout.write(`PoB direct flask uptime probe: ${fixture} ... `);
-    const payload = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
+    const currentFixture = await materializeCurrentParityFixture(pobRoot, fixture);
+    const payload = await runReference(pobRoot, runtimePath, referenceScriptPath, currentFixture.relativePath);
     const uptimeLines = payload.flasks.filter((flask) => flask.uptimeLine).length;
     const report = {
       fixture,

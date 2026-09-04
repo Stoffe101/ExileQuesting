@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { materializeCurrentParityFixture, POB_PARITY_FIXTURES } from './pob-kernel/current-parity-fixture';
 import { runPobKernelRequest } from '../electron/services/pob-kernel-service';
 import {
   POB_CALCULATION_PROTOCOL_VERSION,
@@ -10,7 +11,7 @@ import {
 
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_FLASK_UPTIME_REFERENCE@@';
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
-const EXPECTED_ADAPTER_VERSION = '0.6.0';
+const EXPECTED_ADAPTER_VERSION = '0.7.0';
 const PROCESS_TIMEOUT_MS = 45_000;
 const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
 
@@ -40,11 +41,7 @@ interface FixtureReport {
   passed: boolean;
 }
 
-const FIXTURES = [
-  'spec/TestBuilds/3.13/OccVortex.xml',
-  'spec/TestBuilds/3.13/Dual Wield Cospris CoC.xml',
-  'spec/TestBuilds/3.13/Mirage Archer Toxic Rain.xml',
-] as const;
+const FIXTURES = POB_PARITY_FIXTURES;
 
 function luaModulePath(pobRoot: string): string {
   const paths = [
@@ -200,9 +197,9 @@ async function main(): Promise<void> {
   const reports: FixtureReport[] = [];
   for (const fixture of FIXTURES) {
     process.stdout.write(`PoB flask uptime worker parity: ${fixture} ... `);
-    const fixturePath = resolve(pobRoot, fixture);
-    const xml = await readFile(fixturePath, 'utf8');
-    const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixturePath);
+    const currentFixture = await materializeCurrentParityFixture(pobRoot, fixture);
+    const xml = currentFixture.xml;
+    const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, currentFixture.absolutePath);
     const requestId = `uptime-parity-${fixture.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`.slice(0, 120);
     const response = requireWorkerUptimeResponse(await runPobKernelRequest({
       protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
