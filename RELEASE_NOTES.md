@@ -51,6 +51,25 @@ Passive-tree data/model support remains where it is legitimately used by Passive
 - Retained Gear Coach, Build Doctor, normal campaign-overlay, and overlay-lifecycle visual/smoke gates.
 - The packaged pinned PoB runtime is staged and exercised through a real child process before installer acceptance.
 - Windows acceptance builds a real NSIS installer, verifies its exact package-version filename/ProductVersion, installs the latest public stable release, performs the updater handoff, relaunches the candidate, smokes the updated installed application, verifies the installed PoB runtime, and uninstalls it.
-- The updater rehearsal now refuses equal-version or downgrade candidates. For 0.2.5 the required public-stable path is **v0.2.4 -> v0.2.5**.
+- The updater rehearsal refuses equal-version or downgrade candidates.
+
+## Validated 0.2.5 candidate
+
+Validated branch head: `a71d61d1243fd72e823d8f51e2b3feef62d16c59`
+
+- Linux CI: PASS.
+- 73 test files / 415 tests: PASS.
+- Campaign audit: 228/228 route pages contain decisive structured guidance.
+- Dual-mode campaign lint: 0 errors / 0 warnings.
+- League-start, optional-hidden, twink, and all bandit simulations: PASS.
+- Manager, Gear Coach, Build Doctor, and overlay visual gates: PASS.
+- Overlay lifecycle soak: PASS.
+- Pinned PoB runtime and child-process health: PASS.
+- NSIS package: **ExileQuesting-0.2.5-setup.exe**.
+- Installer size: 717,955,167 bytes.
+- Real public-stable updater rehearsal: **v0.2.4 -> v0.2.5** PASS.
+- Updated installed ProductVersion: **0.2.5.0**.
+- Updated installed PoB runtime: PASS.
+- Windows acceptance workflow: `33890053090` PASS.
 
 ExileQuesting remains advisory. It does not inject into Path of Exile, read process memory, automate gameplay input, or replace the trade site/Craft of Exile.
