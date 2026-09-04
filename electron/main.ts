@@ -395,10 +395,10 @@ function runtimeState(): RuntimeState {
 }
 function overlayState(real = runtimeState()): RuntimeState {
   if (!overlayDemo) return real;
-  const demoProgress = Math.max(0, Math.min(Math.trunc(overlayDemo.progress), dataset.steps.length - 1));
-  const step = dataset.steps[demoProgress];
-  const previousAreaStep = dataset.steps.slice(0, demoProgress).reverse().find((candidate) => enabled(candidate) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));
-  const detectedArea = previousAreaStep?.targetAreaId ? dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;
+  const demoProgress = Math.max(0, Math.min(Math.trunc(overlayDemo.progress), real.dataset.steps.length - 1));
+  const step = real.dataset.steps[demoProgress];
+  const previousAreaStep = real.dataset.steps.slice(0, demoProgress).reverse().find((candidate) => isStepEnabled(candidate, real.settings) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));
+  const detectedArea = previousAreaStep?.targetAreaId ? real.dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;
   const areaLevel = overlayDemo.areaLevel ?? detectedArea?.lvl ?? previousAreaStep?.areaLevel ?? step.areaLevel;
   const level = overlayDemo.characterLevel ?? Math.max(1, (areaLevel ?? 1) - 2);
   return {

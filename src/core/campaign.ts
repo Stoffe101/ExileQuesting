@@ -218,9 +218,10 @@ export function campaignForRouteMode(dataset: CampaignDataset, leagueStart: bool
       const areaIds = extractAreaIds(rawLines);
       const targetAreaId = areaIds.at(-1);
       const target = targetAreaId ? areas.get(targetAreaId) : undefined;
+      const annotation = targetAreaId === step.targetAreaId ? step.annotation : undefined;
       return {
         ...step,
-        title: step.annotation?.title ?? actions.find((action) => action.priority === 'now')?.title ?? inferTitle(rawLines, target?.name),
+        title: annotation?.title ?? actions.find((action) => action.priority === 'now')?.title ?? inferTitle(rawLines, target?.name),
         targetAreaId,
         targetArea: target?.name,
         areaLevel: target?.lvl,
@@ -228,6 +229,7 @@ export function campaignForRouteMode(dataset: CampaignDataset, leagueStart: bool
         lines,
         tags,
         actions,
+        annotation,
         layoutHints: targetAreaId === step.targetAreaId ? step.layoutHints : undefined,
         permanentReward: isPermanentRewardStep(tags),
       };

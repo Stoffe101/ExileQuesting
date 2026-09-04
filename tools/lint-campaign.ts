@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { looksUnhumanized } from '../src/core/actions';
-import { normalizeCampaign, validateCampaign } from '../src/core/campaign';
+import { campaignForRouteMode, isStepEnabled, normalizeCampaign, validateCampaign } from '../src/core/campaign';
 import { guideCalloutsForStep, labyrinthNameForStep } from '../src/core/guide-experience';
 import { layoutAuditStatus, validateLayoutHints } from '../src/core/layouts';
 import type { GuidanceAnnotation, LayoutHint, RawAreas, RawGuide } from '../src/core/types';
@@ -107,6 +107,22 @@ for (const [index, annotation] of annotations.entries()) {
   selectorKeys.add(key);
   if (!selector.areaId && !(selector.contains?.length)) errors.push(`Guidance selector #${index + 1} is too broad; it has neither areaId nor contains terms.`);
   if (selector.areaId && !knownAreas.has(selector.areaId)) errors.push(`Guidance selector #${index + 1} references unknown area ${selector.areaId}.`);
+}
+
+for (const mode of [{ name: 'league-start', leagueStart: true }, { name: 'twink', leagueStart: false }]) {
+  const active = campaignForRouteMode(dataset, mode.leagueStart);
+  for (const [index, step] of active.steps.entries()) {
+    if (!isStepEnabled(step, { leagueStart: mode.leagueStart, bandit: 'none', showOptional: true })) continue;
+    if (step.rawLines.some((line) => mode.leagueStart ? /\btwinkrun\s*:/i.test(line) : /\bleaguestart\s*:/i.test(line))) {
+      errors.push(`${mode.name} page ${index + 1} still contains an opposite-mode source line after materialization.`);
+    }
+    if (step.rawLines.length > 0 && !step.actions.some((action) => action.priority !== 'context')) {
+      errors.push(`${mode.name} page ${index + 1} has no decisive action after line-mode filtering.`);
+    }
+    if (step.actions.some((action) => action.sourceLine && !step.rawLines.includes(action.sourceLine))) {
+      errors.push(`${mode.name} page ${index + 1} contains an action sourced from a hidden line.`);
+    }
+  }
 }
 
 const layoutAuditCounts = { verified: 0, reviewed: 0, unaudited: 0, outdated: 0 };
