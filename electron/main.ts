@@ -382,6 +382,7 @@ function buildWorkspaceSnapshot() {
 }
 
 function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
+function progressionSteps(): CampaignDataset['steps'] { return campaignForRouteMode(dataset, settings.leagueStart).steps; }
 function rewardEnabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, { ...settings, showOptional: true }); }
 function xpGuidance(level = characterLevel, area = currentAreaLevel) { return calculateXpGuidance(level, area); }
 function runtimeState(): RuntimeState {
@@ -599,7 +600,8 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
   await updateRunFromZone(event);
   let decision: ReturnType<typeof decideProgression> = null;
   if (event.type !== 'character-level' && settings.autoAdvance) {
-    decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
+    const activeSteps = progressionSteps();
+    decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
     if (decision && decision.to > progress) await setProgress(decision.to, decision.reason, decision.confidence, true, event);
   }
   if (event.type !== 'character-level' && event.areaId === '2_11_endgame_town' && runSession.state === 'running') await finishCampaignRun();
@@ -615,10 +617,11 @@ async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
   updateCurrentArea(event);
-  const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
+  const activeSteps = progressionSteps();
+  const decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
   if (decision && decision.confidence === 'verified' && decision.to > progress && decision.to - progress <= 3) {
     await setProgress(decision.to, `Startup reconciliation: ${decision.reason}`, 'verified', true, event); startupReconciliation = { state: 'none' };
-  } else startupReconciliation = reconcileStartup(dataset.steps, progress, event, (step) => enabled(step));
+  } else startupReconciliation = reconcileStartup(activeSteps, progress, event, (step) => enabled(step));
   appendDetectionTrace({
     eventType: event.type, areaId: event.areaId, areaName: event.areaName, areaLevel: event.areaLevel, progressBefore, progressAfter: progress,
     stepIdBefore: dataset.steps[progressBefore]?.id, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence,
