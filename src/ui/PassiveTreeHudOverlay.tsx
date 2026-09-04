@@ -9,7 +9,7 @@ function shortKind(kind?: string): string {
 
 export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }) {
   const hud = state.passiveTreeHud;
-  const handledOperationToken = useRef<string>();
+  const handledOperationToken = useRef<string | undefined>(undefined);
   const detectedToken = hud.operationDetected?.token;
   const detectedNodeId = hud.operationDetected?.nodeId;
   const detectedOperation = hud.operationDetected?.operation;
