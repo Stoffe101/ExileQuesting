@@ -44,6 +44,13 @@ import {
   adaptPassiveTreeTransformToDisplay,
   passiveTreeTransformsAreDistinct,
 } from '../../src/core/passive-tree-reference-bank';
+import {
+  detectPassiveBootstrapCandidates,
+  mapBootstrapCandidatesToDisplay,
+  passiveBootstrapAnchors,
+  solvePassiveTreeBootstrap,
+  type PassiveTreeBootstrapResult,
+} from '../../src/core/passive-tree-bootstrap';
 
 export interface PassiveTreeHudContext {
   enabled: boolean;
@@ -156,6 +163,7 @@ const RESET_HOTKEY = 'CommandOrControl+Shift+0';
 const CALIBRATION_FILE = 'passive-tree-hud-calibration.json';
 const HOTKEY_REPAIR_INTERVAL_MS = 500;
 const DEFAULT_CAPTURE_WIDTH = 480;
+const BOOTSTRAP_CAPTURE_WIDTH = 1280;
 const DEFAULT_SEARCH_INTERVAL = 700;
 const DEFAULT_LOCKED_INTERVAL = 180;
 const MIN_SCALE = 0.004;
@@ -163,6 +171,7 @@ const MAX_SCALE = 1.2;
 const REQUIRED_TREE_MATCHES = 2;
 const MAX_CAPTURE_ASPECT_DRIFT = 0.06;
 const REFERENCE_SAVE_INTERVAL_MS = 5_000;
+const BOOTSTRAP_RETRY_INTERVAL_MS = 3_000;
 const MAX_KEYFRAME_BASE64_LENGTH = 6_000_000;
 const MAX_REFERENCE_FRAMES = 5;
 const AUTO_ADVANCE_CONFIRMATIONS = 3;
@@ -182,7 +191,7 @@ function isPathOfExileWindowName(name: string): boolean {
 }
 
 function captureThumbnailSize(maxWidth: number): { width: number; height: number } {
-  const width = Math.max(320, Math.min(720, Math.round(maxWidth)));
+  const width = Math.max(320, Math.min(1400, Math.round(maxWidth)));
   return { width, height: Math.max(180, Math.round(width * 9 / 16)) };
 }
 
@@ -197,7 +206,7 @@ function validKeyframe(value: unknown): StoredKeyframe | undefined {
   if (!Number.isInteger(item.width) || !Number.isInteger(item.height)) return undefined;
   const width = Number(item.width);
   const height = Number(item.height);
-  if (width < 240 || width > 1_000 || height < 120 || height > 1_000) return undefined;
+  if (width < 240 || width > 1_400 || height < 120 || height > 1_000) return undefined;
   if (typeof item.bitmapBase64 !== 'string' || !item.bitmapBase64.length || item.bitmapBase64.length > MAX_KEYFRAME_BASE64_LENGTH) return undefined;
   return { width, height, bitmapBase64: item.bitmapBase64 };
 }
@@ -309,6 +318,12 @@ function targetMarkerRadius(transform: PassiveTreeTransform, display: Display, o
   return clamp(base * Math.pow(ratio, 0.78), 24, 54);
 }
 
+function transformsAgree(left: PassiveTreeTransform, right: PassiveTreeTransform, display: Display): boolean {
+  const scaleRatio = Math.abs(left.scale / Math.max(MIN_SCALE, right.scale) - 1);
+  const offsetDistance = Math.hypot(left.offsetX - right.offsetX, left.offsetY - right.offsetY);
+  return scaleRatio <= 0.015 && offsetDistance <= clamp(display.bounds.height * 0.008, 6, 14);
+}
+
 function stateFingerprint(state: PassiveTreeHudState): string {
   const target = state.target;
   return [
@@ -354,6 +369,7 @@ export class PassiveTreeHudService {
   private readonly dirtyReferences = new Set<string>();
   private targetVisual?: TargetVisualState;
   private consecutiveTreeMatches = 0;
+  private lastBootstrapAttemptAt = 0;
 
   constructor(options: PassiveTreeHudServiceOptions) {
     this.options = {
@@ -571,10 +587,10 @@ export class PassiveTreeHudService {
     };
   }
 
-  private async capturePoeWindow(): Promise<PoeWindowCapture> {
+  private async capturePoeWindow(maxWidth = this.options.captureWidth): Promise<PoeWindowCapture> {
     const sources = await desktopCapturer.getSources({
       types: ['window'],
-      thumbnailSize: captureThumbnailSize(this.options.captureWidth),
+      thumbnailSize: captureThumbnailSize(maxWidth),
       fetchWindowIcons: false,
     });
     const source = sources
@@ -782,6 +798,78 @@ export class PassiveTreeHudService {
     await this.saveCalibrations();
     this.options.log?.info(`Passive Target Lock automatically recovered ${scopeKey} on ${display.bounds.width}x${display.bounds.height} from a compatible trusted reference.`);
     return { display, scopeKey, calibrationKey: key, transform: best.transform, calibration };
+  }
+
+  private bootstrapSolve(context: PassiveTreeHudContext, capture: PoeWindowCapture, display: Display): PassiveTreeBootstrapResult | undefined {
+    const snapshot = context.snapshot;
+    const scopeKey = targetScope(context);
+    if (!snapshot || !scopeKey || !captureDisplayMatches(capture, display)) return undefined;
+    const anchor = scopeAnchor(context, scopeKey);
+    if (!anchor) return undefined;
+    const anchors = passiveBootstrapAnchors(snapshot, anchor.id, 3, 16);
+    if (anchors.length < 6) return undefined;
+    const candidates = mapBootstrapCandidatesToDisplay(
+      detectPassiveBootstrapCandidates(capture.bitmap, capture.capture.width, capture.capture.height, { maximumCandidates: 140, stride: 4 }),
+      capture.capture,
+      display.bounds,
+    );
+    return solvePassiveTreeBootstrap(anchor, anchors, candidates, seedScale(display), { width: display.bounds.width, height: display.bounds.height });
+  }
+
+  private async automaticBootstrapProjection(context: PassiveTreeHudContext): Promise<{ projection: ProjectionContext; capture: PoeWindowCapture } | undefined> {
+    const now = Date.now();
+    if (now - this.lastBootstrapAttemptAt < BOOTSTRAP_RETRY_INTERVAL_MS) return undefined;
+    this.lastBootstrapAttemptAt = now;
+    const scopeKey = targetScope(context);
+    if (!scopeKey || !context.snapshot) return undefined;
+
+    const first = await this.capturePoeWindow(BOOTSTRAP_CAPTURE_WIDTH);
+    const displays = screen.getAllDisplays();
+    const display = first.displayId
+      ? displays.find((candidate) => String(candidate.id) === first.displayId)
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    if (!display) return undefined;
+    const firstSolve = this.bootstrapSolve(context, first, display);
+    if (!firstSolve) return undefined;
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const second = await this.capturePoeWindow(BOOTSTRAP_CAPTURE_WIDTH);
+    if (!captureDisplayMatches(second, display) || !captureAspectStable(captureAspect(first), second)) return undefined;
+    const secondSolve = this.bootstrapSolve(context, second, display);
+    if (!secondSolve || !transformsAgree(firstSolve.transform, secondSolve.transform, display)) return undefined;
+
+    // Learn the ordinary low-cost keyframe immediately after the two stable
+    // high-resolution bootstrap confirmations. This keeps steady-state capture
+    // at 480px instead of paying bootstrap cost forever.
+    const regular = await this.capturePoeWindow();
+    if (!captureDisplayMatches(regular, display)) return undefined;
+    const signature = createPassiveTreeScreenSignature(regular.bitmap, regular.capture.width, regular.capture.height);
+    if (!signature || Math.max(...signature.values) - Math.min(...signature.values) < 12) return undefined;
+
+    const key = calibrationKey(display, scopeKey);
+    const transform = secondSolve.transform;
+    const calibration: StoredCalibration = {
+      ...transform,
+      captureAspect: captureAspect(regular),
+      screenCheck: signature,
+      keyframe: { width: regular.capture.width, height: regular.capture.height, bitmapBase64: regular.bitmap.toString('base64') },
+      references: [],
+      displayWidth: display.bounds.width,
+      displayHeight: display.bounds.height,
+      displayScaleFactor: display.scaleFactor,
+      scopeKey,
+      updatedAt: new Date().toISOString(),
+    };
+    this.calibrations[key] = calibration;
+    this.liveTransforms.set(key, transform);
+    this.trustedFrames.set(key, cloneCapture(regular));
+    this.diagnostics.set(key, { confidence: Math.min(firstSolve.confidence, secondSolve.confidence), inliers: Math.min(firstSolve.inliers, secondSolve.inliers), rms: Math.max(firstSolve.rms, secondSolve.rms) });
+    this.trackingFailures.set(key, 0);
+    this.lastReferenceSave.set(key, Date.now());
+    this.targetVisual = undefined;
+    await this.saveCalibrations();
+    this.options.log?.info(`Passive Target Lock automatically bootstrapped ${scopeKey} from the uniquely matched class/root neighbourhood. Manual calibration was not needed.`);
+    return { projection: { display, scopeKey, calibrationKey: key, transform, calibration }, capture: regular };
   }
 
   private targetVisualIdentity(projection: ProjectionContext, context: PassiveTreeHudContext): string {
@@ -1047,7 +1135,7 @@ export class PassiveTreeHudService {
     this.targetVisual = undefined;
     this.consecutiveTreeMatches = 0;
     void this.saveCalibrations();
-    this.emit(this.waitingTreeState(context, `Target Lock reference cleared. Automatic recovery will be attempted first; ${RECENTER_HOTKEY} remains the emergency manual fallback.`));
+    this.emit(this.waitingTreeState(context, `Target Lock reference cleared. Automatic bootstrap/recovery will be attempted first; ${RECENTER_HOTKEY} remains the emergency manual fallback.`));
   }
 
   private async poll(): Promise<void> {
@@ -1063,12 +1151,19 @@ export class PassiveTreeHudService {
         return;
       }
 
-      const capture = await this.capturePoeWindow();
+      let capture = await this.capturePoeWindow();
       let projection = this.projectionContext(context, capture.displayId);
       if (!projection) projection = await this.automaticProjectionFromCompatibleReference(context, capture);
       if (!projection) {
+        const bootstrapped = await this.automaticBootstrapProjection(context);
+        if (bootstrapped) {
+          projection = bootstrapped.projection;
+          capture = bootstrapped.capture;
+        }
+      }
+      if (!projection) {
         this.consecutiveTreeMatches = 0;
-        this.emit(this.waitingTreeState(context, `No trusted reference exists for this first tree/display shape yet. Fully zoom out, hover the ${context.guide?.className ?? 'class/Ascendancy'} start node and press ${RECENTER_HOTKEY} once; later reopen/resolution recovery is automatic.`));
+        this.emit(this.waitingTreeState(context, `Automatic class/root bootstrap is searching for a unique maximum-zoom tree view. If it cannot prove the match, fully zoom out, hover the ${context.guide?.className ?? 'class/Ascendancy'} start node and press ${RECENTER_HOTKEY} once; later reopen/resolution recovery is automatic.`));
         return;
       }
       if (!captureDisplayMatches(capture, projection.display)) {
