@@ -18,16 +18,14 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
   const profileId = state.buildCoach?.profileId;
 
   useEffect(() => {
-    const detected = hud.operationDetected;
-    const target = hud.target;
-    if (!detected || !profileId || hud.mode !== 'exact' || !target) return;
-    if (detected.nodeId !== target.nodeId || detected.operation !== target.operation) return;
-    if (handledOperationToken.current === detected.token) return;
+    if (!detectedToken || !detectedNodeId || !detectedOperation || !profileId || hud.mode !== 'exact' || !targetNodeId || !targetOperation) return;
+    if (detectedNodeId !== targetNodeId || detectedOperation !== targetOperation) return;
+    if (handledOperationToken.current === detectedToken) return;
 
     // This calls the same persisted planner path as the manual Next Passive
     // control. Vision never supplies a new node ID; it only acknowledges that
     // the already-authoritative current operation visibly completed.
-    handledOperationToken.current = detected.token;
+    handledOperationToken.current = detectedToken;
     let cancelled = false;
     let retryTimer: number | undefined;
     const advance = async (attempt: number): Promise<void> => {
@@ -42,7 +40,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
         // Let a future state delivery retry this exact token instead of
         // permanently swallowing a verified operation after a transient IPC
         // failure. No second cursor step is issued after a successful call.
-        if (handledOperationToken.current === detected.token) handledOperationToken.current = undefined;
+        if (handledOperationToken.current === detectedToken) handledOperationToken.current = undefined;
       }
     };
     void advance(0);
