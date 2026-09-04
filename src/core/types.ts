@@ -12,6 +12,7 @@ export type XpPace = 'behind' | 'efficient' | 'overlevelled' | 'unknown';
 export type AppUpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'disabled' | 'error';
 export type RunState = 'idle' | 'running' | 'paused' | 'finished';
 export type RewardAuditStatus = 'pending' | 'route-passed' | 'confirmed';
+export type LayoutAuditStatus = 'verified' | 'reviewed' | 'unaudited' | 'outdated';
 
 export type RouteActionType =
   | 'travel'
@@ -85,7 +86,11 @@ export interface LayoutHint {
   areaId: string;
   text: string;
   confidence: 'high' | 'medium' | 'low';
+  auditStatus?: LayoutAuditStatus;
+  auditedAt?: string;
+  auditNote?: string;
   source?: string;
+  sourceUrl?: string;
   gameVersion?: string;
   enabled?: boolean;
 }
