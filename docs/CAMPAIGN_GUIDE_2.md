@@ -118,6 +118,22 @@ Search actions are application navigation. They never type into Path of Exile or
 
 Overview may surface deterministic Build Doctor findings for the active build. It must use the existing PoB-backed Doctor analysis and may not fabricate a universal build score. If the deterministic runtime or relevant evidence is unavailable, Overview says so.
 
+## Acceptance gate
+
+Campaign Guide 2 is not considered complete merely because its components compile. The branch must pass the same production gates as a release candidate:
+
+- TypeScript typecheck and the full automated test suite;
+- bundled gem, passive-tree and game-data manifest validation;
+- campaign content audit, semantic lint and all Acts 1–10 route simulations;
+- manager responsive visual matrix, including Campaign Route, Act Map, Timeline, Completion Audit, **I'M LOST**, `Ctrl+K`, full Passive Plan and current-zone diagram at 1280×720;
+- Gear Coach, Build Doctor and normal campaign-overlay visual smoke tests;
+- overlay-window lifecycle soak;
+- pinned PoB runtime preparation and child-process health smoke;
+- Windows installer packaging and setup-executable verification;
+- a real previous-stable → candidate updater handoff followed by an installed-build smoke test.
+
+The final unavoidable boundary is a real Path of Exile playtest for GGG log timing, actual-game always-on-top/click-through behavior, mixed-DPI placement and human readability during combat. CI must make that playtest a validation pass, not a substitute for unfinished application logic.
+
 ## Research adopted, not copied
 
 The design pass reviewed current Exile-UI, PoE Overlay Campaign Guide, Exile Compass and PoE Campaign Copilot behavior.
