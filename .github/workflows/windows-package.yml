@@ -55,15 +55,6 @@ jobs:
           path: artifacts/visual/**/*
           if-no-files-found: warn
           retention-days: 30
-      - name: Render Passive Tree HUD visual matrix
-        run: npm run visual:passive-hud
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ExileQuesting-passive-tree-hud-visuals-${{ github.sha }}
-          path: artifacts/passive-tree-hud/**/*
-          if-no-files-found: error
-          retention-days: 30
       - name: Soak overlay window lifecycle
         run: npm run soak:overlay
       - uses: actions/upload-artifact@v4
