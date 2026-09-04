@@ -9,6 +9,8 @@ export interface PassiveTreeFrameMotion {
   confidence: number;
   inliers: number;
   rms: number;
+  /** True only when the camera is confidently stationary. */
+  stationary?: boolean;
 }
 
 export interface PassiveTreeFrameTrackingOptions {
@@ -111,6 +113,35 @@ function toGray(bitmap: Uint8Array, width: number, height: number, maximumWorkin
 
 function pixel(frame: GrayFrame, x: number, y: number): number {
   return frame.data[y * frame.width + x];
+}
+
+/**
+ * A deliberately conservative cheap path for the overwhelmingly common case:
+ * the player is reading the tree and the camera did not move. Local node glow,
+ * cursor hover and tiny animated UI regions are allowed to change without
+ * forcing the much more expensive scale-hypothesis solve.
+ */
+function framesAreStationary(previous: GrayFrame, current: GrayFrame): boolean {
+  if (previous.width !== current.width || previous.height !== current.height) return false;
+  const minX = Math.floor(previous.width * 0.06);
+  const maxX = Math.ceil(previous.width * 0.94);
+  const minY = Math.floor(previous.height * 0.18);
+  const maxY = Math.ceil(previous.height * 0.88);
+  let absolute = 0;
+  let materiallyChanged = 0;
+  let samples = 0;
+  for (let y = minY; y < maxY; y += 2) {
+    for (let x = minX; x < maxX; x += 2) {
+      const delta = Math.abs(pixel(previous, x, y) - pixel(current, x, y));
+      absolute += delta;
+      if (delta >= 12) materiallyChanged += 1;
+      samples += 1;
+    }
+  }
+  if (!samples) return false;
+  const meanDifference = absolute / samples;
+  const changedFraction = materiallyChanged / samples;
+  return meanDifference <= 0.9 && changedFraction <= 0.008;
 }
 
 function textureScore(frame: GrayFrame, x: number, y: number): number {
@@ -356,12 +387,6 @@ function solveScaleHypothesis(
   searchRadius: number,
   centeredZoom = false,
 ): WorkingMotion | undefined {
-  // A real PoE wheel zoom is overwhelmingly a scale around the tree viewport
-  // centre plus a comparatively small residual pan. Constraining scale
-  // hypotheses to that neighborhood prevents repeated passive-tree artwork
-  // elsewhere on the screen from becoming a false correspondence. Scale=1
-  // keeps the broad search because ordinary drag-panning can legitimately move
-  // much farther between captures.
   const preferredOffset = centeredZoom ? { x: 0, y: 0 } : undefined;
   const matches = features
     .map((feature) => matchFeatureAtScale(previous, current, feature, scale, searchRadius, preferredOffset))
@@ -394,12 +419,6 @@ function refineHypothesis(
 }
 
 function confidenceForMotion(motion: WorkingMotion, availableFeatures: number, wide: boolean): number {
-  // Zooming in necessarily throws old-frame features outside the current
-  // viewport. The maximum visible area shrinks approximately by 1/scale², so
-  // raw inlier/feature coverage would unfairly reject a geometrically excellent
-  // large zoom. Normalize coverage by that physically visible feature budget,
-  // while the independent absolute-inlier floor below still prevents a tiny
-  // accidental match set from becoming a valid transform.
   const visibleFraction = motion.scale > 1 ? 1 / (motion.scale * motion.scale) : 1;
   const visibleFeatureBudget = Math.max(1, availableFeatures * visibleFraction);
   const coverage = clamp(motion.inliers.length / visibleFeatureBudget, 0, 1);
@@ -427,6 +446,11 @@ export function trackPassiveTreeFrameMotion(
   const previous = toGray(previousBitmap, width, height, maximumWorkingWidth);
   const current = toGray(currentBitmap, width, height, maximumWorkingWidth);
   if (!previous || !current || previous.width !== current.width || previous.height !== current.height) return undefined;
+
+  if (framesAreStationary(previous, current)) {
+    return { scale: 1, offsetX: 0, offsetY: 0, confidence: 0.995, inliers: 0, rms: 0, stationary: true };
+  }
+
   const features = selectFeatures(previous);
   if (features.length < 8) return undefined;
 
@@ -436,23 +460,21 @@ export function trackPassiveTreeFrameMotion(
   const maximumRadius = previous.width * (options.wide ? 0.5 : 0.4);
   const searchRadius = Math.round(clamp(Math.max(workingRequestedRadius, minimumRadius), 12, maximumRadius));
 
-  // Most frames are stationary or ordinary pans. Solve scale=1 first so the
-  // common path stays cheap and extremely stable. A 40% inlier floor is still
-  // paired with the independent confidence/spread gates, but avoids discarding
-  // a near-perfect identity transform just because one animated UI region
-  // temporarily removes a feature cell.
   const fast = solveScaleHypothesis(previous, current, features, 1, searchRadius);
   if (fast) {
     const fastConfidence = confidenceForMotion(fast, features.length, Boolean(options.wide));
     const fastMinimumInliers = Math.max(7, Math.ceil(features.length * 0.4));
     if (fast.inliers.length >= fastMinimumInliers && fastConfidence >= 0.68) {
+      const offsetX = fast.offsetX * previous.scaleX;
+      const offsetY = fast.offsetY * previous.scaleY;
       return {
         scale: fast.scale,
-        offsetX: fast.offsetX * previous.scaleX,
-        offsetY: fast.offsetY * previous.scaleY,
+        offsetX,
+        offsetY,
         confidence: fastConfidence,
         inliers: fast.inliers.length,
         rms: fast.rms * (previous.scaleX + previous.scaleY) / 2,
+        stationary: Math.abs(offsetX) <= 1.25 && Math.abs(offsetY) <= 1.25,
       };
     }
   }
@@ -496,6 +518,7 @@ export function trackPassiveTreeFrameMotion(
     confidence: selectedConfidence,
     inliers: selected.inliers.length,
     rms: selected.rms * (previous.scaleX + previous.scaleY) / 2,
+    stationary: false,
   };
 }
 
