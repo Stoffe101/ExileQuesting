@@ -350,7 +350,7 @@ async function main(): Promise<void> {
         return page.scrollTop;
       })()`);
       await new Promise((resolve) => setTimeout(resolve, 80));
-      if (!(bottomScrollTop > 0)) throw new Error(`${scenario.name}: page reports overflow but cannot actually scroll.`);
+      if ((bottomScrollTop ?? 0) <= 0) throw new Error(`${scenario.name}: page reports overflow but cannot actually scroll.`);
       bottomBytes = await capture(window, `${scenario.name}-bottom.png`);
       await window.webContents.executeJavaScript(`document.querySelector('.manager-main > .page')?.scrollTo(0, 0)`);
     }
