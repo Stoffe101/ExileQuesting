@@ -1,0 +1,140 @@
+name: Guide 2 one-shot visual coverage
+
+on:
+  push:
+    branches: [feature/campaign-guide-2]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Extend manager visual fixture and interaction matrix
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('tools/visual-manager.ts')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('passiveTreeHudEnabled: true,\n  passiveTreeHudPathPreview: true,', 'passiveTreeHudEnabled: false,\n  passiveTreeHudPathPreview: false,', 1)
+          text = text.replace('passiveTreeHud: passiveTreeHudIdle(true),', 'passiveTreeHud: passiveTreeHudIdle(false),', 1)
+
+          recovery = """    recovery: { previousSessionUnclean: false, acknowledged: true },
+              lootFilter:"""
+          replacement = """    recovery: { previousSessionUnclean: false, acknowledged: true },
+              buildCoach: {
+                profileId: 'visual-maxroll',
+                profileName: 'Visual League Starter',
+                sourceKind: 'maxroll',
+                stageId: 'visual-act-1',
+                stageTitle: 'Act 1 leveling',
+                stageConfidence: 'high',
+                currentGemTasks: [],
+                maxroll: {
+                  guideTitle: 'Visual Maxroll Guide',
+                  guideUrl: 'https://maxroll.gg/poe/build-guides/visual',
+                  mode: 'league-start',
+                  compatibility: 'current',
+                  compatibilityMessage: 'Visual fixture uses current passive IDs.',
+                  nextPassive: { index: 4, total: 20, completed: 3, type: 'allocate', nodeId: 123, nodeName: 'Heart and Soul', nodeKind: 'notable', checkpoint: 1 },
+                  passiveComplete: false,
+                  passiveCompleted: 3,
+                  passiveTotal: 20,
+                  skillMilestones: [],
+                  equipmentMilestones: [],
+                  alternateSkillPaths: [],
+                },
+                loot: { profileId: 'visual-maxroll', profileName: 'Visual League Starter', gameVersion: '3.29', stageId: 'visual-act-1', stageTitle: 'Act 1 leveling', linkTargets: [], baseTargets: [], showChromaticRecipe: false, showSixSockets: false, warnings: [] },
+                gearHints: [],
+                craftingHints: [],
+                vendorSearch: { warnings: [] },
+              },
+              lootFilter:"""
+          if recovery not in text:
+              raise SystemExit('Could not find manager fixture insertion point.')
+          text = text.replace(recovery, replacement, 1)
+
+          marker = """  await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), captures }, null, 2), 'utf8');"""
+          extra = r'''  window.setContentSize(1280, 720);
+            await new Promise((resolve) => setTimeout(resolve, 120));
+            await switchTab(window, 'Campaign');
+
+            const clickText = async (selector: string, label: string) => {
+              const clicked = await window.webContents.executeJavaScript(`(() => {
+                const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find((entry) => entry.textContent?.includes(${JSON.stringify(label)}));
+                if (!node) return false;
+                node.click();
+                return true;
+              })()`);
+              if (!clicked) throw new Error(`Guide 2 visual could not find ${label} in ${selector}.`);
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            };
+            const assertSurface = async (selector: string, name: string) => {
+              const metrics = await window.webContents.executeJavaScript(`(() => {
+                const node = document.querySelector(${JSON.stringify(selector)});
+                if (!node) return null;
+                const rect = node.getBoundingClientRect();
+                return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
+              })()`);
+              if (!metrics) throw new Error(`${name}: expected surface ${selector} did not render.`);
+              if (metrics.right > metrics.viewportWidth + 2 || metrics.left < -2 || metrics.scrollWidth > metrics.clientWidth + 2) throw new Error(`${name}: surface overflows horizontally: ${JSON.stringify(metrics)}`);
+              return metrics;
+            };
+
+            for (const label of ['Act map', 'Timeline', 'Completion audit', 'Route']) {
+              await clickText('.g2-view-tabs button', label);
+              await assertSurface('.g2-page', `campaign-${label}`);
+              captures.push({ name: `campaign-${label.toLowerCase().replace(/\s+/g, '-')}-1280x720`, bytes: await capture(window, `campaign-${label.toLowerCase().replace(/\s+/g, '-')}-1280x720.png`) });
+            }
+
+            await clickText('.lost-button', "I'M LOST");
+            await assertSurface('.g2-lost-panel', 'campaign-lost');
+            captures.push({ name: 'campaign-lost-1280x720', bytes: await capture(window, 'campaign-lost-1280x720.png') });
+            await window.webContents.executeJavaScript(`document.querySelector('.g2-lost-panel header button')?.click()`);
+            await new Promise((resolve) => setTimeout(resolve, 80));
+
+            const openPalette = async () => {
+              await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`);
+              await new Promise((resolve) => setTimeout(resolve, 80));
+              await assertSurface('.command-palette', 'command-palette');
+            };
+            await openPalette();
+            captures.push({ name: 'command-palette-1280x720', bytes: await capture(window, 'command-palette-1280x720.png') });
+            await clickText('.command-results button', 'Open Passive Plan');
+            await assertSurface('.passive-plan-modal', 'passive-plan');
+            const passiveText = await window.webContents.executeJavaScript(`document.querySelector('.passive-plan-modal')?.textContent ?? ''`);
+            if (!passiveText.includes('Heart and Soul') || !passiveText.includes('ORDERED MAXROLL PLAN')) throw new Error('Passive Plan visual fixture did not render exact Maxroll guidance.');
+            captures.push({ name: 'passive-plan-1280x720', bytes: await capture(window, 'passive-plan-1280x720.png') });
+            await window.webContents.executeJavaScript(`document.querySelector('.passive-plan-close')?.click()`);
+            await new Promise((resolve) => setTimeout(resolve, 80));
+
+            await openPalette();
+            await clickText('.command-results button', 'Open current zone diagram');
+            await assertSurface('.zone-diagram-modal', 'zone-diagram');
+            captures.push({ name: 'zone-diagram-1280x720', bytes: await capture(window, 'zone-diagram-1280x720.png') });
+            await window.webContents.executeJavaScript(`document.querySelector('.zone-diagram-modal > header button')?.click()`);
+            await new Promise((resolve) => setTimeout(resolve, 80));
+
+          ''' + marker
+          if marker not in text:
+              raise SystemExit('Could not find manager visual manifest insertion point.')
+          text = text.replace(marker, extra, 1)
+          path.write_text(text, encoding='utf-8')
+      - name: Remove one-shot workflow and commit
+        shell: bash
+        run: |
+          git rm .github/workflows/guide2-one-shot-visuals.yml
+          git add tools/visual-manager.ts
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Expand Campaign Guide 2 visual matrix"
+          git push origin HEAD:feature/campaign-guide-2
