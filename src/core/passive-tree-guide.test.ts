@@ -51,6 +51,19 @@ function witchMaxrollProfile(): BuildProfile {
   };
 }
 
+function templarPureExpansionProfile(): BuildProfile {
+  return {
+    id: 'templar-pob', name: 'Templar PoB', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
+    build: {
+      ...emptyBuild('Templar'),
+      treeStages: [
+        { id: 'tree:1', title: 'Level 10', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201] },
+        { id: 'tree:2', title: 'Level 20', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 201, 202, 203] },
+      ],
+    },
+  };
+}
+
 describe('build-agnostic passive tree guide planning', () => {
   it('advances the exact Maxroll target only according to ordered build progression', () => {
     const profile = witchMaxrollProfile();
@@ -71,39 +84,46 @@ describe('build-agnostic passive tree guide planning', () => {
     expect(complete?.message).toBe('Passive path complete.');
   });
 
-  it('highlights a PoB stage set instead of inventing click order', () => {
-    const profile: BuildProfile = {
-      id: 'templar-pob', name: 'Templar PoB', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
-      build: {
-        ...emptyBuild('Templar'),
-        treeStages: [
-          { id: 'tree:1', title: 'Level 10', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201] },
-          { id: 'tree:2', title: 'Level 20', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 201, 202, 203] },
-        ],
-      },
-    };
+  it('derives a click-valid exact route for a pure connected PoB stage expansion', () => {
+    const profile = templarPureExpansionProfile();
     const active = alignedStagesForProfile(profile).find((stage) => stage.tree?.active) ?? alignedStagesForProfile(profile).at(-1);
-    const plan = buildPassiveTreeGuidePlan(profile, active?.id, 0, snapshot);
-    expect(plan?.mode).toBe('stage');
-    expect(plan?.classStartNodeId).toBe(200);
-    expect(plan?.target).toBeUndefined();
-    expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
-    expect(plan?.message).toContain('does not encode click order');
+    const first = buildPassiveTreeGuidePlan(profile, active?.id, 0, snapshot);
+    const second = buildPassiveTreeGuidePlan(profile, active?.id, 1, snapshot);
+    const complete = buildPassiveTreeGuidePlan(profile, active?.id, 2, snapshot);
+
+    expect(first?.mode).toBe('exact');
+    expect(first?.classStartNodeId).toBe(200);
+    expect(first?.operations.map((operation) => operation.nodeId)).toEqual([202, 203]);
+    expect(first?.target).toMatchObject({ nodeId: 202, nodeName: 'Elemental Damage', index: 1, total: 2 });
+    expect(first?.message).toContain('Derived click-valid PoB stage route');
+    expect(second?.target).toMatchObject({ nodeId: 203, nodeName: 'Life', index: 2, total: 2 });
+    expect(complete?.target).toBeUndefined();
+    expect(complete?.message).toContain('allocation route complete');
   });
 
-  it('falls back to the PoB stage marked active when no explicit planner stage is selected', () => {
+  it('uses the PoB stage marked active when no explicit planner stage is selected', () => {
+    const profile = templarPureExpansionProfile();
+    const plan = buildPassiveTreeGuidePlan(profile, undefined, 0, snapshot);
+    expect(plan?.sourceLabel).toContain('Level 20');
+    expect(plan?.mode).toBe('exact');
+    expect(plan?.target?.nodeId).toBe(202);
+  });
+
+  it('keeps unsafe PoB repath stages unordered instead of fabricating a next click', () => {
     const profile: BuildProfile = {
-      id: 'templar-active-fallback', name: 'Templar active fallback', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
+      id: 'templar-repath', name: 'Templar repath', importedAt: '2026-09-02T00:00:00.000Z', sourceKind: 'xml',
       build: {
         ...emptyBuild('Templar'),
         treeStages: [
-          { id: 'tree:1', title: 'Level 10', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201] },
-          { id: 'tree:2', title: 'Level 20', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 201, 202, 203] },
+          { id: 'tree:1', title: 'Before repath', kind: 'tree', active: false, ordinal: 1, classId: 5, nodeIds: [200, 201, 202] },
+          { id: 'tree:2', title: 'After repath', kind: 'tree', active: true, ordinal: 2, classId: 5, nodeIds: [200, 203] },
         ],
       },
     };
     const plan = buildPassiveTreeGuidePlan(profile, undefined, 0, snapshot);
-    expect(plan?.sourceLabel).toContain('Level 20');
-    expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([202, 203]);
+    expect(plan?.mode).toBe('stage');
+    expect(plan?.target).toBeUndefined();
+    expect(plan?.stageTargets.map((target) => target.nodeId)).toEqual([203]);
+    expect(plan?.message).toContain('refuses to guess');
   });
 });
