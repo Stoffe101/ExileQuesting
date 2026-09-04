@@ -7,7 +7,12 @@ export interface CampaignSimulationScenarioResult {
   report: CampaignSimulationReport;
 }
 
-export const CAMPAIGN_SIMULATION_SCENARIOS: Array<{ name: string; options: CampaignSimulationOptions }> = [
+type CampaignSimulationScenario = {
+  name: string;
+  options: CampaignSimulationOptions & { leagueStart: boolean };
+};
+
+export const CAMPAIGN_SIMULATION_SCENARIOS: CampaignSimulationScenario[] = [
   { name: 'League start · all optional · kill all bandits', options: { leagueStart: true, showOptional: true, bandit: 'none' } },
   { name: 'League start · optional hidden', options: { leagueStart: true, showOptional: false, bandit: 'none' } },
   { name: 'Twink/non-league-start · all optional', options: { leagueStart: false, showOptional: true, bandit: 'none' } },
