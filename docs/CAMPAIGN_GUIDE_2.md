@@ -14,6 +14,8 @@ ExileQuesting should answer five questions in order:
 
 Critical information is never hidden behind Beginner/Balanced/Racer wording depth.
 
+The semantic campaign lint enforces that all bundled route pages have decisive structured actions and that critical permanent-progression semantics cannot silently disappear.
+
 ## Permanent progression language
 
 These are explicit semantic instructions, not generic route prose:
@@ -32,12 +34,14 @@ The in-game passive-tree drawing/capture architecture is retired.
 
 Passive Plan uses existing build-source evidence:
 
-- ordered Maxroll operations can say exactly **Take X** or **Refund Y**;
-- Path of Building stages can describe trustworthy passive milestones;
-- when PoB does not author a safe click order, ExileQuesting must not invent one;
-- the manager can later grow an internal tree viewer, but guidance must never depend on screen calibration, OCR or vision tracking.
+- ordered Maxroll operations say exactly **Take X** or **Refund Y** and use an explicit, undoable ExileQuesting acknowledgement cursor;
+- Path of Building stages show trustworthy stage-difference targets, allocation counts and masteries;
+- bundled passive-tree node names are only applied when the PoB/tree versions are compatible;
+- when PoB does not author a safe click order, ExileQuesting does not invent one.
 
-The retired compatibility service does not start desktop capture, passive-tree vision, point-cloud registration, tracking timers or PoE-window polling.
+`Ctrl+K → Open Passive Plan` opens the full Passive Plan surface. Its controls update ExileQuesting's build-plan cursor only. They do not click Path of Exile.
+
+The passive HUD runtime is not started during normal application startup. ExileQuesting no longer creates the retired full-screen Passive Tree HUD BrowserWindow, so its old content-protection/capture surface cannot interfere with recording. Legacy settings/types remain temporarily only so older persisted settings can migrate safely.
 
 ## Route recovery
 
@@ -47,7 +51,7 @@ When the player returns to an earlier route area, show **REVISITING** and local 
 
 When the player reaches an area beyond the saved route, show **CATCHING UP** and expose missed/unfinished permanent objectives before offering to resume there. Never silently skip important steps.
 
-The **I'M LOST** panel should show:
+The **I'M LOST** panel shows:
 
 - detected area;
 - saved current objective;
@@ -56,28 +60,41 @@ The **I'M LOST** panel should show:
 - route-passed but unconfirmed permanent rewards;
 - previous/current route recovery actions.
 
-## Layout diagrams
+Startup reconciliation follows the same rule: a detected zone may be offered as a resume point, but the user chooses whether it replaces saved route progress.
 
-Prefer a small diagram when spatial information beats prose, but never imply deterministic layouts where PoE generates variants.
+## Zone diagrams and layout knowledge
 
-Initial diagrams are abstract ExileQuesting route sketches derived from maintained layout hints. They must display confidence and the phrase **Route sketch, not an exact map**. Community images from other tools are research references only unless their exact asset license and attribution requirements are reviewed for redistribution.
+`Ctrl+K → Open current zone diagram` works for every current route step. It always shows the structured objective flow. When maintained spatial knowledge exists, it also surfaces that layout clue. When no trustworthy spatial hint exists, the diagram says so rather than manufacturing a map.
+
+Spatial layout hints carry an explicit audit state:
+
+- `verified` — live/current verification exists;
+- `reviewed` — research-reviewed for the recorded game version, but not yet promoted to live verification;
+- `unaudited` — legacy or newly imported knowledge that must remain lower priority;
+- `outdated` — excluded from normal guidance.
+
+Selection prefers audit quality before prose confidence. Reviewed/verified hints require game-version and audit-date metadata. Outdated hints may not remain enabled.
+
+Current 3.29 ExileQuesting layout hints are conservatively marked **reviewed**, not verified. Inline sketches and the full zone diagram explicitly say they are not exact generated maps. Community layout images are research references only; Campaign Guide 2 does not redistribute Engineering Eternity/community diagram artwork.
 
 ## Campaign + build fusion
 
-Campaign and build progression should not be separate timelines.
+Campaign and build progression are one timeline.
 
-At the route step where a build-relevant quest/vendor becomes available, show the exact build action. Build-aware vendor searches and contextual crafting hints should appear there too. Existing class-aware gem acquisition, Maxroll/PoB stages, loot targets, crafting hints and vendor-search plans remain the evidence sources.
+At the route step where a build-relevant quest/vendor becomes available, show the exact build action. Build-aware vendor searches and contextual crafting hints appear there too. Existing class-aware gem acquisition, Maxroll/PoB stages, loot targets, crafting hints and vendor-search plans remain the evidence sources.
 
 ## Completion audit
 
 Near campaign completion, show a maps handoff audit rather than ending abruptly.
 
-Current evidence-backed checks include:
+Evidence-backed checks include:
 
 - confirmed passive quest rewards;
 - confirmed Ascendancy Trials;
 - active build stage and unresolved gem acquisition state;
 - build-aware leveling gear hints.
+
+Labyrinth/Ascendancy-point completion is deliberately shown as a **manual/unknown** check because route progress and Client.txt do not prove that the player actually completed a Labyrinth and took the Ascendancy points.
 
 Unknown state stays unknown. Do not claim resistances, Labyrinth completion, flask correctness or maps readiness unless a trusted data path actually proves those facts.
 
@@ -89,13 +106,17 @@ Default setup is simplified to:
 - **Standard** — balanced guidance + Focus overlay;
 - **Teach Me** — beginner guidance + Coach overlay.
 
-Advanced controls remain available for users who need them.
+Advanced controls remain available for overlay scale, opacity, placement, typography, density, click-through, locking and accessibility.
 
 ## Global search
 
-`Ctrl+K` is the common doorway into Campaign, Passive Plan, permanent reward audit, Build/Build Doctor, vendor helpers, Knowledge, Settings, Diagnostics and the campaign overlay.
+`Ctrl+K` is the common doorway into Campaign, current zone diagrams, Passive Plan, permanent reward audit, Build/Build Doctor, vendor helpers, Knowledge, Settings, Diagnostics and the campaign overlay.
 
 Search actions are application navigation. They never type into Path of Exile or automate gameplay.
+
+## Build Doctor on Overview
+
+Overview may surface deterministic Build Doctor findings for the active build. It must use the existing PoB-backed Doctor analysis and may not fabricate a universal build score. If the deterministic runtime or relevant evidence is unavailable, Overview says so.
 
 ## Research adopted, not copied
 
@@ -103,11 +124,11 @@ The design pass reviewed current Exile-UI, PoE Overlay Campaign Guide, Exile Com
 
 Useful patterns adopted conceptually:
 
-- reward-type filters and customizable objective emphasis;
+- reward-type filters and objective emphasis;
 - a route/world-map style overview instead of only a flat step list;
 - permanent reward checklists;
 - build/gem reminders at the campaign moment they become relevant;
-- abstract layout diagrams with explicit uncertainty;
+- abstract layout diagrams with explicit uncertainty and audit state;
 - off-route `revisiting` / `catching up` state that does not corrupt furthest progress;
 - a global command/search surface;
 - explicit user-triggered vendor regex copy.
@@ -128,4 +149,4 @@ Do not restart the complexity spiral by adding:
 - AI chat pasted onto every screen;
 - settings merely because another application exposes them.
 
-Voice control remains a later accessibility/convenience idea. The product should first be excellent with mouse, keyboard and existing log/build data.
+Voice control remains a later accessibility/convenience idea. It is intentionally not part of the Campaign Guide 2 completion gate.
