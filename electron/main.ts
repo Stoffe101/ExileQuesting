@@ -38,14 +38,16 @@ import { analyzeGearItem, type GearCoachAnalysis } from '../src/core/gear-coach'
 import { MAX_POB_XML_BYTES } from '../src/core/pob';
 import { calculateXpGuidance } from '../src/core/xp';
 import {
+  archiveCharacterProfilesByName,
   characterProfileById,
-  characterProfileByName,
+  characterProfileMatchesForZone,
   createCharacterCampaignProfile,
   emptyCharacterCampaignDocument,
   isFreshCampaignStart,
   normalizeCharacterCampaignDocument,
   removeCharacterProfile,
   selectCharacterProfileForZone,
+  unlinkBuildProfile,
   upsertCharacterProfile,
   type CharacterCampaignDocument,
   type CharacterCampaignProfile,
@@ -141,6 +143,7 @@ let currentAreaLevel: number | undefined;
 let characterLevel: number | undefined;
 let characterCampaign: CharacterCampaignDocument = emptyCharacterCampaignDocument();
 let activeCharacterProfileId = '';
+let characterAmbiguity: RuntimeState['characterTracking']['ambiguity'];
 let recentAreaIds: string[] = [];
 let recentAreaNames: string[] = [];
 let startupReconciliation: StartupReconciliation = { state: 'none' };
@@ -220,6 +223,42 @@ async function loadPersistentState(): Promise<void> {
 async function saveLootFilterState(): Promise<void> { await store.write('loot-filter.json', lootFilter); }
 async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
 function activeCharacterProfile(): CharacterCampaignProfile | undefined { return characterProfileById(characterCampaign, activeCharacterProfileId); }
+function linkedBuildProfile() {
+  const buildProfileId = activeCharacterProfile()?.buildProfileId;
+  return buildProfileId ? buildProfiles.find((profile) => profile.id === buildProfileId) : undefined;
+}
+function setActiveCharacterBuildProfile(buildProfileId?: string): void {
+  const active = activeCharacterProfile();
+  if (!active) return;
+  const safeId = buildProfileId && buildProfiles.some((profile) => profile.id === buildProfileId) ? buildProfileId : undefined;
+  characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, buildProfileId: safeId, updatedAt: new Date().toISOString() });
+}
+function characterTrackingState(): RuntimeState['characterTracking'] {
+  const profiles = [...characterCampaign.profiles].sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt)).map((profile) => {
+    const build = profile.buildProfileId ? buildProfiles.find((candidate) => candidate.id === profile.buildProfileId) : undefined;
+    return {
+      id: profile.id,
+      runId: profile.runId,
+      characterName: profile.characterName,
+      characterClass: profile.characterClass,
+      characterLevel: profile.characterLevel,
+      leagueId: profile.leagueId,
+      progress: profile.progress,
+      act: dataset.steps[Math.max(0, Math.min(profile.progress, dataset.steps.length - 1))]?.act,
+      provisional: profile.provisional,
+      freshStart: profile.freshStart,
+      archived: profile.archived,
+      buildProfileId: profile.buildProfileId,
+      buildProfileName: build?.name,
+      identitySource: profile.identitySource,
+      identityConfidence: profile.identityConfidence,
+      identityReason: profile.identityReason,
+      updatedAt: profile.updatedAt,
+      lastSeenAt: profile.lastSeenAt,
+    };
+  });
+  return { activeProfileId: activeCharacterProfileId || undefined, active: profiles.find((profile) => profile.id === activeCharacterProfileId), profiles, ambiguity: characterAmbiguity };
+}
 function snapshotActiveCharacter(now = new Date().toISOString()): void {
   const active = activeCharacterProfile();
   if (!active) return;
@@ -232,6 +271,7 @@ function snapshotActiveCharacter(now = new Date().toISOString()): void {
     lastAreaName: currentZone || active.lastAreaName,
     characterLevel: characterLevel ?? active.characterLevel,
     updatedAt: now,
+    lastSeenAt: now,
   });
 }
 async function saveCharacterCampaign(): Promise<void> {
@@ -253,17 +293,25 @@ async function writeActiveCharacterMirrors(): Promise<void> {
     store.write('campaign-characters.json', { ...characterCampaign, activeProfileId: activeCharacterProfileId || undefined }),
   ]);
 }
-async function activateCharacterProfile(profileId: string, reason: string): Promise<boolean> {
+async function activateCharacterProfile(
+  profileId: string,
+  reason: string,
+  source: CharacterCampaignProfile['identitySource'] = 'route-match',
+  confidence: CharacterCampaignProfile['identityConfidence'] = 'inferred',
+): Promise<boolean> {
   if (!profileId || profileId === activeCharacterProfileId) return false;
   snapshotActiveCharacter();
   const target = characterProfileById(characterCampaign, profileId);
-  if (!target) return false;
-  activeCharacterProfileId = target.id;
-  characterCampaign = { ...characterCampaign, activeProfileId: target.id };
-  progress = target.progress;
-  progressHistory = [...target.history];
-  confirmedRewardStepIds = new Set(target.confirmedRewardStepIds);
-  characterLevel = target.characterLevel;
+  if (!target || target.archived) return false;
+  const now = new Date().toISOString();
+  const activated = { ...target, identitySource: source, identityConfidence: confidence, identityReason: reason, updatedAt: now, lastSeenAt: now };
+  characterCampaign = upsertCharacterProfile(characterCampaign, activated);
+  activeCharacterProfileId = activated.id;
+  characterAmbiguity = undefined;
+  progress = activated.progress;
+  progressHistory = [...activated.history];
+  confirmedRewardStepIds = new Set(activated.confirmedRewardStepIds);
+  characterLevel = activated.characterLevel;
   currentAreaId = '';
   currentZone = '';
   currentAreaLevel = undefined;
@@ -271,18 +319,32 @@ async function activateCharacterProfile(profileId: string, reason: string): Prom
   recentAreaNames = [];
   startupReconciliation = { state: 'none' };
   runSession = emptyRunSession();
-  await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+  if (activated.buildProfileId && buildProfiles.some((profile) => profile.id === activated.buildProfileId)) {
+    buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, activated.buildProfileId);
+  }
+  rebuildBuildGuidance();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState(), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await refreshBuildLootFilter();
   sessionGuard?.update(progress, app.getVersion());
-  log.info(`Activated campaign character profile ${target.characterName ?? target.id}: ${reason}`);
+  log.info(`Activated campaign character profile ${activated.characterName ?? activated.id}: ${reason}`);
   return true;
 }
-async function beginFreshCharacterProfile(reason: string): Promise<void> {
+async function beginFreshCharacterProfile(
+  reason: string,
+  source: CharacterCampaignProfile['identitySource'] = 'fresh-start',
+  confidence: CharacterCampaignProfile['identityConfidence'] = 'verified',
+): Promise<void> {
   snapshotActiveCharacter();
   const now = new Date().toISOString();
-  const id = `provisional:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-  const profile = createCharacterCampaignProfile(id, now, { provisional: true, progress: 0, history: [], confirmedRewardStepIds: [], characterLevel: 1 });
+  const runId = `run:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const id = `provisional:${runId}`;
+  const profile = createCharacterCampaignProfile(id, now, {
+    runId, provisional: true, freshStart: true, progress: 0, history: [], confirmedRewardStepIds: [], characterLevel: 1,
+    identitySource: source, identityConfidence: confidence, identityReason: reason,
+  });
   characterCampaign = upsertCharacterProfile(characterCampaign, profile);
   activeCharacterProfileId = id;
+  characterAmbiguity = undefined;
   progress = 0;
   progressHistory = [];
   confirmedRewardStepIds = new Set();
@@ -294,38 +356,52 @@ async function beginFreshCharacterProfile(reason: string): Promise<void> {
   recentAreaNames = [];
   startupReconciliation = { state: 'none' };
   runSession = emptyRunSession();
-  await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+  rebuildBuildGuidance();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState(), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await refreshBuildLootFilter();
   sessionGuard?.update(progress, app.getVersion());
   log.info(`Started a fresh campaign character profile: ${reason}`);
 }
-async function bindCharacterIdentity(event: ZoneEvent): Promise<void> {
-  const name = event.characterName?.trim();
-  if (!name) return;
+async function bindCharacterIdentity(event: ZoneEvent): Promise<boolean> {
   const active = activeCharacterProfile();
-  if (active?.characterName?.toLocaleLowerCase() === name.toLocaleLowerCase()) {
-    characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, characterClass: event.characterClass ?? active.characterClass, characterLevel: event.characterLevel ?? active.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
-    return;
-  }
-  const existing = characterProfileByName(characterCampaign, name);
-  if (existing && existing.id !== active?.id) {
-    const provisionalId = active?.provisional ? active.id : undefined;
-    await activateCharacterProfile(existing.id, `Client.txt identified ${name}${event.characterClass ? ` (${event.characterClass})` : ''}.`);
-    if (provisionalId) characterCampaign = removeCharacterProfile(characterCampaign, provisionalId);
-    const selected = activeCharacterProfile();
-    if (selected) characterCampaign = upsertCharacterProfile(characterCampaign, { ...selected, characterClass: event.characterClass ?? selected.characterClass, characterLevel: event.characterLevel ?? selected.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
-    await writeActiveCharacterMirrors();
-    return;
-  }
-  if (active) {
-    characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, characterName: name, characterClass: event.characterClass, characterLevel: event.characterLevel ?? active.characterLevel, provisional: false, updatedAt: new Date().toISOString() });
-    await writeActiveCharacterMirrors();
-    return;
-  }
   const now = new Date().toISOString();
-  const profile = createCharacterCampaignProfile(`character:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, now, { characterName: name, characterClass: event.characterClass, provisional: false, progress, history: progressHistory, confirmedRewardStepIds: [...confirmedRewardStepIds], lastAreaId: currentAreaId || undefined, lastAreaName: currentZone || undefined, characterLevel: event.characterLevel });
-  characterCampaign = upsertCharacterProfile(characterCampaign, profile);
-  activeCharacterProfileId = profile.id;
+  if (!active) return false;
+  if (event.identityScope === 'self' && event.characterLevel) {
+    characterLevel = event.characterLevel;
+    characterCampaign = upsertCharacterProfile(characterCampaign, {
+      ...active, characterLevel: event.characterLevel, identitySource: 'self-level', identityConfidence: 'verified',
+      identityReason: 'Client.txt emitted an explicit self level-up event.', updatedAt: now, lastSeenAt: now,
+    });
+    return true;
+  }
+  const name = event.characterName?.trim();
+  if (!name || event.identityScope !== 'named') return false;
+  if (active.characterName?.toLocaleLowerCase() === name.toLocaleLowerCase()) {
+    characterLevel = event.characterLevel ?? characterLevel;
+    characterCampaign = upsertCharacterProfile(characterCampaign, {
+      ...active, characterClass: event.characterClass ?? active.characterClass, characterLevel: event.characterLevel ?? active.characterLevel,
+      provisional: false, identitySource: 'named-level', identityConfidence: 'inferred',
+      identityReason: 'Named level-up matched the already tracked character.', updatedAt: now, lastSeenAt: now,
+    });
+    return true;
+  }
+  const plausibleFreshBind = active.freshStart && !active.characterName && active.progress <= 12
+    && event.characterLevel !== undefined && event.characterLevel >= 2 && event.characterLevel <= 8
+    && event.characterLevel <= (active.characterLevel ?? 1) + 1;
+  if (!plausibleFreshBind) {
+    log.info(`Ignored named Client.txt level-up for ${name}; it is not proof of the active character.`);
+    return false;
+  }
+  characterCampaign = archiveCharacterProfilesByName(characterCampaign, name, active.id, active.id, now);
+  const refreshed = characterProfileById(characterCampaign, active.id) ?? active;
+  characterLevel = event.characterLevel;
+  characterCampaign = upsertCharacterProfile(characterCampaign, {
+    ...refreshed, characterName: name, characterClass: event.characterClass, characterLevel: event.characterLevel,
+    provisional: false, identitySource: 'named-level', identityConfidence: 'inferred',
+    identityReason: 'Low-level named event matched the protected fresh Act 1 run. Older same-name runs were archived.', updatedAt: now, lastSeenAt: now,
+  });
   await writeActiveCharacterMirrors();
+  return true;
 }
 function campaignEvent(event: ZoneEvent): boolean {
   if (event.areaId && dataset.areas.some((area) => area.id === event.areaId)) return true;
@@ -337,12 +413,27 @@ async function selectCharacterForZone(event: ZoneEvent, startup: boolean): Promi
   const effectiveEvent = { ...event, areaLevel: event.areaLevel ?? currentAreaLevel };
   if (isFreshCampaignStart(effectiveEvent)) {
     const active = activeCharacterProfile();
-    const alreadyFresh = Boolean(active && active.progress <= 3 && (active.lastAreaId === '1_1_1' || (active.provisional && !active.lastAreaId)));
-    if (!alreadyFresh) await beginFreshCharacterProfile(startup ? 'Detected Act 1 Twilight Strand during startup.' : 'Detected a new Act 1 Twilight Strand run.');
+    const alreadyFresh = Boolean(active && active.freshStart && active.progress <= 3 && (active.lastAreaId === '1_1_1' || (active.provisional && !active.lastAreaId)));
+    if (!alreadyFresh) await beginFreshCharacterProfile(startup ? 'Detected a new Act 1 Twilight Strand run during startup.' : 'Detected a new Act 1 Twilight Strand run.');
+    characterAmbiguity = undefined;
     return;
   }
-  const selected = selectCharacterProfileForZone(characterCampaign, effectiveEvent, progressionSteps(), (step, index) => enabled(step), activeCharacterProfileId);
-  if (selected && selected.id !== activeCharacterProfileId) await activateCharacterProfile(selected.id, `Zone ${event.areaId ?? event.areaName ?? 'unknown'} matched this saved character route.`);
+  const steps = progressionSteps();
+  const matches = characterProfileMatchesForZone(characterCampaign, effectiveEvent, steps, (step, index) => enabled(step));
+  const selected = selectCharacterProfileForZone(characterCampaign, effectiveEvent, steps, (step, index) => enabled(step), activeCharacterProfileId);
+  if (selected && selected.id !== activeCharacterProfileId) {
+    const match = matches.find((candidate) => candidate.profile.id === selected.id);
+    await activateCharacterProfile(selected.id, match?.reason ?? `Zone ${event.areaId ?? event.areaName ?? 'unknown'} matched this saved character route.`, match?.source ?? 'route-match', 'inferred');
+    return;
+  }
+  if (!selected && matches.length >= 2 && matches[0].score - matches[1].score < 8) {
+    characterAmbiguity = {
+      areaId: event.areaId,
+      areaName: event.areaName,
+      candidateProfileIds: matches.slice(0, 4).map((match) => match.profile.id),
+      reason: 'Multiple saved characters fit this zone almost equally well. ExileQuesting refused to guess.',
+    };
+  } else if (selected) characterAmbiguity = undefined;
 }
 
 async function loadAnnotations(): Promise<GuidanceAnnotation[]> { return readJson<GuidanceAnnotation[]>(bundledCampaignPath('annotations.json')); }
@@ -398,13 +489,22 @@ async function loadCampaign(): Promise<void> {
     const now = new Date().toISOString();
     const legacy = createCharacterCampaignProfile(`legacy:${Date.now()}`, now, {
       provisional: savedProgress.progress <= 3,
+      freshStart: false,
       progress: savedProgress.progress,
       history: savedProgress.history,
       confirmedRewardStepIds: [...legacyRewards],
+      buildProfileId: buildPlannerState.activeProfileId,
+      identitySource: 'legacy',
+      identityConfidence: 'unknown',
+      identityReason: 'Migrated from the pre-character-aware global campaign save.',
     });
     characterCampaign = upsertCharacterProfile(characterCampaign, legacy);
   }
-  const active = characterProfileById(characterCampaign, characterCampaign.activeProfileId) ?? characterCampaign.profiles[0];
+  let active = characterProfileById(characterCampaign, characterCampaign.activeProfileId) ?? characterCampaign.profiles.find((profile) => !profile.archived) ?? characterCampaign.profiles[0];
+  if (!active.buildProfileId && characterCampaign.profiles.filter((profile) => !profile.archived).length === 1 && buildPlannerState.activeProfileId) {
+    active = { ...active, buildProfileId: buildPlannerState.activeProfileId, updatedAt: new Date().toISOString() };
+    characterCampaign = upsertCharacterProfile(characterCampaign, active);
+  }
   activeCharacterProfileId = active.id;
   characterCampaign = { ...characterCampaign, activeProfileId: active.id };
   progress = active.progress;
@@ -427,7 +527,7 @@ async function loadBuildGameData(): Promise<void> {
 function rebuildBuildGuidance(): void {
   buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
   campaignIntelligence = buildCampaignIntelligence(dataset);
-  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  const activeProfile = linkedBuildProfile();
   if (activeProfile?.maxroll && characterLevel) {
     buildPlannerState = activateMaxrollStageForLevel(buildPlannerState, buildProfiles, activeProfile.id, characterLevel);
   }
@@ -467,7 +567,7 @@ function buildAwareDataset(): CampaignDataset {
 
 function buildWorkspaceSnapshot() {
   return {
-    planner: buildPlannerSnapshot(buildProfiles, buildPlannerState),
+    planner: { ...buildPlannerSnapshot(buildProfiles, buildPlannerState), activeProfileId: activeCharacterProfile()?.buildProfileId },
     gemData: {
       status: gemData.status,
       message: gemData.message,
@@ -500,7 +600,7 @@ function runtimeState(): RuntimeState {
   const activeDataset = buildAwareDataset();
   return {
     settings, dataset: activeDataset, sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
-    xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(activeDataset, progress, rewardEnabled), rewardAudit: buildRewardAudit(activeDataset, progress, confirmedRewardStepIds, rewardEnabled),
+    characterTracking: characterTrackingState(), xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(activeDataset, progress, rewardEnabled), rewardAudit: buildRewardAudit(activeDataset, progress, confirmedRewardStepIds, rewardEnabled),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
     logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, passiveTreeHud: passiveTreeHudState, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
   };
@@ -668,7 +768,7 @@ function updateCurrentArea(event: ZoneEvent): void {
   if (event.areaId) { currentAreaId = event.areaId; currentAreaLevel = event.areaLevel ?? currentAreaLevel; currentZone = dataset.areas.find((area) => area.id === event.areaId)?.name ?? currentZone; }
   if (event.areaName) currentZone = event.areaName;
   if (event.areaLevel) currentAreaLevel = event.areaLevel;
-  if (event.characterLevel) characterLevel = event.characterLevel;
+  if (event.characterLevel && (event.type !== 'character-level' || event.identityScope === 'self')) characterLevel = event.characterLevel;
 }
 async function updateRunFromZone(event: ZoneEvent): Promise<void> {
   if (event.type === 'character-level') return;
@@ -677,7 +777,7 @@ async function updateRunFromZone(event: ZoneEvent): Promise<void> {
 }
 async function handleZoneEvent(event: ZoneEvent): Promise<void> {
   await selectCharacterForZone(event, false);
-  if (event.type === 'character-level') await bindCharacterIdentity(event);
+  const acceptedCharacterLevel = event.type === 'character-level' ? await bindCharacterIdentity(event) : false;
   const progressBefore = progress;
   const stepIdBefore = dataset.steps[progressBefore]?.id;
   const previousAreaId = currentAreaId || undefined;
@@ -690,7 +790,7 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
     recentAreaNames = appendRecentArea(recentAreaNames, previousAreaName);
   }
   updateCurrentArea(event);
-  if (event.type === 'character-level') {
+  if (event.type === 'character-level' && acceptedCharacterLevel) {
     rebuildBuildGuidance();
     await store.saveBuildPlanner(buildPlannerState, buildProfiles);
   }
@@ -702,7 +802,8 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
     if (decision && decision.to > progress) await setProgress(decision.to, decision.reason, decision.confidence, true, event);
   }
   if (event.type !== 'character-level' && event.areaId === '2_11_endgame_town' && runSession.state === 'running') await finishCampaignRun();
-  const reason = event.type === 'character-level' ? `Character level updated to ${event.characterLevel ?? '?'}.`
+  const reason = event.type === 'character-level'
+    ? acceptedCharacterLevel ? `Accepted active-character level update to ${event.characterLevel ?? '?'}.` : `Ignored named level-up for ${event.characterName ?? 'another player'}; it did not prove active-character identity.`
     : !settings.autoAdvance ? 'Automatic route progress is disabled.' : decision ? decision.reason : 'No bounded campaign transition matched this event.';
   appendDetectionTrace({ eventType: event.type, areaId: event.areaId, areaName: event.areaName, areaLevel: event.areaLevel, progressBefore, progressAfter: progress, stepIdBefore, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence, reason, raw: event.raw });
   await saveCharacterCampaign();
@@ -712,7 +813,7 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
 async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
   if (!event) return;
   await selectCharacterForZone(event, true);
-  if (event.characterName) await bindCharacterIdentity(event);
+  if (event.characterName || event.identityScope === 'self') await bindCharacterIdentity(event);
   const progressBefore = progress;
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
@@ -797,6 +898,7 @@ function diagnosticsText(): string {
     `ExileQuesting ${state.appVersion}`, `Application update: ${state.appUpdate.status} - ${state.appUpdate.message}`, `Campaign: ${state.dataset.source.repository}@${state.dataset.source.commit}`,
     `Schema: ${state.dataset.schemaVersion}`, `Progress: ${state.progress + 1}/${state.dataset.steps.length}`, `Step: ${state.dataset.steps[state.progress]?.id ?? 'unknown'}`,
     `Zone: ${state.currentZone ?? 'unknown'} (${state.currentAreaId ?? 'no-id'})`, `Character/Area: ${state.characterLevel ?? '?'} / ${state.currentAreaLevel ?? '?'}`,
+    `Tracking profile: ${state.characterTracking.active?.characterName ?? state.characterTracking.active?.id ?? 'unknown'}; source=${state.characterTracking.active?.identitySource ?? 'unknown'}; confidence=${state.characterTracking.active?.identityConfidence ?? 'unknown'}; run=${state.characterTracking.active?.runId ?? 'unknown'}; build=${state.characterTracking.active?.buildProfileName ?? 'none'}`,
     `Log: ${state.logDiagnostics.path || 'not configured'}`, `Watcher: ${state.logDiagnostics.watcherActive ? 'active' : 'inactive'}; polling: ${state.logDiagnostics.pollingActive ? 'active' : 'inactive'}`,
     `Last event: ${state.logDiagnostics.lastParsedEventAt ?? 'none'}`, `Source status: ${state.sourceStatus.state} - ${state.sourceStatus.message}`,
     `Progress history entries: ${state.progressHistory.length}`, `Run: ${state.runStats.session.state}; elapsed ${state.runStats.elapsedMs}ms; town ${state.runStats.session.townTimeMs}ms; splits ${state.runStats.session.splits.length}`,
@@ -860,16 +962,17 @@ async function importBuildProfileInput(input: string, sourceOverride?: string): 
   }
   buildProfiles = upsertBuildProfile(buildProfiles, profile);
   buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
+  setActiveCharacterBuildProfile(profile.id);
   rebuildBuildGuidance();
-  await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
   await refreshBuildLootFilter();
   broadcastState();
   return buildProfiles;
 }
 
 function analyzeActiveGear(input: string): GearCoachAnalysis {
-  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
-  if (!activeProfile) throw new Error('Select or import a Build Profile before using Gear Coach.');
+  const activeProfile = linkedBuildProfile();
+  if (!activeProfile) throw new Error('Select or import a Build Profile for the active character before using Gear Coach.');
   if (!gemData.snapshot) throw new Error('Bundled gem data is unavailable, so Gear Coach cannot build a stage-aware score.');
   const activeStageId = buildPlannerState.activeStageByProfile[activeProfile.id];
   return analyzeGearItem(input, activeProfile, activeStageId, gemData.snapshot, characterLevel);
@@ -942,6 +1045,44 @@ function registerIpc(): void {
     return true;
   });
   ipcMain.handle('campaign:check', async () => { await checkCampaignUpdates(); return runtimeState(); });
+  ipcMain.handle('character:activate', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    await activateCharacterProfile(id, 'Selected manually from Character Profiles.', 'manual', 'manual');
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:start-new', async () => {
+    await beginFreshCharacterProfile('Started manually from Character Profiles.', 'manual', 'manual');
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:reset', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    if (id !== activeCharacterProfileId) await activateCharacterProfile(id, 'Selected for manual campaign reset.', 'manual', 'manual');
+    const active = activeCharacterProfile();
+    if (!active) return runtimeState();
+    const now = new Date().toISOString();
+    const reset = { ...active, runId: `manual-run:${Date.now()}`, progress: 0, history: [], confirmedRewardStepIds: [], freshStart: false, provisional: !active.characterName, identitySource: 'manual' as const, identityConfidence: 'manual' as const, identityReason: 'Campaign progress reset manually by the user.', updatedAt: now, lastSeenAt: now };
+    characterCampaign = upsertCharacterProfile(characterCampaign, reset);
+    progress = 0; progressHistory = []; confirmedRewardStepIds = new Set(); characterAmbiguity = undefined; runSession = emptyRunSession();
+    await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+    sessionGuard?.update(progress, app.getVersion());
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:delete', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    const deletingActive = id === activeCharacterProfileId;
+    characterCampaign = removeCharacterProfile(characterCampaign, id);
+    if (deletingActive) {
+      activeCharacterProfileId = '';
+      const next = [...characterCampaign.profiles].filter((profile) => !profile.archived).sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt))[0];
+      if (next) await activateCharacterProfile(next.id, 'Previous character profile was deleted; restored the most recently seen profile.', 'manual', 'manual');
+      else await beginFreshCharacterProfile('Created an empty profile after deleting the final character.', 'manual', 'manual');
+    } else await saveCharacterCampaign();
+    broadcastState();
+    return runtimeState();
+  });
   ipcMain.handle('reward:confirm', async (_event, stepId: string, confirmed: boolean) => {
     if (typeof stepId !== 'string' || stepId.length > 256 || !dataset.steps.some((step) => step.id === stepId && step.permanentReward)) return runtimeState();
     if (confirmed === true) confirmedRewardStepIds.add(stepId); else confirmedRewardStepIds.delete(stepId); await saveRewardConfirmations(); broadcastState(); return runtimeState();
@@ -1015,8 +1156,9 @@ function registerIpc(): void {
   ipcMain.handle('pob:activate-profile', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildWorkspaceSnapshot();
     buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, id);
+    setActiveCharacterBuildProfile(id);
     rebuildBuildGuidance();
-    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    await Promise.all([store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
     await refreshBuildLootFilter();
     broadcastState();
     return buildWorkspaceSnapshot();
@@ -1033,9 +1175,10 @@ function registerIpc(): void {
   ipcMain.handle('pob:delete', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildProfiles;
     buildProfiles = buildProfiles.filter((profile) => profile.id !== id);
+    characterCampaign = unlinkBuildProfile(characterCampaign, id, new Date().toISOString());
     buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
     rebuildBuildGuidance();
-    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
     await refreshBuildLootFilter();
     broadcastState();
     return buildProfiles;

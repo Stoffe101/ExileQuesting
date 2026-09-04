@@ -1,5 +1,19 @@
 # ExileQuesting v0.2.5
 
+## Character continuity hardening
+
+- Campaign progress, reward confirmations and build context are now character-bound rather than global.
+- A protected fresh-run generation prevents deleted/reused character names from inheriting an older run.
+- Named Client.txt level-up lines are treated as ambiguous observations unless they match the already tracked character or a tightly bounded fresh Act 1 bind; party members cannot silently switch profiles.
+- Character Profiles exposes active identity confidence/provenance, manual switching, ambiguity recovery, per-character reset/delete controls, and archived superseded runs.
+- Selecting/importing a PoB or Maxroll build links it to the active character so Passive Plan, gem guidance, Gear Coach and Build Doctor return with that character.
+
+## Smaller Windows package
+
+- The bundled Path of Building kernel is now staged as a headless calculation runtime instead of embedding PoB's full GUI image/runtime payload.
+- Historical calculation data is retained, while GUI images and unrelated desktop runtime binaries are excluded.
+- A hard bundle-size budget plus a real load-and-calculate smoke test protects both installer size and Build Doctor correctness.
+
 ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with Campaign Guide 2: an app-owned campaign and build coaching experience that is easier to trust, easier to read, and no longer depends on passive-tree screen capture or calibration.
 
 ## Campaign Guide 2

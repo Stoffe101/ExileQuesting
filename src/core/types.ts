@@ -13,6 +13,8 @@ export type AppUpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' |
 export type RunState = 'idle' | 'running' | 'paused' | 'finished';
 export type RewardAuditStatus = 'pending' | 'route-passed' | 'confirmed';
 export type LayoutAuditStatus = 'verified' | 'reviewed' | 'unaudited' | 'outdated';
+export type CharacterIdentitySource = 'fresh-start' | 'self-level' | 'named-level' | 'exact-zone' | 'route-match' | 'manual' | 'legacy' | 'unknown';
+export type CharacterIdentityConfidence = 'verified' | 'inferred' | 'manual' | 'unknown';
 
 export type RouteActionType =
   | 'travel'
@@ -292,6 +294,39 @@ export interface CampaignCompatibilityManifest {
   updatedAt: string;
 }
 
+export interface CampaignCharacterSummary {
+  id: string;
+  runId: string;
+  characterName?: string;
+  characterClass?: string;
+  characterLevel?: number;
+  leagueId?: string;
+  progress: number;
+  act?: number;
+  provisional: boolean;
+  freshStart: boolean;
+  archived: boolean;
+  buildProfileId?: string;
+  buildProfileName?: string;
+  identitySource: CharacterIdentitySource;
+  identityConfidence: CharacterIdentityConfidence;
+  identityReason?: string;
+  updatedAt: string;
+  lastSeenAt: string;
+}
+
+export interface CharacterTrackingState {
+  activeProfileId?: string;
+  active?: CampaignCharacterSummary;
+  profiles: CampaignCharacterSummary[];
+  ambiguity?: {
+    areaId?: string;
+    areaName?: string;
+    candidateProfileIds: string[];
+    reason: string;
+  };
+}
+
 export interface AppUpdateState {
   status: AppUpdateStatus;
   currentVersion: string;
@@ -429,6 +464,7 @@ export interface RuntimeState {
   currentAreaId?: string;
   currentAreaLevel?: number;
   characterLevel?: number;
+  characterTracking: CharacterTrackingState;
   xpGuidance: XpGuidance;
   rewardProgress: RewardProgress;
   rewardAudit: RewardAudit;
@@ -457,6 +493,7 @@ export interface ZoneEvent {
   characterLevel?: number;
   characterName?: string;
   characterClass?: string;
+  identityScope?: 'self' | 'named';
   timestamp?: string;
   raw: string;
 }

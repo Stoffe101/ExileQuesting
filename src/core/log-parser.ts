@@ -38,6 +38,7 @@ export function parseClientLogLine(line: string): ZoneEvent | null {
       characterName: namedCharacterLevel[1]?.trim(),
       characterClass: namedCharacterLevel[2]?.trim(),
       characterLevel: Number(namedCharacterLevel[3]),
+      identityScope: 'named',
       timestamp: timestampFor(line),
       raw: line,
     };
@@ -48,6 +49,7 @@ export function parseClientLogLine(line: string): ZoneEvent | null {
     return {
       type: 'character-level',
       characterLevel: Number(youCharacterLevel[1]),
+      identityScope: 'self',
       timestamp: timestampFor(line),
       raw: line,
     };

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  archiveCharacterProfilesByName,
   characterProfileByName,
+  characterProfileMatchesForZone,
   createCharacterCampaignProfile,
   emptyCharacterCampaignDocument,
   isFreshCampaignStart,
   normalizeCharacterCampaignDocument,
   selectCharacterProfileForZone,
+  unlinkBuildProfile,
   upsertCharacterProfile,
 } from './character-campaign';
 import type { CampaignStep } from './types';
@@ -41,12 +44,40 @@ describe('per-character campaign progress', () => {
     expect(selectCharacterProfileForZone(document, { areaId: '1_1_2' }, steps, enabled, 'act7')?.id).toBe('new');
   });
 
-  it('normalizes malformed character documents without letting progress escape route bounds', () => {
+  it('archives an old same-name run so a recreated character cannot inherit it', () => {
+    const old = createCharacterCampaignProfile('old', '2026-09-04T10:00:00.000Z', { characterName: 'ReusedName', progress: 3 });
+    const fresh = createCharacterCampaignProfile('fresh', '2026-09-04T12:00:00.000Z', { freshStart: true, progress: 0 });
+    let document = upsertCharacterProfile(upsertCharacterProfile(emptyCharacterCampaignDocument(), old), fresh);
+    document = archiveCharacterProfilesByName(document, 'ReusedName', 'fresh', 'fresh', '2026-09-04T12:05:00.000Z');
+    expect(document.profiles.find((profile) => profile.id === 'old')?.archived).toBe(true);
+    expect(characterProfileByName(document, 'ReusedName')).toBeUndefined();
+  });
+
+  it('exposes ambiguous route candidates instead of silently guessing', () => {
+    let document = emptyCharacterCampaignDocument();
+    document = upsertCharacterProfile(document, createCharacterCampaignProfile('a', '2026-09-04T10:00:00.000Z', { progress: 2 }));
+    document = upsertCharacterProfile(document, createCharacterCampaignProfile('b', '2026-09-04T11:00:00.000Z', { progress: 3 }));
+    const matches = characterProfileMatchesForZone(document, { areaId: '2_7_1' }, steps, enabled);
+    expect(matches.map((match) => match.profile.id)).toEqual(['a', 'b']);
+    expect(selectCharacterProfileForZone(document, { areaId: '2_7_1' }, steps, enabled, 'missing')).toBeUndefined();
+  });
+
+  it('removes deleted build links without deleting character progress', () => {
+    let document = upsertCharacterProfile(emptyCharacterCampaignDocument(), createCharacterCampaignProfile('x', '2026-09-04T10:00:00.000Z', { progress: 3, buildProfileId: 'build-a' }));
+    document = unlinkBuildProfile(document, 'build-a', '2026-09-04T11:00:00.000Z');
+    expect(document.profiles[0].progress).toBe(3);
+    expect(document.profiles[0].buildProfileId).toBeUndefined();
+  });
+
+  it('migrates schema-one character documents and clamps malformed progress', () => {
     const document = normalizeCharacterCampaignDocument({
+      schemaVersion: 1,
       activeProfileId: 'x',
       profiles: [{ id: 'x', progress: 9999, history: [], confirmedRewardStepIds: ['passive-ok', 'bad'], provisional: false, createdAt: 'bad', updatedAt: 'bad' }],
     }, 10, new Set(['passive-ok']));
+    expect(document.schemaVersion).toBe(2);
     expect(document.profiles[0].progress).toBe(10);
     expect(document.profiles[0].confirmedRewardStepIds).toEqual(['passive-ok']);
+    expect(document.profiles[0].runId).toBe('x');
   });
 });

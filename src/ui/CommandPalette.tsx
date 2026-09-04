@@ -6,7 +6,7 @@ import PassivePlanModal from './PassivePlanModal';
 import ZoneDiagramModal from './ZoneDiagramModal';
 import './command-palette.css';
 
-export type AppTab = 'overview' | 'guide' | 'build' | 'knowledge' | 'settings' | 'diagnostics';
+export type AppTab = 'overview' | 'guide' | 'characters' | 'build' | 'knowledge' | 'settings' | 'diagnostics';
 
 interface Command {
   id: string;
@@ -52,6 +52,7 @@ export default function CommandPalette({ state, onNavigate }: { state: RuntimeSt
       { id: 'overview', label: 'Open Overview', detail: 'Current campaign and build status', keywords: 'home dashboard status', run: () => onNavigate('overview') },
       { id: 'campaign', label: 'Open Campaign Guide', detail: objective, keywords: `route acts guide lost objective ${important}`, run: () => onNavigate('guide') },
       { id: 'diagram', label: 'Open current zone diagram', detail: current?.targetArea ?? state.currentZone ?? 'Current route objective flow', keywords: 'zone map layout diagram route picture objective flow', run: () => setDiagramOpen(true) },
+      { id: 'characters', label: 'Open Character Profiles', detail: state.characterTracking.active?.characterName ?? 'Character continuity and recovery', keywords: 'character profile switch alt resume campaign identity', run: () => onNavigate('characters') },
       { id: 'build', label: 'Open Build & Build Doctor', detail: state.buildCoach?.profileName ?? 'Import or inspect a build', keywords: 'pob maxroll doctor gear upgrade passive gems', run: () => onNavigate('build') },
       { id: 'passive', label: 'Open Passive Plan', detail: passive.title, keywords: 'tree passive next node allocate refund skill point pob maxroll', run: () => setPassiveOpen(true) },
       { id: 'rewards', label: 'Permanent reward audit', detail: `${state.rewardAudit.passive.confirmed}/${state.rewardAudit.passive.knownTotal} passives · ${state.rewardAudit.trials.confirmed}/${state.rewardAudit.trials.knownTotal} trials`, keywords: 'passives trials labyrinth ascendancy book skill reward missing', run: () => onNavigate('guide') },

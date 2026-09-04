@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { POB_CALCULATION_PROTOCOL_VERSION } from '../src/core/pob-calculation';
 import { POB_CONSTRAINT_PROTOCOL_VERSION } from '../src/core/pob-constraints';
 import { runPobConstraintRequest } from '../electron/services/pob-constraint-service';
@@ -47,8 +48,21 @@ async function main(): Promise<void> {
   }
   if (constraintKernel.protocolVersion !== POB_CONSTRAINT_PROTOCOL_VERSION) throw new Error(`Packaged constraint protocol mismatch: ${constraintKernel.protocolVersion}.`);
 
+  const smokeXml = await readFile(path.join(root, 'smoke', 'OccVortex.xml'), 'utf8');
+  const calculationResponse = await runPobKernelRequest({
+    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+    requestId: `packaged-calculation-${process.pid}`,
+    operation: 'load-and-calculate',
+    xml: smokeXml,
+    scenario: { scenario: 'imported', label: 'Headless bundle calculation smoke' },
+  }, pobKernelRuntimeOptions(bundle));
+  if (!calculationResponse.ok || !('result' in calculationResponse)) throw new Error('Headless PoB bundle initialized but failed a real load-and-calculate smoke.');
+  const result = calculationResponse.result;
+  if (!Number.isFinite(result.defence.life) || (result.defence.life ?? 0) <= 0) throw new Error('Headless PoB calculation smoke returned no valid life value.');
+
   console.log(`PoB runtime health PASS: PoB=${kernel.pobCommit.slice(0, 12)}, LuaJIT=${kernel.runtimeRevision.slice(0, 12)}, adapter=${kernel.adapterVersion}.`);
   console.log(`PoB constraint health PASS: adapter=${constraintKernel.adapterVersion}.`);
+  console.log(`PoB real calculation PASS: life=${result.defence.life}, DPS=${result.offence.totalDps ?? 'n/a'}.`);
   console.log(`Bundle provenance: files=${bundle.manifest.fileCount}, bytes=${bundle.manifest.totalBytes}, tree=${bundle.manifest.treeSha256}.`);
 }
 
