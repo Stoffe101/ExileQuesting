@@ -24,9 +24,10 @@ ExileQuesting 0.2.5 replaces the fragile in-game Passive Tree HUD direction with
 ## Smaller Windows package
 
 - The bundled Path of Building kernel is now staged as a **headless calculation runtime** instead of embedding PoB's full GUI image/runtime payload.
-- Historical calculation data remains available for imported builds, while GUI images/fonts and unrelated desktop runtime binaries are excluded from the shipped bundle.
-- The headless bundle has a hard **240 MiB uncompressed budget** so an accidental return to the old ~838 MB payload fails CI instead of silently bloating the installer.
-- Windows acceptance now runs a real Path of Building `load-and-calculate` smoke against the stripped bundle before packaging, and repeats the installed PoB runtime smoke after the real updater handoff.
+- The embedded calculation kernel deliberately ships the **standard PoE 3.29 passive tree only** while retaining calculation-critical data such as Timeless Jewel data. Historical passive-tree generations, Ruthless/alternate tree payloads, GUI images/fonts, and unrelated desktop runtime binaries are excluded.
+- A PoB containing an unsupported historical passive-tree version is rejected explicitly with guidance to open and re-save/convert it in current Path of Building instead of crashing on a missing tree file or silently producing suspect numbers.
+- The staged headless PoB bundle is **433 files / 232,539,437 bytes uncompressed**, down from the old approximately 838 MB full-source/runtime payload, and remains below a hard **240 MiB uncompressed budget** enforced by CI.
+- Windows acceptance runs a real Path of Building `load-and-calculate` smoke against the stripped bundle before packaging, verifies the unsupported-tree contract, and repeats the installed PoB runtime smoke after the real updater handoff.
 
 ## Campaign Guide 2
 
