@@ -39,13 +39,14 @@ describe('campaign adapter', () => {
     expect(isStepEnabled(step, { leagueStart: true, bandit: 'none', showOptional: true })).toBe(true);
   });
 
-  it('advances to the instruction after entering a target area', () => {
+  it('advances only when the entered area completes the current instruction', () => {
     const steps = [
       { targetArea: 'The Coast' },
       { targetArea: 'Mud Flats' },
       { targetArea: 'Submerged Passage' },
     ] as CampaignStep[];
-    expect(findProgressForZone(steps, 0, { areaName: 'Mud Flats' })).toBe(2);
+    expect(findProgressForZone(steps, 0, { areaName: 'The Coast' })).toBe(1);
+    expect(findProgressForZone(steps, 0, { areaName: 'Mud Flats' })).toBeNull();
   });
 });
 

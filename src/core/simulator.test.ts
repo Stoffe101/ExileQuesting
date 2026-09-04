@@ -72,13 +72,14 @@ describe('offline Acts 1-10 campaign simulator', () => {
     expect(decideProgression(steps, 2, { areaId: 'parent' })).toBeNull();
   });
 
-  it('still allows an intentional immediate return to the parent area', () => {
+  it('keeps intentional one-page catch-up available only when explicitly requested', () => {
     const steps = [
       { id: 'a', targetAreaId: 'parent', targetArea: 'Parent' },
       { id: 'b', targetAreaId: 'side', targetArea: 'Side' },
       { id: 'c', targetAreaId: 'parent', targetArea: 'Parent' },
       { id: 'd', targetAreaId: 'next', targetArea: 'Next' },
     ] as any[];
-    expect(decideProgression(steps, 1, { areaId: 'parent' })).toMatchObject({ to: 3 });
+    expect(decideProgression(steps, 1, { areaId: 'parent' })).toBeNull();
+    expect(decideProgression(steps, 1, { areaId: 'parent' }, { allowAheadMatch: true })).toMatchObject({ to: 3 });
   });
 });
