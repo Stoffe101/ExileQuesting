@@ -50,6 +50,15 @@ describe('campaign action regression coverage', () => {
     expect(actions.some((action) => action.type === 'passive' && /passive skill point/i.test(action.title))).toBe(true);
   });
 
+  it('turns the campaign-end /passives check into a decisive critical action', () => {
+    const summary = summarizeActions(buildRouteActions(['<type_"/passives"_in_chat>'], areas));
+    expect(summary.now).toMatchObject({
+      type: 'passive',
+      critical: true,
+      title: 'Type /passives in chat and verify every campaign passive reward',
+    });
+  });
+
   it('mirrors Exile-UI line-level league-start and twink visibility', () => {
     expect(sourceLineVisibleForRouteMode('leaguestart: complete (img:lab) trial', true)).toBe(true);
     expect(sourceLineVisibleForRouteMode('leaguestart: complete (img:lab) trial', false)).toBe(false);
