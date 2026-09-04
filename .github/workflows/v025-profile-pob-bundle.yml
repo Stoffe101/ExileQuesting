@@ -1,0 +1,36 @@
+name: v0.2.5 profile PoB bundle
+
+on:
+  push:
+    branches: [feature/campaign-guide-2]
+    paths:
+      - .github/workflows/v025-profile-pob-bundle.yml
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone pinned PoB
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/PathOfBuildingCommunity/PathOfBuilding.git "$env:RUNNER_TEMP\PoB"
+          git -C "$env:RUNNER_TEMP\PoB" fetch --depth=1 origin ed354c2f8c42e148bc904c7508dbe851fb2cf952
+          git -C "$env:RUNNER_TEMP\PoB" checkout --detach ed354c2f8c42e148bc904c7508dbe851fb2cf952
+      - name: Print directory weights
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP\PoB"
+          function Size-Of($path) { return (Get-ChildItem $path -File -Recurse -Force | Measure-Object Length -Sum).Sum }
+          Write-Host '=== SRC TOP LEVEL ==='
+          Get-ChildItem "$root\src" -Directory | ForEach-Object { [pscustomobject]@{Name=$_.Name; Bytes=(Size-Of $_.FullName)} } | Sort-Object Bytes -Descending | Format-Table -AutoSize
+          Write-Host '=== TREEDATA VERSIONS ==='
+          Get-ChildItem "$root\src\TreeData" -Directory | ForEach-Object { [pscustomobject]@{Name=$_.Name; Bytes=(Size-Of $_.FullName)} } | Sort-Object Bytes -Descending | Format-Table -AutoSize
+          Write-Host '=== DATA TOP LEVEL ==='
+          Get-ChildItem "$root\src\Data" -Directory | ForEach-Object { [pscustomobject]@{Name=$_.Name; Bytes=(Size-Of $_.FullName)} } | Sort-Object Bytes -Descending | Format-Table -AutoSize
+          Write-Host '=== RUNTIME TOP LEVEL ==='
+          Get-ChildItem "$root\runtime" | ForEach-Object { [pscustomobject]@{Name=$_.Name; Bytes= if ($_.PSIsContainer) { Size-Of $_.FullName } else { $_.Length }} } | Sort-Object Bytes -Descending | Format-Table -AutoSize
