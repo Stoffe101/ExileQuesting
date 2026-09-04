@@ -114,11 +114,11 @@ function LayoutSketch({ step }: { step: CampaignStep }) {
   );
 }
 
-function PassivePlan({ state }: { state: RuntimeState }) {
+function PassivePlan({ state, onOpen }: { state: RuntimeState; onOpen: () => void }) {
   const plan = passivePlanSummary(state.buildCoach);
   return (
     <section className={`g2-passive-plan state-${plan.state}`}>
-      <div className="g2-panel-label"><span>PASSIVE PLAN</span><em>No in-game tree overlay</em></div>
+      <div className="g2-panel-label"><span>PASSIVE PLAN</span><button className="g2-passive-open" onClick={onOpen}>Open full plan ↗</button></div>
       <strong>{plan.title}</strong>
       <p>{plan.detail}</p>
       {plan.total !== undefined && <div className="g2-passive-progress"><i style={{ width: `${Math.round(((plan.completed ?? 0) / Math.max(1, plan.total)) * 100)}%` }} /></div>}
@@ -202,7 +202,7 @@ function CompletionAudit({ state }: { state: RuntimeState }) {
   );
 }
 
-export default function CampaignGuideV2({ state, setState }: { state: RuntimeState; setState: (state: RuntimeState) => void }) {
+export default function CampaignGuideV2({ state, setState, onOpenPassive }: { state: RuntimeState; setState: (state: RuntimeState) => void; onOpenPassive: () => void }) {
   const currentIndex = nearestEnabledIndex(state);
   const current = state.dataset.steps[currentIndex];
   const [selectedAct, setSelectedAct] = useState(current.act);
@@ -242,7 +242,7 @@ export default function CampaignGuideV2({ state, setState }: { state: RuntimeSta
 
       {recovery.state !== 'on-route' && <div className={`g2-recovery recovery-${recovery.state}`}><b>{recovery.state === 'revisiting' ? '↩ REVISITING' : recovery.state === 'catching-up' ? '↗ CATCHING UP' : '? ROUTE CHECK'}</b><div><strong>{recovery.title}</strong><span>{recovery.detail}</span></div>{recovery.matchedStepIndex !== undefined && <button onClick={() => inspect(recovery.matchedStepIndex!)}>Show this zone</button>}</div>}
 
-      <div className="g2-command-strip"><span><kbd>Ctrl</kbd><kbd>K</kbd> Search anywhere</span><span>Critical instructions are never hidden by detail mode.</span><PassivePlan state={state} /></div>
+      <div className="g2-command-strip"><span><kbd>Ctrl</kbd><kbd>K</kbd> Search anywhere</span><span>Critical instructions are never hidden by detail mode.</span><PassivePlan state={state} onOpen={onOpenPassive} /></div>
 
       <nav className="g2-view-tabs">
         {([['route', 'Route'], ['map', 'Act map'], ['timeline', 'Timeline'], ['audit', 'Completion audit']] as Array<[GuideView, string]>).map(([id, label]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}>{label}</button>)}
