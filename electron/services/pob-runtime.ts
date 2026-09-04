@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { PobKernelRuntimeOptions } from './pob-kernel-service';
 
-export const POB_KERNEL_BUNDLE_SCHEMA_VERSION = 1;
+export const POB_KERNEL_BUNDLE_SCHEMA_VERSION = 2;
+export const POB_KERNEL_SUPPORTED_TREE_VERSIONS = ['3_29'] as const;
 export const POB_KERNEL_REPOSITORY = 'PathOfBuildingCommunity/PathOfBuilding';
 export const POB_KERNEL_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 export const POB_KERNEL_LUAJIT_REPOSITORY = 'LuaJIT/LuaJIT';
@@ -14,6 +15,9 @@ export const POB_KERNEL_CRITICAL_FILES = {
   luaLibrary: 'pob/runtime/lua51.dll',
   utf8Module: 'pob/runtime/lua-utf8.dll',
   headlessWrapper: 'pob/src/HeadlessWrapper.lua',
+  currentTree: 'pob/src/TreeData/3_29/tree.lua',
+  treeAssetFallback: 'pob/src/TreeData/3_19/Assets.lua',
+  timelessLegionPassives: 'pob/src/Data/TimelessJewelData/LegionPassives.lua',
   worker: 'worker.lua',
   constraintWorker: 'constraint-worker.lua',
   pobLicense: 'licenses/PathOfBuilding-LICENSE.md',
@@ -29,6 +33,7 @@ export interface PobKernelBundleManifest {
   luaJitCommit: string;
   workerAdapterVersion: string;
   constraintAdapterVersion: string;
+  supportedTreeVersions: string[];
   fileCount: number;
   totalBytes: number;
   treeSha256: string;
@@ -132,6 +137,9 @@ export async function validatePobKernelBundle(root: string): Promise<ValidatedPo
   if (manifest.luaJitRepository !== POB_KERNEL_LUAJIT_REPOSITORY || manifest.luaJitCommit !== POB_KERNEL_LUAJIT_COMMIT) throw new Error('PoB kernel bundle LuaJIT pin does not match the reviewed ExileQuesting pin.');
   if (!manifest.workerAdapterVersion?.trim() || manifest.workerAdapterVersion.length > 32) throw new Error('PoB kernel bundle worker adapter version is missing or invalid.');
   if (!manifest.constraintAdapterVersion?.trim() || manifest.constraintAdapterVersion.length > 32) throw new Error('PoB kernel bundle constraint adapter version is missing or invalid.');
+  if (!Array.isArray(manifest.supportedTreeVersions) || manifest.supportedTreeVersions.length !== POB_KERNEL_SUPPORTED_TREE_VERSIONS.length || manifest.supportedTreeVersions.some((version, index) => version !== POB_KERNEL_SUPPORTED_TREE_VERSIONS[index])) {
+    throw new Error(`PoB kernel bundle tree-version contract is invalid; expected ${POB_KERNEL_SUPPORTED_TREE_VERSIONS.join(', ')}.`);
+  }
   if (!Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 1 || !Number.isSafeInteger(manifest.totalBytes) || manifest.totalBytes < 1 || !validSha256(manifest.treeSha256)) {
     throw new Error('PoB kernel bundle aggregate provenance is invalid.');
   }

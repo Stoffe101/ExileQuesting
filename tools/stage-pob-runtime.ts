@@ -9,12 +9,14 @@ import {
   POB_KERNEL_LUAJIT_COMMIT,
   POB_KERNEL_LUAJIT_REPOSITORY,
   POB_KERNEL_REPOSITORY,
+  POB_KERNEL_SUPPORTED_TREE_VERSIONS,
   type PobKernelBundleManifest,
 } from '../electron/services/pob-runtime';
 
 interface Arguments { pobRoot: string; luaJitRoot: string; output: string; }
 const MAX_HEADLESS_BUNDLE_BYTES = 240 * 1024 * 1024;
 const HEAVY_ASSET_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.svg', '.ttf', '.otf']);
+const REQUIRED_TREE_SUPPORT_FILES = new Set(['TreeData/3_19/Assets.lua']);
 
 function argumentValue(name: string): string | undefined { const index = process.argv.indexOf(name); return index >= 0 ? process.argv[index + 1] : undefined; }
 function parseArguments(): Arguments {
@@ -46,6 +48,13 @@ async function copyHeadlessSource(source: string, destination: string): Promise<
     const relative = path.relative(source, candidate).replaceAll('\\', '/');
     if (!relative) return true;
     if (relative === 'Assets' || relative.startsWith('Assets/')) return false;
+    if (relative === 'TreeData') return true;
+    if (relative.startsWith('TreeData/')) {
+      if (relative === 'TreeData/3_29' || relative.startsWith('TreeData/3_29/')) return !HEAVY_ASSET_EXTENSIONS.has(path.extname(candidate).toLowerCase());
+      if (relative === 'TreeData/legion' || relative.startsWith('TreeData/legion/')) return !HEAVY_ASSET_EXTENSIONS.has(path.extname(candidate).toLowerCase());
+      if (relative === 'TreeData/3_19') return true;
+      return REQUIRED_TREE_SUPPORT_FILES.has(relative);
+    }
     return !HEAVY_ASSET_EXTENSIONS.has(path.extname(candidate).toLowerCase());
   } });
 }
@@ -69,16 +78,22 @@ async function main(): Promise<void> {
   await cp(luaJitExe, path.join(runtimeDest, 'luajit.exe'), { force: true }); await cp(lua51Dll, path.join(runtimeDest, 'lua51.dll'), { force: true });
   await cp(worker, path.join(args.output, 'worker.lua'), { force: true }); await cp(constraintWorker, path.join(args.output, 'constraint-worker.lua'), { force: true });
   await cp(pobLicense, path.join(args.output, 'licenses', 'PathOfBuilding-LICENSE.md'), { force: true }); await cp(luaJitLicense, path.join(args.output, 'licenses', 'LuaJIT-COPYRIGHT'), { force: true });
-  await cp(path.join(args.pobRoot, 'spec', 'TestBuilds', '3.13', 'OccVortex.xml'), path.join(args.output, 'smoke', 'OccVortex.xml'), { force: true });
+  const legacySmoke = await readFile(path.join(args.pobRoot, 'spec', 'TestBuilds', '3.13', 'OccVortex.xml'), 'utf8');
+  const currentSmoke = legacySmoke
+    .replace('ascendClassName=\"Occultist\"', 'ascendClassName=\"None\"')
+    .replace(/<Tree activeSpec=\"1\">[\s\S]*?<\/Tree>/, '<Tree activeSpec=\"1\">\n\t\t<Spec title=\"ExileQuesting 3.29 smoke\" treeVersion=\"3_29\" classId=\"3\" ascendClassId=\"0\" secondaryAscendClassId=\"0\" nodes=\"\" masteryEffects=\"\"/>\n\t</Tree>');
+  if (currentSmoke === legacySmoke || !currentSmoke.includes('treeVersion=\"3_29\"')) throw new Error('Could not materialize the current-tree PoB smoke fixture.');
+  await writeFile(path.join(args.output, 'smoke', 'OccVortex.xml'), currentSmoke, 'utf8');
 
   for (const [key, relative] of Object.entries(POB_KERNEL_CRITICAL_FILES)) await requireFile(path.join(args.output, ...relative.split('/')), `Staged critical file ${key}`);
   const workerText = await readFile(path.join(args.output, 'worker.lua'), 'utf8'); const constraintWorkerText = await readFile(path.join(args.output, 'constraint-worker.lua'), 'utf8');
   const aggregate = await bundleStats(args.output);
   if (aggregate.totalBytes > MAX_HEADLESS_BUNDLE_BYTES) throw new Error(`Headless PoB bundle grew to ${aggregate.totalBytes} bytes, above the ${MAX_HEADLESS_BUNDLE_BYTES}-byte release budget.`);
-  const manifest: PobKernelBundleManifest = { schemaVersion: POB_KERNEL_BUNDLE_SCHEMA_VERSION, generatedAt: new Date().toISOString(), pobRepository: POB_KERNEL_REPOSITORY, pobCommit: actualPobCommit, luaJitRepository: POB_KERNEL_LUAJIT_REPOSITORY, luaJitCommit: actualLuaJitCommit, workerAdapterVersion: adapterVersion(workerText, 'PoB worker'), constraintAdapterVersion: adapterVersion(constraintWorkerText, 'PoB constraint worker'), ...aggregate, criticalFiles: await criticalFileMetadata(args.output) };
+  const manifest: PobKernelBundleManifest = { schemaVersion: POB_KERNEL_BUNDLE_SCHEMA_VERSION, generatedAt: new Date().toISOString(), pobRepository: POB_KERNEL_REPOSITORY, pobCommit: actualPobCommit, luaJitRepository: POB_KERNEL_LUAJIT_REPOSITORY, luaJitCommit: actualLuaJitCommit, workerAdapterVersion: adapterVersion(workerText, 'PoB worker'), constraintAdapterVersion: adapterVersion(constraintWorkerText, 'PoB constraint worker'), supportedTreeVersions: [...POB_KERNEL_SUPPORTED_TREE_VERSIONS], ...aggregate, criticalFiles: await criticalFileMetadata(args.output) };
   await writeFile(path.join(args.output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   console.log(`Staged HEADLESS pinned PoB kernel ${actualPobCommit.slice(0, 12)} / LuaJIT ${actualLuaJitCommit.slice(0, 12)}.`);
   console.log(`Bundle: ${manifest.fileCount} files, ${manifest.totalBytes} bytes, tree SHA-256 ${manifest.treeSha256}.`);
-  console.log(`Removed PoB GUI imagery/runtime; bundle budget ${MAX_HEADLESS_BUNDLE_BYTES} bytes.`);
+  console.log(`Supported passive-tree versions: ${POB_KERNEL_SUPPORTED_TREE_VERSIONS.join(', ')}.`);
+  console.log(`Removed historical passive trees and PoB GUI imagery/runtime; bundle budget ${MAX_HEADLESS_BUNDLE_BYTES} bytes.`);
 }
 main().catch((error: unknown) => { console.error(error instanceof Error ? error.stack ?? error.message : String(error)); process.exitCode = 1; });

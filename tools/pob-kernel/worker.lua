@@ -6,12 +6,22 @@
 -- output may share stdout, so protocol responses are prefixed with a sentinel.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "0.6.0"
+local ADAPTER_VERSION = "0.7.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
 local SENTINEL = "@@EXILEQUESTING_POB@@"
 local MAX_ITEM_TEXT_BYTES = 128 * 1024
+local SUPPORTED_TREE_VERSIONS = { ["3_29"] = true }
+
+local function unsupportedTreeVersion(xml)
+    for treeVersion in xml:gmatch('treeVersion%s*=%s*"([^"]+)"') do
+        if not SUPPORTED_TREE_VERSIONS[treeVersion] then
+            return treeVersion
+        end
+    end
+    return nil
+end
 local MAX_PASSIVE_NODE_ID = 2147483647
 
 local REPLACEABLE_ITEM_SLOTS = {
@@ -217,6 +227,10 @@ end
 local function loadRequestBuild(request)
     if type(request.xml) ~= "string" or request.xml == "" or #request.xml > 16 * 1024 * 1024 then
         return false, errorResponse(request.requestId, "xml-bounds", "PoB XML must be non-empty and no larger than 16 MiB.", false)
+    end
+    local unsupported = unsupportedTreeVersion(request.xml)
+    if unsupported then
+        return false, errorResponse(request.requestId, "unsupported-tree-version", "Embedded Build Doctor calculations support standard PoE 3.29 passive trees only; this build contains tree version " .. unsupported .. ". Open and re-save/convert it in current Path of Building before analysis.", false)
     end
 
     local ok, err = pcall(loadBuildFromXML, request.xml, "ExileQuesting worker")

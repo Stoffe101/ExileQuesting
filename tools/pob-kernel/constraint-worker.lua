@@ -5,12 +5,22 @@
 -- and returns only constraint-related raw outputs used by Build Doctor.
 
 local PROTOCOL_VERSION = 1
-local ADAPTER_VERSION = "constraint-0.1.0"
+local ADAPTER_VERSION = "constraint-0.2.0"
 local POB_REPOSITORY = "PathOfBuildingCommunity/PathOfBuilding"
 local POB_COMMIT = "ed354c2f8c42e148bc904c7508dbe851fb2cf952"
 local RUNTIME_REVISION = os.getenv("EXILEQUESTING_LUAJIT_COMMIT") or "unverified-runtime"
 local SENTINEL = "@@EXILEQUESTING_POB_CONSTRAINT@@"
 local MAX_ITEM_TEXT_BYTES = 128 * 1024
+local SUPPORTED_TREE_VERSIONS = { ["3_29"] = true }
+
+local function unsupportedTreeVersion(xml)
+    for treeVersion in xml:gmatch('treeVersion%s*=%s*"([^"]+)"') do
+        if not SUPPORTED_TREE_VERSIONS[treeVersion] then
+            return treeVersion
+        end
+    end
+    return nil
+end
 
 local REPLACEABLE_ITEM_SLOTS = {
     ["Weapon 1"] = true,
@@ -135,6 +145,10 @@ local function validRequest(request)
     end
     if type(request.xml) ~= "string" or request.xml == "" or #request.xml > 16 * 1024 * 1024 then
         return false, "xml-bounds", "PoB XML must be non-empty and no larger than 16 MiB."
+    end
+    local unsupported = unsupportedTreeVersion(request.xml)
+    if unsupported then
+        return false, "unsupported-tree-version", "Embedded Build Doctor calculations support standard PoE 3.29 passive trees only; this build contains tree version " .. unsupported .. ". Open and re-save/convert it in current Path of Building before analysis."
     end
     if type(request.slot) ~= "string" or not REPLACEABLE_ITEM_SLOTS[request.slot] then
         return false, "item-slot-unsupported", "The requested PoB item slot is not enabled for constraint comparison."
