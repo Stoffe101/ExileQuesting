@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { RuntimeState } from '../core/types';
 
 function shortKind(kind?: string): string {
@@ -8,12 +9,38 @@ function shortKind(kind?: string): string {
 
 export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }) {
   const hud = state.passiveTreeHud;
+  const handledOperationToken = useRef<string>();
+
+  useEffect(() => {
+    const detected = hud.operationDetected;
+    const profileId = state.buildCoach?.profileId;
+    const target = hud.target;
+    if (!detected || !profileId || hud.mode !== 'exact' || !target) return;
+    if (detected.nodeId !== target.nodeId || detected.operation !== target.operation) return;
+    if (handledOperationToken.current === detected.token) return;
+
+    // This calls the same persisted planner path as the manual Next Passive
+    // control. Vision never supplies a new node ID; it only acknowledges that
+    // the already-authoritative current operation visibly completed.
+    handledOperationToken.current = detected.token;
+    void window.exileQuesting.stepBuildPassive(profileId, 1).catch(() => {
+      if (handledOperationToken.current === detected.token) handledOperationToken.current = undefined;
+    });
+  }, [hud.operationDetected, hud.mode, hud.target, state.buildCoach?.profileId]);
+
   if (!hud.visible || hud.status !== 'locked' || !hud.target) {
     return <main className="passive-tree-hud-root" aria-hidden="true" />;
   }
 
   const target = hud.target;
   const scopeLabel = hud.ascendancyName ? `${hud.ascendancyName} Ascendancy` : `${hud.className ?? 'Passive'} tree`;
+  const autoLabel = hud.operationDetected
+    ? 'ADVANCING'
+    : hud.autoAdvanceArmed
+      ? 'AUTO FOLLOW READY'
+      : hud.targetVerification === 'learning'
+        ? 'LEARNING TARGET'
+        : undefined;
 
   return (
     <main className={`passive-tree-hud-root ${state.settings.reducedMotion ? 'reduced-motion' : ''}`} aria-label="Passive Target Lock">
@@ -38,6 +65,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
               NODE {target.nodeId} · {shortKind(target.kind)}
               {target.total ? ` · ${target.index}/${target.total}` : ''}
             </small>
+            {autoLabel && <small className="passive-auto-status">{autoLabel}</small>}
           </div>
         </div>
       )}
@@ -48,7 +76,11 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
           <div>
             <span>{target.operation === 'refund' ? 'REFUND TARGET' : 'NEXT NODE'}</span>
             <strong>{target.name}</strong>
-            <small>Node {target.nodeId}</small>
+            <small>
+              Node {target.nodeId}
+              {target.offscreenDirection ? ` · ${target.offscreenDirection}` : ''}
+              {target.offscreenDistancePx !== undefined ? ` · ~${target.offscreenDistancePx}px` : ''}
+            </small>
           </div>
         </div>
       )}
