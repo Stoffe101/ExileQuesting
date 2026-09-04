@@ -17,13 +17,20 @@ function dataset(steps: CampaignStep[]): CampaignDataset {
 }
 
 describe('Campaign Guide 2 semantics', () => {
-  it('distinguishes a Labyrinth run from an Ascendancy Trial', () => {
+  it('distinguishes a regular Labyrinth run from an Ascendancy Trial', () => {
     const lab = step({ rawLines: ['regular option: (img:lab) normal_lab'], tags: ['labyrinth'] });
     expect(labyrinthNameForStep(lab)).toBe('Normal');
     expect(guideCalloutsForStep(lab)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: 'labyrinth', title: 'Run the Normal Labyrinth now', importance: 'critical' }),
+      expect.objectContaining({ kind: 'labyrinth', title: 'Run the Normal Labyrinth now if you have not already completed it', importance: 'critical' }),
     ]));
     expect(guideCalloutsForStep(lab).some((callout) => callout.kind === 'trial')).toBe(false);
+  });
+
+  it('labels an early Labyrinth timing as optional and explains that it must not be repeated later', () => {
+    const lab = step({ rawLines: ['early option: (img:lab) normal_lab'], tags: ['labyrinth'] });
+    const callout = guideCalloutsForStep(lab).find((entry) => entry.kind === 'labyrinth');
+    expect(callout).toMatchObject({ title: 'Optional early Normal Labyrinth timing', importance: 'milestone' });
+    expect(callout?.detail).toContain('never need to run the same Labyrinth twice');
   });
 
   it('makes passive quests and trials explicit player instructions', () => {

@@ -66,6 +66,13 @@ export function labyrinthNameForStep(step: CampaignStep): string | undefined {
   return match ? LAB_NAMES[match[1]] : undefined;
 }
 
+function labyrinthTimingForStep(step: CampaignStep): 'early' | 'regular' | 'scheduled' {
+  const raw = step.rawLines.join(' ').toLowerCase();
+  if (/\bearly\s+option\b/.test(raw)) return 'early';
+  if (/\bregular\s+option\b/.test(raw)) return 'regular';
+  return 'scheduled';
+}
+
 function hasAction(step: CampaignStep, type: RouteActionType): boolean {
   return step.actions.some((action) => action.type === type);
 }
@@ -98,7 +105,22 @@ export function guideCalloutsForStep(step: CampaignStep): GuideCallout[] {
   }
 
   if (lab) {
-    callouts.push({
+    const timing = labyrinthTimingForStep(step);
+    callouts.push(timing === 'early' ? {
+      id: `${step.id}:labyrinth`,
+      kind: 'labyrinth',
+      importance: 'milestone',
+      title: `Optional early ${lab} Labyrinth timing`,
+      detail: `Run the ${lab} Labyrinth here only if you feel ready. Otherwise keep following the campaign; the guide has a later regular timing. You never need to run the same Labyrinth twice for Ascendancy points.`,
+      actionType: 'trial',
+    } : timing === 'regular' ? {
+      id: `${step.id}:labyrinth`,
+      kind: 'labyrinth',
+      importance: 'critical',
+      title: `Run the ${lab} Labyrinth now if you have not already completed it`,
+      detail: `This is the regular ${lab} Labyrinth timing, not another Trial of Ascendancy. If you used the earlier option and already took these Ascendancy points, skip the repeat and continue.`,
+      actionType: 'trial',
+    } : {
       id: `${step.id}:labyrinth`,
       kind: 'labyrinth',
       importance: 'critical',

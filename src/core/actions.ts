@@ -102,7 +102,14 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
 
   const lab = labyrinthName(raw);
   if (lab) {
-    actions.push(makeAction('trial', `Run the ${lab} Labyrinth now`, raw, true));
+    const early = /\bearly\s+option\b/.test(lower);
+    const regular = /\bregular\s+option\b/.test(lower);
+    const title = early
+      ? `Optional: run the ${lab} Labyrinth early if you feel ready`
+      : regular
+        ? `Run the ${lab} Labyrinth now if you have not completed it`
+        : `Run the ${lab} Labyrinth now`;
+    actions.push(makeAction('trial', title, raw, !early));
   } else if (lower.includes('(img:lab)') || /\btrial\b/.test(lower)) {
     actions.push(makeAction('trial', 'Complete the Ascendancy Trial in this area', raw, true));
   }

@@ -38,10 +38,12 @@ describe('campaign action regression coverage', () => {
     expect(decisive.some((action) => action.type === 'kill' && /Fidelitas/i.test(action.title))).toBe(true);
   });
 
-  it('distinguishes Labyrinth runs from Trials of Ascendancy', () => {
+  it('distinguishes Labyrinth runs from Trials of Ascendancy and preserves early/regular timing', () => {
+    const earlyLab = summarizeActions(buildRouteActions(['early option: (img:lab) normal_lab'], areas));
     const normalLab = summarizeActions(buildRouteActions(['regular option: (img:lab) normal_lab'], areas));
     const trial = summarizeActions(buildRouteActions(['leaguestart: complete (img:lab) trial'], areas));
-    expect(normalLab.now?.title).toBe('Run the Normal Labyrinth now');
+    expect(earlyLab.now).toMatchObject({ title: 'Optional: run the Normal Labyrinth early if you feel ready', critical: false });
+    expect(normalLab.now).toMatchObject({ title: 'Run the Normal Labyrinth now if you have not completed it', critical: true });
     expect(trial.now?.title).toBe('Complete the Ascendancy Trial in this area');
   });
 
