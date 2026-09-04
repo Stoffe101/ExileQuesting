@@ -19,6 +19,7 @@ const snapshot: PassiveTreeSnapshot = {
     { id: 10, name: 'Asc Root', kind: 'ascendancy', ascendancyName: 'Occultist', ascendancyStart: true, x: 0, y: 500, group: 10, orbit: 0, orbitIndex: 0, out: [11] },
     { id: 11, name: 'Asc A', kind: 'ascendancy', ascendancyName: 'Occultist', x: 100, y: 500, group: 11, orbit: 0, orbitIndex: 0, out: [12] },
     { id: 12, name: 'Asc B', kind: 'ascendancy', ascendancyName: 'Occultist', x: 200, y: 500, group: 12, orbit: 0, orbitIndex: 0, out: [] },
+    { id: 20, name: 'Dynamic definition', kind: 'normal', dynamic: true },
   ],
 };
 
@@ -26,6 +27,7 @@ describe('derived PoB passive stage route', () => {
   it('returns a click-valid connected order for a pure expansion', () => {
     const route = derivePassiveStageAllocationOrder(snapshot, [1], [1, 2, 3, 4, 5, 6], 1);
     expect(route).toBeDefined();
+    expect(route?.scopeKey).toBe('base');
     expect(new Set(route!.nodeIds)).toEqual(new Set([2, 3, 4, 5, 6]));
     const allocated = new Set([1]);
     const edges = new Map<number, number[]>([
@@ -54,6 +56,19 @@ describe('derived PoB passive stage route', () => {
 
   it('uses the fixed Ascendancy root as a non-click connectivity seed', () => {
     const route = derivePassiveStageAllocationOrder(snapshot, [], [10, 11, 12]);
+    expect(route?.scopeKey).toBe('ascendancy:occultist');
     expect(route?.nodeIds).toEqual([11, 12]);
+  });
+
+  it('refuses unknown IDs instead of silently deriving a partial route', () => {
+    expect(derivePassiveStageAllocationOrder(snapshot, [1], [1, 2, 999], 1)).toBeUndefined();
+  });
+
+  it('refuses dynamic nodes that have no fixed screen-space geometry', () => {
+    expect(derivePassiveStageAllocationOrder(snapshot, [1], [1, 2, 20], 1)).toBeUndefined();
+  });
+
+  it('refuses a stage that adds base-tree and Ascendancy nodes at once', () => {
+    expect(derivePassiveStageAllocationOrder(snapshot, [1], [1, 2, 10, 11], 1)).toBeUndefined();
   });
 });
