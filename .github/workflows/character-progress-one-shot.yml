@@ -24,6 +24,18 @@ jobs:
           cache: npm
       - name: Apply character progress fix
         run: python3 tools/one-shot-character-progress.py
+      - name: Tighten character identity parser
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/core/log-parser.ts')
+          text = path.read_text(encoding='utf-8')
+          before = r"const NAMED_CHARACTER_LEVEL = /(?:^|:\s*)([^:\r\n]+?)\s+\(([^)]+)\)\s+is now level\s+(\d+)\b/i;"
+          after = r"const NAMED_CHARACTER_LEVEL = /\[INFO Client[^\]]*\]\s*:?\s*([^:\r\n]+?)\s+\(([^)]+)\)\s+is now level\s+(\d+)\b/i;"
+          if before not in text:
+              raise SystemExit('generated character-level regex not found')
+          path.write_text(text.replace(before, after, 1), encoding='utf-8')
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Typecheck
