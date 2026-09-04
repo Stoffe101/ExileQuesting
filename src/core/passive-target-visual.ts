@@ -155,7 +155,13 @@ export function passiveTargetOperationLooksComplete(
   return comparison.difference >= 0.14 && comparison.changedFraction >= 0.22 && directionalDelta >= 1.5;
 }
 
-/** Gross disagreement is a watchdog signal only; it never picks another node. */
+/**
+ * Gross disagreement is a watchdog signal only; it never picks another node.
+ * Requiring very broad pixel churn distinguishes an unrelated neighbourhood
+ * from the structured annulus change of an allocation/refund. The service
+ * evaluates successful operation completion before this watchdog, so a valid
+ * click cannot be reclassified as a camera mismatch.
+ */
 export function passiveTargetPatchIsGrossMismatch(comparison: PassiveTargetPatchComparison): boolean {
-  return comparison.difference >= 0.30 && comparison.changedFraction >= 0.48;
+  return comparison.difference >= 0.22 && comparison.changedFraction >= 0.82;
 }
