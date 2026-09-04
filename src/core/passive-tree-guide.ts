@@ -1,6 +1,7 @@
 import type { BuildProfile } from './build-profiles';
 import { alignPobStages } from './pob-stages';
 import { indexPassiveNodes, passiveClassStart, type PassiveNodeKind, type PassiveTreeSnapshot } from './passive-data';
+import { derivePassiveStageAllocationOrder } from './passive-stage-route';
 
 export type PassiveTreeGuideMode = 'exact' | 'stage';
 
@@ -60,10 +61,13 @@ function activeClassId(profile: BuildProfile, activeStageId?: string): number | 
 /**
  * Convert any active Build Profile into a passive-tree display plan.
  *
- * Maxroll exposes ordered click history, so ExileQuesting can safely show one
- * exact next passive. PoB tree stages expose allocation sets but not click
- * order. Those are intentionally presented as stage targets instead of
- * inventing an order the source never supplied.
+ * Maxroll exposes ordered click history, so ExileQuesting follows that exact
+ * source order. PoB tree stages expose allocation sets rather than click order.
+ * For a pure connected expansion ExileQuesting may derive a deterministic,
+ * click-valid allocation order that reaches exactly that stage set. This is
+ * explicitly labelled as derived rather than source-authored. Refund/repath,
+ * mixed-scope, disconnected or unsupported PoB stages stay unordered so the
+ * HUD never fabricates unsafe guidance.
  */
 export function buildPassiveTreeGuidePlan(
   profile: BuildProfile | undefined,
@@ -123,6 +127,44 @@ export function buildPassiveTreeGuidePlan(
   const active = stages[activeIndex] ?? stages[0];
   const activeNodes = active.tree?.nodeIds ?? [];
   const previous = previousTreeNodeIds(stages, activeIndex);
+  const sourceLabel = `${profile.name} · ${active.title}`;
+
+  if (snapshot && active.tree?.nodeIds?.length) {
+    const derived = derivePassiveStageAllocationOrder(snapshot, [...previous], activeNodes, classStartNodeId);
+    if (derived) {
+      const operations: PassiveTreeGuideOperation[] = derived.nodeIds.map((nodeId) => ({
+        type: 'allocate',
+        nodeId,
+        checkpoint: activeIndex + 1,
+      }));
+      const cursor = clampCursor(passiveCursor, operations.length);
+      const operation = operations[cursor];
+      const target = operation ? {
+        ...nodeTarget(snapshot, operation.nodeId, 'allocate'),
+        index: cursor + 1,
+        total: operations.length,
+        checkpoint: operation.checkpoint,
+      } : undefined;
+      return {
+        mode: 'exact',
+        sourceKind: profile.sourceKind,
+        sourceLabel,
+        className,
+        classId,
+        classStartNodeId,
+        operations,
+        cursor,
+        target,
+        stageTargets: [],
+        message: target
+          ? `Derived click-valid PoB stage route: step ${cursor + 1} of ${operations.length}${derived.hadBranchChoice ? '. Branch priority is deterministic because PoB does not encode click order.' : '.'}`
+          : operations.length
+            ? `PoB stage ${active.title} allocation route complete.`
+            : `PoB stage ${active.title} adds no new fixed passives.`,
+      };
+    }
+  }
+
   const additions = [...new Set(activeNodes)]
     .filter((nodeId) => !previous.has(nodeId) && nodeId !== classStartNodeId)
     .slice(0, 160);
@@ -130,7 +172,7 @@ export function buildPassiveTreeGuidePlan(
   return {
     mode: 'stage',
     sourceKind: profile.sourceKind,
-    sourceLabel: `${profile.name} · ${active.title}`,
+    sourceLabel,
     className,
     classId,
     classStartNodeId,
@@ -138,7 +180,7 @@ export function buildPassiveTreeGuidePlan(
     cursor: 0,
     stageTargets,
     message: stageTargets.length
-      ? `PoB does not encode click order for this stage. Highlighting ${stageTargets.length} passive${stageTargets.length === 1 ? '' : 's'} added by ${active.title}.`
+      ? `PoB stage ${active.title} cannot be converted into a safe exact click order. Target Lock refuses to guess between ${stageTargets.length} stage nodes.`
       : 'The active PoB stage adds no new fixed passive nodes compared with the previous tree stage.',
   };
 }

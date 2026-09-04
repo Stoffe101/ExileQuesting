@@ -26,6 +26,10 @@ export interface PassiveTreeHudScreenNode {
   arrowX?: number;
   arrowY?: number;
   arrowAngle?: number;
+  /** Approximate screen-space distance from the visible tree viewport. */
+  offscreenDistancePx?: number;
+  /** Human-readable compass direction for the edge indicator. */
+  offscreenDirection?: string;
 }
 
 export interface PassiveTreeHudPathPoint {
@@ -35,6 +39,14 @@ export interface PassiveTreeHudPathPoint {
   y: number;
   state: 'recent' | 'next' | 'upcoming' | 'stage';
   offscreen?: boolean;
+}
+
+export interface PassiveTreeHudOperationDetected {
+  nodeId: number;
+  operation: 'allocate' | 'refund';
+  confidence: number;
+  /** Unique token so a renderer can acknowledge exactly once. */
+  token: string;
 }
 
 export interface PassiveTreeHudState {
@@ -53,6 +65,14 @@ export interface PassiveTreeHudState {
   confidence?: number;
   inliers?: number;
   rms?: number;
+  /** Cheap stationary fast path, feature tracking, or keyframe recovery. */
+  trackingMode?: 'stationary' | 'motion' | 'reacquired';
+  /** Local continuity watchdog around the exact projected target. */
+  targetVerification?: 'learning' | 'verified' | 'changed' | 'mismatch';
+  /** True while persistent visual-change detection can safely advance an ordered build. */
+  autoAdvanceArmed?: boolean;
+  /** One-shot verified visual operation. Build progression remains the only authority that changes target ID. */
+  operationDetected?: PassiveTreeHudOperationDetected;
   displayId?: number;
   displayBounds?: { x: number; y: number; width: number; height: number };
   captureSize?: { width: number; height: number };

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { PassiveNodeKind, PassiveNodeRecord, PassiveTreeBounds, PassiveTreeSnapshot } from '../src/core/passive-data';
+import { assertPobPassiveReference, POB_PASSIVE_REFERENCE } from '../src/core/pob-passive-reference';
 
 const GAME_VERSION = '3.29';
 const SOURCE_REPOSITORY = 'grindinggear/skilltree-export';
@@ -117,9 +118,10 @@ async function main() {
     source: { url: SOURCE_RAW_URL, sha256, repository: SOURCE_REPOSITORY, commit: SOURCE_COMMIT, path: SOURCE_PATH },
     nodes, bounds: treeBounds(tree, nodes), skillsPerOrbit, orbitRadii,
   };
+  assertPobPassiveReference(snapshot);
   await fs.mkdir(path.dirname(OUTPUT), { recursive: true });
   await fs.writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf8');
-  console.log(`Generated ${OUTPUT} from ${SOURCE_REPOSITORY}@${SOURCE_COMMIT.slice(0, 12)} with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions; ${classStarts.length} canonical class starts; ${ascendancyNodes.length} Ascendancy nodes across ${ascendancyNames.size} local scopes (${sha256.slice(0, 12)}).`);
+  console.log(`Generated ${OUTPUT} from ${SOURCE_REPOSITORY}@${SOURCE_COMMIT.slice(0, 12)}, validated against Path of Building ${POB_PASSIVE_REFERENCE.treeVersion}@${POB_PASSIVE_REFERENCE.commit.slice(0, 12)}, with ${nodes.length} nodes; ${staticMainTree.length} static main-tree nodes positioned; ${dynamicCount} dynamic definitions; ${classStarts.length} canonical class starts; ${ascendancyNodes.length} Ascendancy nodes across ${ascendancyNames.size} local scopes (${sha256.slice(0, 12)}).`);
 }
 
 await main();

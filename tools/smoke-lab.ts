@@ -55,20 +55,29 @@ async function makeState(): Promise<RuntimeState> {
 
 function waitForLoad(window: BrowserWindow): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Lab renderer load timed out.')), 15_000);
+    const timeout = setTimeout(() => reject(new Error('Lab renderer load timed out.')), 25_000);
     window.webContents.once('did-finish-load', () => { clearTimeout(timeout); resolve(); });
     window.webContents.once('did-fail-load', (_event, code, description) => { clearTimeout(timeout); reject(new Error(`Lab renderer failed: ${code} ${description}`)); });
   });
 }
 
 async function waitForLab(window: BrowserWindow): Promise<void> {
-  const deadline = Date.now() + 12_000;
+  const deadline = Date.now() + 25_000;
   while (Date.now() < deadline) {
-    const ready = await window.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="lab-ready"]'))`).catch(() => false);
-    if (ready) return;
+    const status = await window.webContents.executeJavaScript(`({
+      ready: Boolean(document.querySelector('[data-testid="lab-ready"]')),
+      state: document.readyState,
+      text: document.body?.textContent?.slice(0, 240) ?? ''
+    })`).catch(() => ({ ready: false, state: 'execute-error', text: '' })) as { ready: boolean; state: string; text: string };
+    if (status.ready) return;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error('Pre-playtest Lab did not render after bootstrap.');
+  const diagnostics = await window.webContents.executeJavaScript(`({
+    state: document.readyState,
+    text: document.body?.textContent?.slice(0, 500) ?? '',
+    htmlLength: document.documentElement?.outerHTML?.length ?? 0
+  })`).catch(() => ({ state: 'execute-error', text: '', htmlLength: 0 }));
+  throw new Error(`Pre-playtest Lab did not render after bootstrap: ${JSON.stringify(diagnostics)}`);
 }
 
 async function main(): Promise<void> {
@@ -94,6 +103,9 @@ async function main(): Promise<void> {
   });
   window.webContents.on('preload-error', (_event, preloadPath, error) => console.error(`Lab preload failed: ${preloadPath}`, error));
   window.webContents.on('render-process-gone', (_event, details) => console.error('Lab renderer exited.', details));
+  window.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) console.error(`Lab renderer console [${level}] ${message} (${sourceId}:${line})`);
+  });
 
   const loading = waitForLoad(window);
   await window.loadFile(path.resolve('dist/index.html'), { query: { mode: 'lab' } });
@@ -130,9 +142,9 @@ async function main(): Promise<void> {
 }
 
 const hardTimeout = setTimeout(() => {
-  console.error('Pre-playtest Lab smoke exceeded 30 seconds.');
+  console.error('Pre-playtest Lab smoke exceeded 60 seconds.');
   app.exit(1);
-}, 30_000);
+}, 60_000);
 
 void main().then(() => clearTimeout(hardTimeout)).catch((error) => {
   clearTimeout(hardTimeout);

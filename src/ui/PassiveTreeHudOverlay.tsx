@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { RuntimeState } from '../core/types';
 
 function shortKind(kind?: string): string {
@@ -8,60 +9,101 @@ function shortKind(kind?: string): string {
 
 export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }) {
   const hud = state.passiveTreeHud;
-  if (!hud.visible || hud.status !== 'locked') return <main className="passive-tree-hud-root" aria-hidden="true" />;
+  const handledOperationToken = useRef<string | undefined>(undefined);
+  const detectedToken = hud.operationDetected?.token;
+  const detectedNodeId = hud.operationDetected?.nodeId;
+  const detectedOperation = hud.operationDetected?.operation;
+  const targetNodeId = hud.target?.nodeId;
+  const targetOperation = hud.target?.operation;
+  const profileId = state.buildCoach?.profileId;
+
+  useEffect(() => {
+    if (!detectedToken || !detectedNodeId || !detectedOperation || !profileId || hud.mode !== 'exact' || !targetNodeId || !targetOperation) return;
+    if (detectedNodeId !== targetNodeId || detectedOperation !== targetOperation) return;
+    if (handledOperationToken.current === detectedToken) return;
+
+    // This calls the same persisted planner path as the manual Next Passive
+    // control. Vision never supplies a new node ID; it only acknowledges that
+    // the already-authoritative current operation visibly completed.
+    handledOperationToken.current = detectedToken;
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const advance = async (attempt: number): Promise<void> => {
+      try {
+        await window.exileQuesting.stepBuildPassive(profileId, 1);
+      } catch {
+        if (cancelled) return;
+        if (attempt < 2) {
+          retryTimer = window.setTimeout(() => { void advance(attempt + 1); }, 180 + attempt * 220);
+          return;
+        }
+        // Let a future state delivery retry this exact token instead of
+        // permanently swallowing a verified operation after a transient IPC
+        // failure. No second cursor step is issued after a successful call.
+        if (handledOperationToken.current === detectedToken) handledOperationToken.current = undefined;
+      }
+    };
+    void advance(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [detectedToken, detectedNodeId, detectedOperation, hud.mode, targetNodeId, targetOperation, profileId]);
+
+  if (!hud.visible || hud.status !== 'locked' || !hud.target) {
+    return <main className="passive-tree-hud-root" aria-hidden="true" />;
+  }
+
   const target = hud.target;
-  const exact = Boolean(target);
   const scopeLabel = hud.ascendancyName ? `${hud.ascendancyName} Ascendancy` : `${hud.className ?? 'Passive'} tree`;
+  const autoLabel = hud.operationDetected
+    ? 'ADVANCING'
+    : hud.autoAdvanceArmed
+      ? 'AUTO FOLLOW READY'
+      : hud.targetVerification === 'learning'
+        ? 'LEARNING TARGET'
+        : undefined;
 
   return (
-    <main className={`passive-tree-hud-root ${state.settings.reducedMotion ? 'reduced-motion' : ''}`} aria-label="Passive Tree HUD">
-      <svg className="passive-tree-path-layer" width="100%" height="100%" aria-hidden="true">
-        {hud.path.map((point, index) => {
-          const next = hud.path[index + 1];
-          if (!next || point.offscreen || next.offscreen) return null;
-          return <line key={`line-${point.nodeId}-${next.nodeId}-${index}`} x1={point.x} y1={point.y} x2={next.x} y2={next.y} className={`passive-path-line state-${point.state}`} />;
-        })}
-      </svg>
-
-      {hud.path.map((point, index) => {
-        if (point.offscreen) return null;
-        return (
-          <div
-            key={`${point.nodeId}-${index}`}
-            className={`passive-path-node state-${point.state}`}
-            style={{ left: point.x, top: point.y }}
-            title={point.name}
-          >
-            <i />
+    <main className={`passive-tree-hud-root ${state.settings.reducedMotion ? 'reduced-motion' : ''}`} aria-label="Passive Target Lock">
+      {!target.offscreen && (
+        <div
+          className={`passive-target operation-${target.operation}`}
+          style={{ left: target.x, top: target.y, '--marker-radius': `${target.markerRadius}px` } as React.CSSProperties}
+        >
+          <div className="passive-target-crosshair" aria-hidden="true">
+            <span className="passive-target-ring" />
+            <i className="passive-reticle-tick tick-top" />
+            <i className="passive-reticle-tick tick-right" />
+            <i className="passive-reticle-tick tick-bottom" />
+            <i className="passive-reticle-tick tick-left" />
+            <b className="passive-target-core" />
           </div>
-        );
-      })}
-
-      {target && !target.offscreen && (
-        <div className={`passive-target operation-${target.operation}`} style={{ left: target.x, top: target.y, '--marker-radius': `${target.markerRadius}px` } as React.CSSProperties}>
-          <div className="passive-target-ring"><i /><i /><b>✦</b></div>
           <div className="passive-target-label">
             <em className="passive-scope-label">{scopeLabel}</em>
-            <span>{target.operation === 'refund' ? 'REFUND PASSIVE' : 'NEXT PASSIVE'}</span>
+            <span>{target.operation === 'refund' ? 'REFUND THIS NODE' : 'TAKE THIS NODE'}</span>
             <strong>{target.name}</strong>
-            <small>{shortKind(target.kind)}{target.total ? ` · ${target.index}/${target.total}` : ''}</small>
+            <small>
+              NODE {target.nodeId} · {shortKind(target.kind)}
+              {target.total ? ` · ${target.index}/${target.total}` : ''}
+            </small>
+            {autoLabel && <small className="passive-auto-status">{autoLabel}</small>}
           </div>
         </div>
       )}
 
-      {target?.offscreen && target.arrowX !== undefined && target.arrowY !== undefined && (
+      {target.offscreen && target.arrowX !== undefined && target.arrowY !== undefined && (
         <div className="passive-edge-target" style={{ left: target.arrowX, top: target.arrowY }}>
           <i className="passive-edge-arrow" style={{ transform: `rotate(${target.arrowAngle ?? 0}rad)` }}>➜</i>
-          <div><span>{target.operation === 'refund' ? 'REFUND' : 'NEXT PASSIVE'}</span><strong>{target.name}</strong></div>
-        </div>
-      )}
-
-      {!exact && hud.path.some((point) => point.state === 'stage') && (
-        <div className="passive-stage-legend">
-          <em className="passive-scope-label">{scopeLabel}</em>
-          <span>POB STAGE PASSIVES</span>
-          <strong>{hud.path.filter((point) => point.state === 'stage').length} highlighted</strong>
-          <small>PoB supplies the stage set, not an exact click order.</small>
+          <div>
+            <span>{target.operation === 'refund' ? 'REFUND TARGET' : 'NEXT NODE'}</span>
+            <strong>{target.name}</strong>
+            <small>
+              Node {target.nodeId}
+              {target.offscreenDirection ? ` · ${target.offscreenDirection}` : ''}
+              {target.offscreenDistancePx !== undefined ? ` · ~${target.offscreenDistancePx}px` : ''}
+            </small>
+          </div>
         </div>
       )}
     </main>

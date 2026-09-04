@@ -46,6 +46,24 @@ Grinding Gear Games' Path of Exile developer documentation identifies this repos
 
 No separate open-source license is asserted for Grinding Gear Games' game data here. Path of Exile, its data, names, and related game content remain property of Grinding Gear Games and are subject to Grinding Gear Games' applicable terms and policies.
 
+## Path of Building Community
+
+Repository: <https://github.com/PathOfBuildingCommunity/PathOfBuilding>
+
+Copyright (c) 2016 David Gowor and Path of Building Community contributors.
+
+ExileQuesting uses a pinned Path of Building Community 3.29 revision as the canonical reference implementation for interpreting Path of Exile passive-tree layout invariants. This includes class-start identity, orbit constants, base-tree bounds, node group/orbit interpretation, and Path of Building's documented normalization of scrambled Ascendancy placement. Grinding Gear Games' export remains ExileQuesting's raw game-data source; ExileQuesting validates its generated geometry against the pinned PoB interpretation before trusting it for visual guidance. ExileQuesting does not bundle or execute the Path of Building application.
+
+Path of Building Community is distributed under the MIT License:
+
+> Copyright (c) 2016 David Gowor
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## XileHUD
 
 Repository: <https://github.com/XileHUD/poe_overlay>
