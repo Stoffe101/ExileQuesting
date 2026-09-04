@@ -1,0 +1,40 @@
+name: Character progress one-shot
+
+on:
+  push:
+    branches:
+      - feature/campaign-guide-2
+    paths:
+      - .github/workflows/character-progress-one-shot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply character progress fix
+        run: python3 tools/one-shot-character-progress.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Commit validated fix and remove helpers
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm tools/one-shot-character-progress.py tools/one-shot-character-progress.mjs .github/workflows/character-progress-one-shot.yml
+          git add -A
+          git commit -m "fix: track campaign progress per character"
+          git push origin HEAD:feature/campaign-guide-2
