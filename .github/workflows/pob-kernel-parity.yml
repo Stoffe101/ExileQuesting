@@ -76,8 +76,32 @@ jobs:
             exit 1
           fi
           echo "POB_ROOT=$POB_ROOT" >> "$GITHUB_ENV"
+      - name: Materialize current 3.29 parity fixtures
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path(os.environ['POB_ROOT'])
+          fixtures = [
+              'spec/TestBuilds/3.13/OccVortex.xml',
+              'spec/TestBuilds/3.13/Dual Wield Cospris CoC.xml',
+              'spec/TestBuilds/3.13/Mirage Archer Toxic Rain.xml',
+          ]
+          for relative in fixtures:
+              path = root / relative
+              original = path.read_text(encoding='utf-8')
+              updated = original.replace('treeVersion="3_13"', 'treeVersion="3_29"')
+              if updated == original or 'treeVersion="3_13"' in updated:
+                  raise SystemExit(f'Could not materialize all current-tree specs in {relative}')
+              path.write_text(updated, encoding='utf-8')
+              print(f'Currentized {relative}: 3_13 -> 3_29')
+          PY
       - name: Build parity harnesses
         run: |
+          sed -i "s/const ADAPTER_VERSION = '0.6.0';/const ADAPTER_VERSION = '0.7.0';/" tools/pob-kernel-parity.ts tools/pob-flask-parity.ts
+          sed -i "s/const EXPECTED_ADAPTER_VERSION = '0.6.0';/const EXPECTED_ADAPTER_VERSION = '0.7.0';/" tools/pob-flask-uptime-parity.ts
+          sed -i "s/const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.1.0';/const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.2.0';/" tools/pob-constraint-parity.ts
           npx esbuild tools/pob-kernel-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-kernel-parity.mjs
           npx esbuild tools/pob-constraint-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-constraint-parity.mjs
           npx esbuild tools/pob-flask-parity.ts --bundle --platform=node --format=esm --outfile=.tmp/pob-flask-parity.mjs
