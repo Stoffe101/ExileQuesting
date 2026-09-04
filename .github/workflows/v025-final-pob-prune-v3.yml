@@ -1,0 +1,112 @@
+name: v0.2.5 guarded PoB runtime pruning v3
+
+on:
+  push:
+    branches: [feature/campaign-guide-2]
+    paths: [.github/workflows/v025-final-pob-prune-v3.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  prune-and-prove:
+    runs-on: windows-2025
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply proven PoB pruning patch and smoke correction
+        shell: pwsh
+        run: |
+          $workflow = Get-Content .github/workflows/v025-final-pob-prune.yml -Raw
+          $match = [regex]::Match($workflow, "(?s)          @'\r?\n(.*?)\r?\n          '@ \| Set-Content -Encoding utf8 \.tmp-patch\.py")
+          if (-not $match.Success) { throw 'Could not extract guarded pruning patch.' }
+          $script = [regex]::Replace($match.Groups[1].Value, '(?m)^          ', '')
+          Set-Content -Encoding utf8 .tmp-patch.py $script
+          python .tmp-patch.py
+          Remove-Item .tmp-patch.py
+
+          @'
+          from pathlib import Path
+
+          p = Path('electron/services/pob-runtime.test.ts')
+          text = p.read_text(encoding='utf-8')
+          old = "  POB_KERNEL_REPOSITORY,\n  pobConstraintRuntimeOptions,"
+          new = "  POB_KERNEL_REPOSITORY,\n  POB_KERNEL_SUPPORTED_TREE_VERSIONS,\n  pobConstraintRuntimeOptions,"
+          if old not in text:
+              raise SystemExit('Runtime fixture import anchor missing.')
+          text = text.replace(old, new, 1)
+          old = "    constraintAdapterVersion: 'constraint-0.1.0',\n    fileCount: treeEntries.length,"
+          new = "    constraintAdapterVersion: 'constraint-0.1.0',\n    supportedTreeVersions: [...POB_KERNEL_SUPPORTED_TREE_VERSIONS],\n    fileCount: treeEntries.length,"
+          if old not in text:
+              raise SystemExit('Runtime fixture manifest anchor missing.')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+
+          p = Path('tools/smoke-pob-runtime.ts')
+          text = p.read_text(encoding='utf-8')
+          old = "import { runPobKernelRequest } from '../electron/services/pob-kernel-service';"
+          new = "import { PobKernelWorkerError, runPobKernelRequest } from '../electron/services/pob-kernel-service';"
+          if old not in text:
+              raise SystemExit('PoB smoke service import anchor missing.')
+          text = text.replace(old, new, 1)
+          old = '''  const legacyResponse = await runPobKernelRequest({
+    protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+    requestId: `packaged-legacy-tree-${process.pid}`,
+    operation: 'load-and-calculate',
+    xml: legacyXml,
+    scenario: { scenario: 'imported', label: 'Unsupported-tree contract smoke' },
+  }, pobKernelRuntimeOptions(bundle));
+  if (legacyResponse.ok || !('error' in legacyResponse) || legacyResponse.error.code !== 'unsupported-tree-version') throw new Error('Embedded PoB kernel did not reject an unsupported historical tree version cleanly.');'''
+          new = '''  let legacyRejected = false;
+  try {
+    await runPobKernelRequest({
+      protocolVersion: POB_CALCULATION_PROTOCOL_VERSION,
+      requestId: `packaged-legacy-tree-${process.pid}`,
+      operation: 'load-and-calculate',
+      xml: legacyXml,
+      scenario: { scenario: 'imported', label: 'Unsupported-tree contract smoke' },
+    }, pobKernelRuntimeOptions(bundle));
+  } catch (error) {
+    legacyRejected = error instanceof PobKernelWorkerError && error.code === 'unsupported-tree-version';
+    if (!legacyRejected) throw error;
+  }
+  if (!legacyRejected) throw new Error('Embedded PoB kernel did not reject an unsupported historical tree version cleanly.');'''
+          if old not in text:
+              raise SystemExit('PoB legacy rejection smoke anchor missing.')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+
+          for path in [
+              '.github/workflows/v025-final-pob-prune-v2.yml',
+              '.github/workflows/v025-final-pob-prune-v3.yml',
+              '.github/workflows/v025-profile-pob-bundle.yml',
+          ]:
+              item = Path(path)
+              if item.exists(): item.unlink()
+          '@ | Set-Content -Encoding utf8 .tmp-finalize.py
+          python .tmp-finalize.py
+          Remove-Item .tmp-finalize.py
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build and stage pinned headless PoB runtime
+        run: npm run prepare:pob-runtime:win
+      - name: Prove staged PoB runtime and compatibility contract
+        run: npm run smoke:pob-runtime
+      - name: Commit validated pruning
+        shell: pwsh
+        run: |
+          git config user.name "Skrra"
+          git config user.email "94893570+Stoffe101@users.noreply.github.com"
+          git add electron/services/pob-runtime.ts electron/services/pob-runtime.test.ts tools/stage-pob-runtime.ts tools/smoke-pob-runtime.ts tools/pob-kernel/worker.lua tools/pob-kernel/constraint-worker.lua .github/workflows
+          git diff --cached --check
+          git commit -m "Slim pinned PoB runtime for v0.2.5 playtest"
+          git push origin HEAD:feature/campaign-guide-2
