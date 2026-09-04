@@ -74,7 +74,7 @@ describe('passive tree frame motion', () => {
   const width = 240;
   const height = 120;
 
-  it('reports identity when the passive tree is stationary', () => {
+  it('reports cheap identity when the passive tree is stationary', () => {
     const frame = treeTexture(width, height);
     const result = trackPassiveTreeFrameMotion(frame, frame, width, height);
     expect(result).toBeDefined();
@@ -82,6 +82,8 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetX).toBeCloseTo(0, 0);
     expect(result!.offsetY).toBeCloseTo(0, 0);
     expect(result!.confidence).toBeGreaterThan(0.8);
+    expect(result!.stationary).toBe(true);
+    expect(result!.inliers).toBe(0);
   });
 
   it('keeps the identity transform when a large UI occlusion removes feature cells', () => {
@@ -94,6 +96,16 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetX).toBeCloseTo(0, 0);
     expect(result!.offsetY).toBeCloseTo(0, 0);
     expect(result!.confidence).toBeGreaterThan(0.68);
+    expect(result!.stationary).toBe(true);
+  });
+
+  it('does not call a real two-pixel pan stationary', () => {
+    const previous = treeTexture(width, height);
+    const current = transformed(previous, width, height, 1, 2, 0);
+    const result = trackPassiveTreeFrameMotion(previous, current, width, height);
+    expect(result).toBeDefined();
+    expect(result!.offsetX).toBeCloseTo(2, 0);
+    expect(result!.stationary).toBe(false);
   });
 
   it('tracks a pan without re-identifying any passive node', () => {
@@ -104,6 +116,7 @@ describe('passive tree frame motion', () => {
     expect(result!.scale).toBeCloseTo(1, 1);
     expect(result!.offsetX).toBeCloseTo(14, -0.5);
     expect(result!.offsetY).toBeCloseTo(-8, -0.5);
+    expect(result!.stationary).toBe(false);
   });
 
   it('tracks modest zoom and pan together while keeping one immutable target space', () => {
@@ -115,6 +128,7 @@ describe('passive tree frame motion', () => {
     expect(result!.offsetX).toBeCloseTo(-7, 0);
     expect(result!.offsetY).toBeCloseTo(4, 0);
     expect(result!.inliers).toBeGreaterThanOrEqual(6);
+    expect(result!.stationary).toBe(false);
   });
 
   it('tracks an aggressive 1.62x centre zoom plus pan like the real-client recording', () => {
@@ -176,7 +190,7 @@ describe('passive tree frame motion', () => {
     const transform: PassiveTreeTransform = { scale: 0.144, offsetX: 1720, offsetY: 720, ySign: 1 };
     const next = applyPassiveTreeFrameMotion(
       transform,
-      { scale: 1.12, offsetX: -24, offsetY: 9, confidence: 0.9, inliers: 20, rms: 1.2 },
+      { scale: 1.12, offsetX: -24, offsetY: 9, confidence: 0.9, inliers: 20, rms: 1.2, stationary: false },
       { width: 480, height: 201 },
       { width: 3440, height: 1440 },
     );
