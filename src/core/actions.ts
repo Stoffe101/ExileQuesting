@@ -149,6 +149,10 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('vendor', 'Check the vendor', raw));
   }
 
+  if (/\/passives\b/i.test(raw)) {
+    actions.push(makeAction('passive', 'Type /passives in chat and verify every campaign passive reward', raw, true));
+  }
+
   if (destination && !isRelog) {
     actions.push(makeAction('travel', `Enter ${destination}`, raw));
   }
