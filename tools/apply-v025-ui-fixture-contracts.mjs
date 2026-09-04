@@ -16,6 +16,10 @@ const tracking = ({ id, runId, name, className, level, progressExpr, actExpr, bu
 await edit('tools/visual-gear-coach.ts', async ({ replaceOnce }) => {
   replaceOnce('  passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true,', '  passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false,');
   replaceOnce(
+    `  const passiveData = validatePassiveTreeSnapshot(rawPassives);\n  const buildProfile = profile();`,
+    `  const passiveData = validatePassiveTreeSnapshot(rawPassives);\n  if (!gemData || !passiveData) throw new Error('Visual Gear Coach fixture requires valid bundled gem and passive snapshots.');\n  const buildProfile = profile();`
+  );
+  replaceOnce(
     `    currentZone: 'The City of Sarn', currentAreaId: '1_3_1', currentAreaLevel: 23, characterLevel: 30, xpGuidance: calculateXpGuidance(30, 23),`,
     `    currentZone: 'The City of Sarn', currentAreaId: '1_3_1', currentAreaLevel: 23, characterLevel: 30,\n    ${tracking({ id: 'visual-gear-character', runId: 'visual-gear-run', name: 'VisualRanger', className: 'Ranger', level: 30, progressExpr: 'progress', actExpr: 'dataset.steps[progress]?.act', buildId: 'visual-ranger', buildName: 'Caustic Arrow Ranger' })},\n    xpGuidance: calculateXpGuidance(30, 23),`
   );
@@ -46,12 +50,27 @@ await edit('tools/smoke-lab.ts', async ({ replaceOnce }) => {
     `  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false, reducedMotion: false, reducedTransparency: false,`
   );
   replaceOnce(
+    `  const progress = 0;\n  return {`,
+    `  const progress = 0;\n  const now = new Date().toISOString();\n  return {`
+  );
+  replaceOnce(
     `    progress,\n    rewardProgress: rewardProgressFor(dataset, progress),`,
-    `    progress,\n    ${tracking({ id: 'lab-smoke-character', runId: 'lab-smoke-run', name: 'LabSmokeWitch', className: 'Witch', level: 1, progressExpr: 'progress', actExpr: 'dataset.steps[progress]?.act' })},\n    rewardProgress: rewardProgressFor(dataset, progress),`
+    `    progress,\n    ${tracking({ id: 'lab-smoke-character', runId: 'lab-smoke-run', name: 'LabSmokeWitch', className: 'Witch', level: 1, progressExpr: 'progress', actExpr: 'dataset.steps[progress]?.act' })},\n    xpGuidance: calculateXpGuidance(1, 1),\n    rewardProgress: rewardProgressFor(dataset, progress),`
+  );
+  replaceOnce(
+    `    detectionTrace: [], runStats: runStatsFor(emptyRunSession(), []),`,
+    `    detectionTrace: [], runStats: runStatsFor(emptyRunSession(), []),\n    lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in Lab smoke.' },`
   );
   replaceOnce(
     `    appUpdate: { status: 'disabled', currentVersion: '0.1.4', message: 'Disabled in Lab smoke.' },\n    recovery: { previousSessionUnclean: false, acknowledged: true }, appVersion: '0.1.4', diagnosticsPath: '',`,
     `    appUpdate: { status: 'disabled', currentVersion: '0.2.5', message: 'Disabled in Lab smoke.' },\n    recovery: { previousSessionUnclean: false, acknowledged: true }, passiveTreeHud: passiveTreeHudIdle(false), appVersion: '0.2.5', diagnosticsPath: '',`
+  );
+});
+
+await edit('tools/visual-manager.ts', async ({ replaceOnce }) => {
+  replaceOnce(
+    `      if (!(bottomScrollTop > 0)) throw new Error(\`${'${scenario.name}'}: page reports overflow but cannot actually scroll.\`);`,
+    `      if ((bottomScrollTop ?? 0) <= 0) throw new Error(\`${'${scenario.name}'}: page reports overflow but cannot actually scroll.\`);`
   );
 });
 
