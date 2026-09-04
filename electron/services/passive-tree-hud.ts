@@ -17,7 +17,11 @@ import {
   type PassiveTreeSnapshot,
 } from '../../src/core/passive-data';
 import type { PassiveTreeGuidePlan } from '../../src/core/passive-tree-guide';
-import { passiveTreeHudIdle, type PassiveTreeHudState } from '../../src/core/passive-tree-hud-state';
+import {
+  passiveTreeHudIdle,
+  type PassiveTreeHudOperationDetected,
+  type PassiveTreeHudState,
+} from '../../src/core/passive-tree-hud-state';
 import {
   createPassiveTreeScreenSignature,
   matchPassiveTreeScreenSignature,
@@ -66,7 +70,7 @@ export interface PassiveTargetOperationDetected {
 export interface PassiveTreeHudServiceOptions {
   context: () => PassiveTreeHudContext;
   onState: (state: PassiveTreeHudState) => void;
-  /** Returns true only when the build cursor really advanced. */
+  /** Optional main-process consumer. The renderer event remains available as a persisted-planner fallback. */
   onTargetOperationDetected?: (event: PassiveTargetOperationDetected) => boolean | Promise<boolean>;
   log?: PassiveTreeHudLogger;
   captureWidth?: number;
@@ -144,6 +148,7 @@ interface TargetVisualState {
   stableChangeCount: number;
   mismatchCount: number;
   pendingOperation: boolean;
+  detected?: PassiveTreeHudOperationDetected;
 }
 
 const RECENTER_HOTKEY = 'CommandOrControl+Shift+C';
@@ -321,6 +326,7 @@ function stateFingerprint(state: PassiveTreeHudState): string {
     state.trackingMode ?? '',
     state.targetVerification ?? '',
     state.autoAdvanceArmed ?? '',
+    state.operationDetected?.token ?? '',
     target?.nodeId ?? '',
     target ? Math.round(target.x) : '',
     target ? Math.round(target.y) : '',
@@ -792,14 +798,24 @@ export class PassiveTreeHudService {
 
   private triggerAutomaticProgress(context: PassiveTreeHudContext, visual: TargetVisualState, confidence: number): void {
     const target = context.guide?.target;
-    if (!target || context.guide?.mode !== 'exact' || visual.pendingOperation || !this.options.onTargetOperationDetected) return;
+    if (!target || context.guide?.mode !== 'exact' || visual.pendingOperation) return;
     visual.pendingOperation = true;
+    const token = `${visual.identity}:${Date.now()}`;
+    visual.detected = { nodeId: target.nodeId, operation: target.type, confidence, token };
+    if (!this.options.onTargetOperationDetected) return;
+
     const event: PassiveTargetOperationDetected = { nodeId: target.nodeId, operation: target.type, confidence };
     void Promise.resolve(this.options.onTargetOperationDetected(event)).then((advanced) => {
-      if (!advanced && this.targetVisual?.identity === visual.identity) visual.pendingOperation = false;
+      if (!advanced && this.targetVisual?.identity === visual.identity) {
+        visual.pendingOperation = false;
+        visual.detected = undefined;
+      }
       this.poke();
     }).catch((error) => {
-      if (this.targetVisual?.identity === visual.identity) visual.pendingOperation = false;
+      if (this.targetVisual?.identity === visual.identity) {
+        visual.pendingOperation = false;
+        visual.detected = undefined;
+      }
       this.options.log?.warn('Passive Target Lock automatic build progression callback failed safely.', error);
       this.poke();
     });
@@ -809,7 +825,7 @@ export class PassiveTreeHudService {
     context: PassiveTreeHudContext,
     result: TrackingResult,
     capture: PoeWindowCapture,
-  ): { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean; mismatch: boolean } {
+  ): { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean; mismatch: boolean; operationDetected?: PassiveTreeHudOperationDetected } {
     const target = context.guide?.target;
     const snapshot = context.snapshot;
     if (!target || !snapshot) return { verification: 'learning', autoAdvanceArmed: false, mismatch: false };
@@ -819,13 +835,13 @@ export class PassiveTreeHudService {
     const markerRadius = targetMarkerRadius(result.projection.transform, result.projection.display, target.type);
     const edge = edgeIndicatorForTarget(projected, result.projection.display.bounds.width, result.projection.display.bounds.height);
     const visual = this.ensureTargetVisual(result.projection, context);
-    if (edge.visible) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    if (edge.visible) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false, operationDetected: visual.detected };
 
     const cursor = screen.getCursorScreenPoint();
     const localCursor = { x: cursor.x - result.projection.display.bounds.x, y: cursor.y - result.projection.display.bounds.y };
     const cursorNearTarget = Math.hypot(localCursor.x - projected.x, localCursor.y - projected.y) <= Math.max(44, markerRadius * 1.75);
     if (cursorNearTarget || !result.motion.stationary) {
-      return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+      return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false, operationDetected: visual.detected };
     }
 
     const patch = samplePassiveTargetPatch(
@@ -834,7 +850,7 @@ export class PassiveTreeHudService {
       { width: result.projection.display.bounds.width, height: result.projection.display.bounds.height },
       { x: projected.x, y: projected.y, radius: markerRadius },
     );
-    if (!patch) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    if (!patch) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false, operationDetected: visual.detected };
     if (!visual.reference) {
       visual.reference = patch;
       visual.verification = 'learning';
@@ -842,7 +858,7 @@ export class PassiveTreeHudService {
     }
 
     const comparison = comparePassiveTargetPatches(visual.reference, patch);
-    if (!comparison) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false };
+    if (!comparison) return { verification: visual.verification, autoAdvanceArmed: false, mismatch: false, operationDetected: visual.detected };
     const operationComplete = passiveTargetOperationLooksComplete(comparison, target.type);
     if (operationComplete) {
       visual.stableChangeCount += 1;
@@ -851,26 +867,36 @@ export class PassiveTreeHudService {
       if (visual.stableChangeCount >= AUTO_ADVANCE_CONFIRMATIONS) {
         this.triggerAutomaticProgress(context, visual, clamp(1 - comparison.difference * 0.35, 0.7, 0.99));
       }
-      return { verification: visual.verification, autoAdvanceArmed: !visual.pendingOperation, mismatch: false };
+      return {
+        verification: visual.verification,
+        autoAdvanceArmed: !visual.pendingOperation,
+        mismatch: false,
+        operationDetected: visual.detected,
+      };
     }
 
     visual.stableChangeCount = 0;
     if (passiveTargetPatchIsGrossMismatch(comparison)) {
       visual.mismatchCount += 1;
       visual.verification = visual.mismatchCount >= LOCAL_MISMATCH_CONFIRMATIONS ? 'mismatch' : 'changed';
-      return { verification: visual.verification, autoAdvanceArmed: false, mismatch: visual.verification === 'mismatch' };
+      return {
+        verification: visual.verification,
+        autoAdvanceArmed: false,
+        mismatch: visual.verification === 'mismatch',
+        operationDetected: visual.detected,
+      };
     }
 
     visual.mismatchCount = 0;
     visual.verification = comparison.difference <= 0.075 ? 'verified' : 'changed';
-    return { verification: visual.verification, autoAdvanceArmed: true, mismatch: false };
+    return { verification: visual.verification, autoAdvanceArmed: true, mismatch: false, operationDetected: visual.detected };
   }
 
   private visibleState(
     context: PassiveTreeHudContext,
     result: TrackingResult,
     capture: PoeWindowCapture,
-    visual: { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean },
+    visual: { verification: TargetVisualState['verification']; autoAdvanceArmed: boolean; operationDetected?: PassiveTreeHudOperationDetected },
   ): PassiveTreeHudState {
     const guide = context.guide!;
     const snapshot = context.snapshot!;
@@ -899,6 +925,7 @@ export class PassiveTreeHudService {
       trackingMode: result.mode,
       targetVerification: visual.verification,
       autoAdvanceArmed: visual.autoAdvanceArmed,
+      operationDetected: visual.operationDetected,
       displayId: projection.display.id,
       displayBounds: { ...projection.display.bounds },
       captureSize: { ...capture.capture },
