@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -33,5 +34,6 @@ for (const [before, after] of fixes) {
 await mkdir('.tmp', { recursive: true });
 const output = path.resolve('.tmp/v025-hardening-executable.mjs');
 await writeFile(output, source, 'utf8');
-console.log(`Prepared syntax-safe hardening patch at ${output}.`);
+execFileSync(process.execPath, ['--check', output], { stdio: 'inherit' });
+console.log(`Prepared and syntax-checked hardening patch at ${output}.`);
 await import(pathToFileURL(output).href);
