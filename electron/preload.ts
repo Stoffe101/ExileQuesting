@@ -66,6 +66,7 @@ const api = {
   checkCampaignUpdates: (): Promise<RuntimeState> => ipcRenderer.invoke('campaign:check'),
   activateCharacterProfile: (id: string): Promise<RuntimeState> => ipcRenderer.invoke('character:activate', id),
   startNewCharacterProfile: (): Promise<RuntimeState> => ipcRenderer.invoke('character:start-new'),
+  setCharacterProfileName: (id: string, name: string): Promise<RuntimeState> => ipcRenderer.invoke('character:set-name', id, name),
   resetCharacterProfile: (id: string): Promise<RuntimeState> => ipcRenderer.invoke('character:reset', id),
   deleteCharacterProfile: (id: string): Promise<RuntimeState> => ipcRenderer.invoke('character:delete', id),
   confirmReward: (stepId: string, confirmed: boolean): Promise<RuntimeState> => ipcRenderer.invoke('reward:confirm', stepId, confirmed),
