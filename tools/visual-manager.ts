@@ -26,8 +26,8 @@ const settings: AppSettings = {
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true },
   overlayAutoCollapse: true,
   overlayAutoCollapseSeconds: 5,
-  passiveTreeHudEnabled: true,
-  passiveTreeHudPathPreview: true,
+  passiveTreeHudEnabled: false,
+  passiveTreeHudPathPreview: false,
   reducedMotion: false,
   reducedTransparency: false,
   onboardingComplete: true,
@@ -159,8 +159,35 @@ async function makeState(): Promise<RuntimeState> {
     runStats: visualRunStats(),
     appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
     recovery: { previousSessionUnclean: false, acknowledged: true },
+    buildCoach: {
+      profileId: 'visual-maxroll',
+      profileName: 'Visual League Starter',
+      sourceKind: 'maxroll',
+      stageId: 'visual-act-1',
+      stageTitle: 'Act 1 leveling',
+      stageConfidence: 'high',
+      currentGemTasks: [],
+      maxroll: {
+        guideTitle: 'Visual Maxroll Guide',
+        guideUrl: 'https://maxroll.gg/poe/build-guides/visual',
+        mode: 'league-start',
+        compatibility: 'current',
+        compatibilityMessage: 'Visual fixture uses current passive IDs.',
+        nextPassive: { index: 4, total: 20, completed: 3, type: 'allocate', nodeId: 123, nodeName: 'Heart and Soul', nodeKind: 'notable', checkpoint: 1 },
+        passiveComplete: false,
+        passiveCompleted: 3,
+        passiveTotal: 20,
+        skillMilestones: [],
+        equipmentMilestones: [],
+        alternateSkillPaths: [],
+      },
+      loot: { profileId: 'visual-maxroll', profileName: 'Visual League Starter', gameVersion: '3.29', stageId: 'visual-act-1', stageTitle: 'Act 1 leveling', linkTargets: [], baseTargets: [], showChromaticRecipe: false, showSixSockets: false, warnings: [] },
+      gearHints: [],
+      craftingHints: [],
+      vendorSearch: { warnings: [] },
+    },
     lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in this visual fixture.' },
-    passiveTreeHud: passiveTreeHudIdle(true),
+    passiveTreeHud: passiveTreeHudIdle(false),
     appVersion: '0.2.0',
     diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
@@ -305,6 +332,66 @@ async function main(): Promise<void> {
     }
     captures.push({ ...scenario, ...metrics, topBytes, bottomBytes, bottomScrollTop });
   }
+
+  window.setContentSize(1280, 720);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  await switchTab(window, 'Campaign');
+
+  const clickText = async (selector: string, label: string) => {
+    const clicked = await window.webContents.executeJavaScript(`(() => {
+      const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find((entry) => entry.textContent?.includes(${JSON.stringify(label)}));
+      if (!node) return false;
+      node.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error(`Guide 2 visual could not find ${label} in ${selector}.`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  };
+  const assertSurface = async (selector: string, name: string) => {
+    const metrics = await window.webContents.executeJavaScript(`(() => {
+      const node = document.querySelector(${JSON.stringify(selector)});
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
+    })()`);
+    if (!metrics) throw new Error(`${name}: expected surface ${selector} did not render.`);
+    if (metrics.right > metrics.viewportWidth + 2 || metrics.left < -2 || metrics.scrollWidth > metrics.clientWidth + 2) throw new Error(`${name}: surface overflows horizontally: ${JSON.stringify(metrics)}`);
+    return metrics;
+  };
+
+  for (const label of ['Act map', 'Timeline', 'Completion audit', 'Route']) {
+    await clickText('.g2-view-tabs button', label);
+    await assertSurface('.g2-page', `campaign-${label}`);
+    captures.push({ name: `campaign-${label.toLowerCase().replace(/\s+/g, '-')}-1280x720`, bytes: await capture(window, `campaign-${label.toLowerCase().replace(/\s+/g, '-')}-1280x720.png`) });
+  }
+
+  await clickText('.lost-button', "I'M LOST");
+  await assertSurface('.g2-lost-panel', 'campaign-lost');
+  captures.push({ name: 'campaign-lost-1280x720', bytes: await capture(window, 'campaign-lost-1280x720.png') });
+  await window.webContents.executeJavaScript(`document.querySelector('.g2-lost-panel header button')?.click()`);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  const openPalette = async () => {
+    await window.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    await assertSurface('.command-palette', 'command-palette');
+  };
+  await openPalette();
+  captures.push({ name: 'command-palette-1280x720', bytes: await capture(window, 'command-palette-1280x720.png') });
+  await clickText('.command-results button', 'Open Passive Plan');
+  await assertSurface('.passive-plan-modal', 'passive-plan');
+  const passiveText = await window.webContents.executeJavaScript(`document.querySelector('.passive-plan-modal')?.textContent ?? ''`);
+  if (!passiveText.includes('Heart and Soul') || !passiveText.includes('ORDERED MAXROLL PLAN')) throw new Error('Passive Plan visual fixture did not render exact Maxroll guidance.');
+  captures.push({ name: 'passive-plan-1280x720', bytes: await capture(window, 'passive-plan-1280x720.png') });
+  await window.webContents.executeJavaScript(`document.querySelector('.passive-plan-close')?.click()`);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  await openPalette();
+  await clickText('.command-results button', 'Open current zone diagram');
+  await assertSurface('.zone-diagram-modal', 'zone-diagram');
+  captures.push({ name: 'zone-diagram-1280x720', bytes: await capture(window, 'zone-diagram-1280x720.png') });
+  await window.webContents.executeJavaScript(`document.querySelector('.zone-diagram-modal > header button')?.click()`);
+  await new Promise((resolve) => setTimeout(resolve, 80));
 
   await fs.writeFile(path.join(output, 'manifest.json'), JSON.stringify({ generatedAt: new Date().toISOString(), captures }, null, 2), 'utf8');
   window.destroy();
