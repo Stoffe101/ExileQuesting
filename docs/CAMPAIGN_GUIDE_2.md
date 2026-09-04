@@ -28,6 +28,22 @@ These are explicit semantic instructions, not generic route prose:
 
 Labyrinth runs and Trials of Ascendancy are deliberately distinct. The upstream Exile-UI route uses the same `img:lab` marker for both in some places, so ExileQuesting additionally recognizes `normal_lab`, `cruel_lab`, `merciless_lab` and `eternal_lab` route tokens before assigning trial semantics.
 
+## League-start and twink route correctness
+
+Exile-UI does not only use structured step conditions. Individual guide lines can also be tagged `leaguestart:` or `twinkrun:` and its leveling tracker hides the opposite mode.
+
+ExileQuesting preserves the lossless bundled source dataset, then materializes the selected route mode at runtime. Materialization keeps stable step IDs and progress indexes while recomputing:
+
+- visible source/humanized lines;
+- structured route actions and the `NOW` priority;
+- target area when the destination is mode-specific;
+- route tags and permanent-reward classification;
+- layout/annotation context when the target still matches the original normalized step.
+
+Reward totals also respect structured league-start/bandit conditions. The user-facing **Optional objectives** visibility toggle is deliberately not allowed to erase permanent-power checks from the completion audit.
+
+Campaign semantic lint evaluates league-start and twink materializations separately. CI fails if an opposite-mode source line survives, an action points back to a hidden line, or filtering leaves an enabled route page without a decisive action.
+
 ## Passive Plan replaces the tree HUD
 
 The in-game passive-tree drawing/capture architecture is retired.
