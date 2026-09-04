@@ -266,6 +266,15 @@ export function characterProfileMatchesForZone(
     .sort((left, right) => right.score - left.score || Date.parse(right.profile.updatedAt) - Date.parse(left.profile.updatedAt));
 }
 
+function stickyActiveProfile(profile?: CharacterCampaignProfile): boolean {
+  return Boolean(profile && !profile.archived && (
+    !profile.provisional ||
+    profile.identityConfidence === 'verified' ||
+    profile.identityConfidence === 'manual' ||
+    (profile.freshStart && profile.progress <= 3)
+  ));
+}
+
 export function selectCharacterProfileForZone(
   document: CharacterCampaignDocument,
   event: Pick<ZoneEvent, 'areaId' | 'areaName' | 'areaLevel'>,
@@ -276,10 +285,23 @@ export function selectCharacterProfileForZone(
   const ranked = characterProfileMatchesForZone(document, event, steps, enabled);
   if (!ranked.length) return undefined;
   if (ranked[0].profile.id === currentProfileId) return ranked[0].profile;
-  // If two non-current candidates are close, or the current profile is the
-  // runner-up, the zone alone is not enough evidence to switch characters.
-  // Failing closed is safer than letting a revisit/party transition steal the
-  // active campaign cursor.
+
+  const current = characterProfileById(document, currentProfileId);
+  const currentMatch = currentProfileId ? ranked.find((match) => match.profile.id === currentProfileId) : undefined;
+  if (stickyActiveProfile(current)) {
+    // A confirmed or freshly verified active run remains authoritative while it
+    // still plausibly fits the observed zone. Shared campaign areas and nearby
+    // saved cursors are not character identity evidence.
+    if (currentMatch) return current;
+
+    // If the active run no longer fits at all, generic route proximity from a
+    // different profile is still insufficient to steal the cursor. A unique
+    // exact last-area match may restore a genuinely different saved character.
+    if (ranked[0].source !== 'exact-zone') return undefined;
+  }
+
+  // Two close candidates are ambiguous. Refuse to guess even for provisional
+  // profiles; the Character Profiles screen remains the explicit recovery path.
   if (ranked[1] && ranked[0].score - ranked[1].score < 8) return undefined;
   return ranked[0].profile;
 }

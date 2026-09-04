@@ -71,6 +71,20 @@ function currentEnabledAtOrAfter(
   return undefined;
 }
 
+/**
+ * Client.txt can prove that a zone changed, but it cannot prove that a Book of
+ * Skill was claimed, an Ascendancy Trial was completed, or a Labyrinth was
+ * finished. These pages deliberately require an explicit player completion so
+ * the campaign cursor can never silently run past permanent rewards.
+ */
+export function requiresManualCampaignCompletion(step?: CampaignStep): boolean {
+  return Boolean(step && (
+    step.permanentReward === 'passive' ||
+    step.permanentReward === 'trial' ||
+    step.tags.includes('labyrinth')
+  ));
+}
+
 export function decideProgression(
   steps: CampaignStep[],
   currentProgress: number,
@@ -96,13 +110,16 @@ export function decideProgression(
   }
   if (!forwardMatch) return null;
 
+  const currentEnabled = currentEnabledAtOrAfter(steps, currentProgress, enabled);
+  if (currentEnabled !== undefined && requiresManualCampaignCompletion(steps[currentEnabled])) return null;
+
   // Live campaign tracking must fail closed. Entering a later route zone through
   // a party portal, waypoint, missed log burst or deliberate detour must not
   // silently skip the objectives between the saved cursor and that zone. The UI
   // can still show CATCHING UP / I'M LOST recovery and let the player resume
-  // explicitly. Specialized diagnostics may opt into the old bounded catch-up.
+  // explicitly. Specialized diagnostics may opt into bounded catch-up, except
+  // across manual-completion pages which remain protected in every mode.
   if (options.allowAheadMatch !== true) {
-    const currentEnabled = currentEnabledAtOrAfter(steps, currentProgress, enabled);
     if (currentEnabled === undefined || forwardMatch.index !== currentEnabled) return null;
   }
 
