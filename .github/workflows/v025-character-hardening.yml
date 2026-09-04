@@ -1,0 +1,47 @@
+name: v0.2.5 character hardening
+
+on:
+  push:
+    branches: [feature/campaign-guide-2]
+    paths:
+      - tools/apply-v025-character-hardening.mjs
+      - tools/run-v025-hardening-wrapper.mjs
+      - .github/workflows/v025-character-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-guide-2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply guarded product patch
+        run: node tools/run-v025-hardening-wrapper.mjs
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint:campaign
+      - run: npm run simulate:campaign
+      - name: Remove one-shot patch machinery
+        run: |
+          rm -f tools/apply-v025-character-hardening.mjs
+          rm -f tools/run-v025-hardening-wrapper.mjs
+          rm -f .github/workflows/v025-character-hardening.yml
+      - name: Commit validated hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Harden character continuity and shrink PoB runtime"
+          git push origin HEAD:feature/campaign-guide-2
