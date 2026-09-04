@@ -1,3 +1,4 @@
+import { campaignForRouteMode } from './campaign';
 import { simulateCanonicalCampaign, type CampaignSimulationOptions, type CampaignSimulationReport } from './simulator';
 import type { CampaignDataset } from './types';
 
@@ -6,7 +7,12 @@ export interface CampaignSimulationScenarioResult {
   report: CampaignSimulationReport;
 }
 
-export const CAMPAIGN_SIMULATION_SCENARIOS: Array<{ name: string; options: CampaignSimulationOptions }> = [
+type CampaignSimulationScenario = {
+  name: string;
+  options: CampaignSimulationOptions & { leagueStart: boolean };
+};
+
+export const CAMPAIGN_SIMULATION_SCENARIOS: CampaignSimulationScenario[] = [
   { name: 'League start · all optional · kill all bandits', options: { leagueStart: true, showOptional: true, bandit: 'none' } },
   { name: 'League start · optional hidden', options: { leagueStart: true, showOptional: false, bandit: 'none' } },
   { name: 'Twink/non-league-start · all optional', options: { leagueStart: false, showOptional: true, bandit: 'none' } },
@@ -18,6 +24,6 @@ export const CAMPAIGN_SIMULATION_SCENARIOS: Array<{ name: string; options: Campa
 export function runCampaignSimulationSuite(dataset: CampaignDataset): CampaignSimulationScenarioResult[] {
   return CAMPAIGN_SIMULATION_SCENARIOS.map((scenario) => ({
     name: scenario.name,
-    report: simulateCanonicalCampaign(dataset, scenario.options),
+    report: simulateCanonicalCampaign(campaignForRouteMode(dataset, scenario.options.leagueStart), scenario.options),
   }));
 }

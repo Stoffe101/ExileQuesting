@@ -40,7 +40,7 @@ const settings: AppSettings = {
   autoAdvance: true, autoShowOnZoneChange: true, overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true }, overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5,
-  passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true,
+  passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false,
   reducedMotion: false, reducedTransparency: false, onboardingComplete: true, launchMinimized: false, autoCheckAppUpdates: true, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: { toggleOverlay: 'CommandOrControl+Shift+H', nextStep: 'Alt+Shift+Right', previousStep: 'Alt+Shift+Left', toggleInteraction: 'CommandOrControl+Shift+I', cycleOverlayMode: 'CommandOrControl+Shift+M' },
@@ -100,6 +100,7 @@ async function main(): Promise<void> {
   ]);
   const gemData = validateGemAcquisitionSnapshot(rawGems);
   const passiveData = validatePassiveTreeSnapshot(rawPassives);
+  if (!gemData || !passiveData) throw new Error('Visual Gear Coach fixture requires valid bundled gem and passive snapshots.');
   const buildProfile = profile();
   const plannerState = normalizeBuildPlannerState({ schemaVersion: 1, activeProfileId: buildProfile.id, activeStageByProfile: {}, passiveCursorByProfile: {} }, [buildProfile]);
   const planner = buildPlannerSnapshot([buildProfile], plannerState);
@@ -122,12 +123,26 @@ async function main(): Promise<void> {
   const progress = Math.min(6, dataset.steps.length - 1);
   const state: RuntimeState = {
     settings, dataset, sourceStatus: { state: 'current', activeCommit: manifest.commit, checkedAt: now, message: 'Campaign data is current and verified.' }, progress,
-    currentZone: 'The City of Sarn', currentAreaId: '1_3_1', currentAreaLevel: 23, characterLevel: 30, xpGuidance: calculateXpGuidance(30, 23), rewardProgress: rewardProgressFor(dataset, progress),
+    currentZone: 'The City of Sarn', currentAreaId: '1_3_1', currentAreaLevel: 23, characterLevel: 30,
+    characterTracking: {
+      activeProfileId: 'visual-gear-character',
+      active: {
+        id: 'visual-gear-character', runId: 'visual-gear-run', characterName: 'VisualRanger', characterClass: 'Ranger', characterLevel: 30, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-ranger', buildProfileName: 'Caustic Arrow Ranger',
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      },
+      profiles: [{
+        id: 'visual-gear-character', runId: 'visual-gear-run', characterName: 'VisualRanger', characterClass: 'Ranger', characterLevel: 30, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-ranger', buildProfileName: 'Caustic Arrow Ranger',
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      }],
+    },
+    xpGuidance: calculateXpGuidance(30, 23), rewardProgress: rewardProgressFor(dataset, progress),
     rewardAudit: buildRewardAudit(dataset, progress, new Set()), progressHistory: [], startupReconciliation: { state: 'none' }, logConnected: true,
     logDiagnostics: { path: settings.logPath, fileExists: true, watcherActive: true, pollingActive: true, lastParsedEventAt: now, characterLevel: 30, areaLevel: 23 }, detectionTrace: [],
-    runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.0', latestVersion: '0.2.0', message: 'ExileQuesting 0.2.0 is up to date.' },
+    runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.5', latestVersion: '0.2.5', message: 'ExileQuesting 0.2.5 is up to date.' },
     recovery: { previousSessionUnclean: false, acknowledged: true }, buildCoach: coach, lootFilter: workspace.lootFilter,
-    passiveTreeHud: passiveTreeHudIdle(true), appVersion: '0.2.0', diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
+    passiveTreeHud: passiveTreeHudIdle(false), appVersion: '0.2.5', diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
 
   ipcMain.handle('app:bootstrap', () => state);

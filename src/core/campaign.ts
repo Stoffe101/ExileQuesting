@@ -1,4 +1,4 @@
-import { buildRouteActions } from './actions';
+import { actionsForRouteMode, buildRouteActions, sourceLineVisibleForRouteMode } from './actions';
 import { hintsForArea } from './layouts';
 import { decideProgression } from './progression';
 import { isPermanentRewardStep } from './rewards';
@@ -16,7 +16,7 @@ import type {
 } from './types';
 
 const ICON_LABELS: Record<string, string> = {
-  waypoint: 'Waypoint', quest: 'Quest', portal: 'Portal', arena: 'Boss arena', lab: 'Trial', craft: 'Crafting recipe',
+  waypoint: 'Waypoint', quest: 'Quest', portal: 'Portal', arena: 'Boss arena', lab: 'Trial / Labyrinth', craft: 'Crafting recipe',
   town: 'Town', hideout: 'Hideout', help: 'Help', chest: 'Reward',
 };
 
@@ -41,6 +41,17 @@ function slug(value: string): string {
 
 function titleCase(value: string): string {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function isLabyrinthRun(text: string): boolean {
+  return /\b(?:normal|cruel|merciless|eternal)_lab\b/i.test(text);
+}
+
+function labyrinthTitle(text: string): string | undefined {
+  const match = text.toLowerCase().match(/\b(normal|cruel|merciless|eternal)_lab\b/);
+  if (!match) return undefined;
+  const name = match[1][0].toUpperCase() + match[1].slice(1);
+  return `Run the ${name} Labyrinth now`;
 }
 
 export function buildAreaLookup(rawAreas: RawAreas): Map<string, AreaRecord> {
@@ -83,7 +94,8 @@ function tagsFor(lines: string[]): string[] {
   const tags: string[] = [];
   if (text.includes('waypoint')) tags.push('waypoint');
   if (text.includes('quest:book') || text.includes('(quest:the_apex)') || /book_of_skill/i.test(text)) tags.push('passive');
-  if (text.includes('(img:lab)') || text.includes('trial')) tags.push('trial');
+  if (isLabyrinthRun(text)) tags.push('labyrinth');
+  else if (text.includes('(img:lab)') || text.includes('trial')) tags.push('trial');
   if (text.includes('kill ') || text.includes('arena:')) tags.push('boss');
   if (text.includes('relog')) tags.push('logout');
   if (text.includes('optional')) tags.push('optional');
@@ -114,12 +126,14 @@ function findAnnotation(annotations: GuidanceAnnotation[], act: number, areaIds:
 
 function inferTitle(lines: string[], targetArea?: string): string {
   const text = lines.join(' ').toLowerCase();
+  const lab = labyrinthTitle(text);
+  if (lab) return lab;
   if (text.includes('kill ')) {
     const match = text.match(/kill\s+(?:arena:)?([a-z_' -]+)/i);
     if (match) return `Defeat ${match[1].trim().replaceAll('_', ' ')}`;
   }
   if (text.includes('relog')) return 'Return to town efficiently';
-  if (text.includes('(img:lab)') || text.includes(' trial')) return 'Complete the Ascendancy trial';
+  if (text.includes('(img:lab)') || text.includes(' trial')) return 'Complete the Ascendancy Trial in this area';
   if (text.includes('(img:quest)')) return 'Turn in quests and prepare';
   if (targetArea) return `Continue to ${targetArea}`;
   return 'Continue the campaign route';
@@ -182,6 +196,45 @@ export function normalizeCampaign(
   });
 
   return { schemaVersion: 2, source, steps, acts, areas: [...areas.values()] };
+}
+
+/**
+ * Materialize Exile-UI's line-level leaguestart:/twinkrun: semantics without
+ * deleting steps or changing their stable IDs/progress indexes.
+ */
+export function campaignForRouteMode(dataset: CampaignDataset, leagueStart: boolean): CampaignDataset {
+  const areas = new Map(dataset.areas.map((area) => [area.id, area]));
+  return {
+    ...dataset,
+    steps: dataset.steps.map((step) => {
+      const visibleIndexes = step.rawLines
+        .map((line, index) => ({ line, index }))
+        .filter(({ line }) => sourceLineVisibleForRouteMode(line, leagueStart))
+        .map(({ index }) => index);
+      const rawLines = visibleIndexes.map((index) => step.rawLines[index]);
+      const lines = visibleIndexes.map((index) => step.lines[index]).filter((line): line is string => typeof line === 'string');
+      const actions = actionsForRouteMode(step.actions, leagueStart);
+      const tags = tagsFor(rawLines);
+      const areaIds = extractAreaIds(rawLines);
+      const targetAreaId = areaIds.at(-1);
+      const target = targetAreaId ? areas.get(targetAreaId) : undefined;
+      const annotation = targetAreaId === step.targetAreaId ? step.annotation : undefined;
+      return {
+        ...step,
+        title: annotation?.title ?? actions.find((action) => action.priority === 'now')?.title ?? inferTitle(rawLines, target?.name),
+        targetAreaId,
+        targetArea: target?.name,
+        areaLevel: target?.lvl,
+        rawLines,
+        lines,
+        tags,
+        actions,
+        annotation,
+        layoutHints: targetAreaId === step.targetAreaId ? step.layoutHints : undefined,
+        permanentReward: isPermanentRewardStep(tags),
+      };
+    }),
+  };
 }
 
 export function validateCampaign(rawGuide: unknown, rawAreas: unknown): CampaignValidation {

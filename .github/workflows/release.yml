@@ -66,15 +66,6 @@ jobs:
           path: artifacts/visual/**/*
           if-no-files-found: warn
           retention-days: 30
-      - name: Render release Passive Tree HUD visual matrix
-        run: npm run visual:passive-hud
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ExileQuesting-release-passive-tree-hud-visuals-${{ github.sha }}
-          path: artifacts/passive-tree-hud/**/*
-          if-no-files-found: warn
-          retention-days: 30
       - name: Soak release overlay lifecycle
         run: npm run soak:overlay
       - uses: actions/upload-artifact@v4
@@ -99,10 +90,20 @@ jobs:
           $candidateTag = "v$candidateVersion"
           $setup = @(Get-ChildItem release -Filter 'ExileQuesting-*-setup.exe')
           if ($setup.Count -ne 1) { throw "Expected exactly one NSIS setup executable, found $($setup.Count)." }
+          $expectedName = "ExileQuesting-$candidateVersion-setup.exe"
+          if ($setup[0].Name -ne $expectedName) { throw "Setup filename '$($setup[0].Name)' does not match release version $candidateVersion; expected '$expectedName'." }
 
           $releases = gh release list --repo "${{ github.repository }}" --limit 20 --json tagName,isDraft,isPrerelease,publishedAt | ConvertFrom-Json
           $previous = $releases | Where-Object { -not $_.isDraft -and -not $_.isPrerelease -and $_.tagName -ne $candidateTag } | Sort-Object publishedAt -Descending | Select-Object -First 1
           if (-not $previous) { throw "Could not find a previous stable release to exercise the release updater against $candidateTag." }
+          $candidateSemVer = [version]$candidateVersion
+          $previousTagVersion = [string]$previous.tagName
+          if ($previousTagVersion -notmatch '^v?(\d+\.\d+\.\d+)$') { throw "Previous stable tag '$previousTagVersion' is not a supported semantic version." }
+          $previousSemVer = [version]$Matches[1]
+          if ($candidateSemVer -le $previousSemVer) {
+            throw "Release candidate $candidateTag must be newer than latest public stable $($previous.tagName). Refusing an updater downgrade/equal-version rehearsal."
+          }
+          Write-Host "Verified forward release updater baseline: $($previous.tagName) -> $candidateTag"
 
           $previousDir = Join-Path $env:RUNNER_TEMP "ExileQuestingReleasePrevious"
           New-Item -ItemType Directory -Path $previousDir -Force | Out-Null

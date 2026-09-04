@@ -14,6 +14,12 @@ export interface ProgressionOptions {
   currentAreaName?: string;
   recentAreaIds?: readonly string[];
   recentAreaNames?: readonly string[];
+  /**
+   * Off by default for live safety. A zone may only complete the route page the
+   * player is currently being shown. Diagnostics/specialized callers can opt in
+   * when they intentionally want bounded catch-up through missed events.
+   */
+  allowAheadMatch?: boolean;
 }
 
 function normalizeAreaName(value?: string): string | undefined {
@@ -54,6 +60,31 @@ function nextEnabledAfter(
   return Math.max(0, Math.min(matchedIndex, steps.length - 1));
 }
 
+function currentEnabledAtOrAfter(
+  steps: CampaignStep[],
+  currentProgress: number,
+  enabled: (step: CampaignStep, index: number) => boolean,
+): number | undefined {
+  for (let index = Math.max(0, currentProgress); index < steps.length; index += 1) {
+    if (enabled(steps[index], index)) return index;
+  }
+  return undefined;
+}
+
+/**
+ * Client.txt can prove that a zone changed, but it cannot prove that a Book of
+ * Skill was claimed, an Ascendancy Trial was completed, or a Labyrinth was
+ * finished. These pages deliberately require an explicit player completion so
+ * the campaign cursor can never silently run past permanent rewards.
+ */
+export function requiresManualCampaignCompletion(step?: CampaignStep): boolean {
+  return Boolean(step && (
+    step.permanentReward === 'passive' ||
+    step.permanentReward === 'trial' ||
+    step.tags?.includes('labyrinth')
+  ));
+}
+
 export function decideProgression(
   steps: CampaignStep[],
   currentProgress: number,
@@ -78,6 +109,19 @@ export function decideProgression(
     break;
   }
   if (!forwardMatch) return null;
+
+  const currentEnabled = currentEnabledAtOrAfter(steps, currentProgress, enabled);
+  if (currentEnabled !== undefined && requiresManualCampaignCompletion(steps[currentEnabled])) return null;
+
+  // Live campaign tracking must fail closed. Entering a later route zone through
+  // a party portal, waypoint, missed log burst or deliberate detour must not
+  // silently skip the objectives between the saved cursor and that zone. The UI
+  // can still show CATCHING UP / I'M LOST recovery and let the player resume
+  // explicitly. Specialized diagnostics may opt into bounded catch-up, except
+  // across manual-completion pages which remain protected in every mode.
+  if (options.allowAheadMatch !== true) {
+    if (currentEnabled === undefined || forwardMatch.index !== currentEnabled) return null;
+  }
 
   // A zone that was visited only moments ago is a strong backtrack signal. It may
   // still legitimately be the exact objective currently displayed, such as
@@ -162,7 +206,6 @@ export function reconcileStartup(
   const match = closestGlobalMatch(steps, savedProgress, detected, isEnabled);
   if (!match || match.index === savedProgress) return { state: 'none' };
   const distance = Math.abs(match.index - savedProgress);
-  if (distance <= 3 && match.confidence === 'verified') return { state: 'none' };
   return {
     state: 'suggested',
     detectedAreaId: detected.areaId,

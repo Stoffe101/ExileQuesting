@@ -120,20 +120,28 @@ export class PoELogWatcher {
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, start);
       const events = parseLogTail(buffer.subarray(0, bytesRead).toString('utf8'));
       const zone = latestZoneEvent(events);
-      const level = [...events].reverse().find((event) => event.type === 'character-level')?.characterLevel;
+      const zoneIndex = zone ? [...events].map((event, index) => ({ event, index })).reverse().find(({ event }) => event.type === 'area-generated' || event.type === 'area-entered')?.index ?? -1 : -1;
+      const levelEntry = [...events].map((event, index) => ({ event, index })).reverse().find(({ event }) => event.type === 'character-level');
+      const levelEvent = levelEntry?.event;
+      const level = levelEvent?.characterLevel;
       if (zone) {
         this.emitDiagnostics({
           lastAreaId: zone.areaId,
           lastAreaName: zone.areaName,
           areaLevel: zone.areaLevel,
-          characterLevel: level,
+          characterLevel: levelEntry && levelEntry.index > zoneIndex && levelEvent?.identityScope === 'self' ? level : undefined,
+          characterName: undefined,
+          characterClass: undefined,
           lastParsedEventAt: new Date().toISOString(),
           lastRawEvent: zone.raw,
         });
       } else if (level) {
         this.emitDiagnostics({ characterLevel: level });
       }
-      await this.hooks.onStartupZone?.(zone);
+      const startupZone = zone && levelEntry && levelEntry.index > zoneIndex && levelEvent?.identityScope === 'self'
+        ? { ...zone, characterLevel: levelEvent.characterLevel }
+        : zone;
+      await this.hooks.onStartupZone?.(startupZone);
     } finally {
       await handle.close();
     }
@@ -200,7 +208,9 @@ export class PoELogWatcher {
             lastAreaId: event.areaId ?? this.diagnostics.lastAreaId,
             lastAreaName: event.areaName ?? this.diagnostics.lastAreaName,
             areaLevel: event.areaLevel ?? this.diagnostics.areaLevel,
-            characterLevel: event.characterLevel ?? this.diagnostics.characterLevel,
+            characterLevel: event.type !== 'character-level' || event.identityScope === 'self' ? event.characterLevel ?? this.diagnostics.characterLevel : this.diagnostics.characterLevel,
+            characterName: event.identityScope === 'self' ? event.characterName ?? this.diagnostics.characterName : this.diagnostics.characterName,
+            characterClass: event.identityScope === 'self' ? event.characterClass ?? this.diagnostics.characterClass : this.diagnostics.characterClass,
             lastError: undefined,
           });
           await this.hooks.onEvent(event);

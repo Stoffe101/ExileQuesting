@@ -7,14 +7,13 @@ import {
   ipcMain,
   Menu,
   nativeImage,
-  screen,
   shell,
   Tray,
 } from 'electron';
 import log from 'electron-log/main';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { normalizeCampaign, isStepEnabled, validateCampaign } from '../src/core/campaign';
+import { campaignForRouteMode, normalizeCampaign, isStepEnabled, validateCampaign } from '../src/core/campaign';
 import { validateCompatibilityManifest } from '../src/core/compatibility';
 import { validateLayoutHints } from '../src/core/layouts';
 import { deterministicChunks, replayClientLogChunks, type LogReplayReport } from '../src/core/log-replay';
@@ -38,6 +37,21 @@ import { isMaxrollGuideUrl } from '../src/core/maxroll';
 import { analyzeGearItem, type GearCoachAnalysis } from '../src/core/gear-coach';
 import { MAX_POB_XML_BYTES } from '../src/core/pob';
 import { calculateXpGuidance } from '../src/core/xp';
+import {
+  archiveCharacterProfilesByName,
+  characterProfileById,
+  characterProfileMatchesForZone,
+  createCharacterCampaignProfile,
+  emptyCharacterCampaignDocument,
+  isFreshCampaignStart,
+  normalizeCharacterCampaignDocument,
+  removeCharacterProfile,
+  selectCharacterProfileForZone,
+  unlinkBuildProfile,
+  upsertCharacterProfile,
+  type CharacterCampaignDocument,
+  type CharacterCampaignProfile,
+} from '../src/core/character-campaign';
 import type {
   AppSettings,
   AppUpdateState,
@@ -77,8 +91,6 @@ import { buildCampaignIntelligence, campaignIntelligenceActionsForStep, type Cam
 import type { LootFilterStatus } from '../src/core/loot-filter';
 import { bundledGemDataPath, bundledPassiveDataPath, loadGemAcquisitionSnapshot, loadPassiveTreeSnapshot, type GameDataLoadResult, type PassiveDataLoadResult } from './services/game-data';
 import { unconfiguredLootFilterState, writeBuildAwareLootFilter } from './services/loot-filter-service';
-import { PassiveTreeHudService, type PassiveTreeHudContext } from './services/passive-tree-hud';
-import { buildPassiveTreeGuidePlan } from '../src/core/passive-tree-guide';
 import { passiveTreeHudIdle, type PassiveTreeHudState } from '../src/core/passive-tree-hud-state';
 
 const DEFAULT_UPSTREAM_REPOSITORY = 'Lailloken/Exile-UI';
@@ -99,7 +111,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true },
-  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true, reducedMotion: false, reducedTransparency: false,
+  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false, reducedMotion: false, reducedTransparency: false,
   onboardingComplete: false, launchMinimized: false, autoCheckAppUpdates: true, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: {
@@ -116,7 +128,6 @@ type ReplayUiResult = Pick<LogReplayReport, 'chunks' | 'lines' | 'parsedEvents' 
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
-let passiveTreeHudWindow: BrowserWindow | null = null;
 let labWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let store: StateStore;
@@ -130,6 +141,9 @@ let currentZone = '';
 let currentAreaId = '';
 let currentAreaLevel: number | undefined;
 let characterLevel: number | undefined;
+let characterCampaign: CharacterCampaignDocument = emptyCharacterCampaignDocument();
+let activeCharacterProfileId = '';
+let characterAmbiguity: RuntimeState['characterTracking']['ambiguity'];
 let recentAreaIds: string[] = [];
 let recentAreaNames: string[] = [];
 let startupReconciliation: StartupReconciliation = { state: 'none' };
@@ -146,8 +160,7 @@ let confirmedRewardStepIds = new Set<string>();
 let recovery: RecoveryState = { previousSessionUnclean: false, acknowledged: true };
 let sessionGuard: SessionGuard | null = null;
 let appUpdater: AppUpdater | null = null;
-let passiveTreeHudService: PassiveTreeHudService | null = null;
-let passiveTreeHudState: PassiveTreeHudState = passiveTreeHudIdle(true);
+let passiveTreeHudState: PassiveTreeHudState = passiveTreeHudIdle(false);
 let overlayDemo: OverlayDemoConfig | null = null;
 let lastReplay: ReplayUiResult | null = null;
 let buildProfiles: BuildProfile[] = [];
@@ -196,6 +209,9 @@ async function atomicWriteJson(filePath: string, value: unknown): Promise<void> 
 
 async function loadPersistentState(): Promise<void> {
   settings = await store.loadSettings(DEFAULT_SETTINGS);
+  // Passive Tree HUD was retired by Campaign Guide 2. Legacy keys remain only for settings migration.
+  settings.passiveTreeHudEnabled = false;
+  settings.passiveTreeHudPathPreview = false;
   const run = await store.loadRun();
   runSession = run.session;
   runHistory = run.history;
@@ -206,9 +222,204 @@ async function loadPersistentState(): Promise<void> {
 }
 async function saveLootFilterState(): Promise<void> { await store.write('loot-filter.json', lootFilter); }
 async function saveSettings(): Promise<void> { await store.saveSettings(settings); }
-async function saveProgress(): Promise<void> { await store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }); }
+function activeCharacterProfile(): CharacterCampaignProfile | undefined { return characterProfileById(characterCampaign, activeCharacterProfileId); }
+function linkedBuildProfile() {
+  const buildProfileId = activeCharacterProfile()?.buildProfileId;
+  return buildProfileId ? buildProfiles.find((profile) => profile.id === buildProfileId) : undefined;
+}
+function setActiveCharacterBuildProfile(buildProfileId?: string): void {
+  const active = activeCharacterProfile();
+  if (!active) return;
+  const safeId = buildProfileId && buildProfiles.some((profile) => profile.id === buildProfileId) ? buildProfileId : undefined;
+  characterCampaign = upsertCharacterProfile(characterCampaign, { ...active, buildProfileId: safeId, updatedAt: new Date().toISOString() });
+}
+function characterTrackingState(): RuntimeState['characterTracking'] {
+  const profiles = [...characterCampaign.profiles].sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt)).map((profile) => {
+    const build = profile.buildProfileId ? buildProfiles.find((candidate) => candidate.id === profile.buildProfileId) : undefined;
+    return {
+      id: profile.id,
+      runId: profile.runId,
+      characterName: profile.characterName,
+      characterClass: profile.characterClass,
+      characterLevel: profile.characterLevel,
+      leagueId: profile.leagueId,
+      progress: profile.progress,
+      act: dataset.steps[Math.max(0, Math.min(profile.progress, dataset.steps.length - 1))]?.act,
+      provisional: profile.provisional,
+      freshStart: profile.freshStart,
+      archived: profile.archived,
+      buildProfileId: profile.buildProfileId,
+      buildProfileName: build?.name,
+      identitySource: profile.identitySource,
+      identityConfidence: profile.identityConfidence,
+      identityReason: profile.identityReason,
+      updatedAt: profile.updatedAt,
+      lastSeenAt: profile.lastSeenAt,
+    };
+  });
+  return { activeProfileId: activeCharacterProfileId || undefined, active: profiles.find((profile) => profile.id === activeCharacterProfileId), profiles, ambiguity: characterAmbiguity };
+}
+function snapshotActiveCharacter(now = new Date().toISOString()): void {
+  const active = activeCharacterProfile();
+  if (!active) return;
+  characterCampaign = upsertCharacterProfile(characterCampaign, {
+    ...active,
+    progress,
+    history: progressHistory.slice(-80),
+    confirmedRewardStepIds: [...confirmedRewardStepIds],
+    lastAreaId: currentAreaId || active.lastAreaId,
+    lastAreaName: currentZone || active.lastAreaName,
+    characterLevel: characterLevel ?? active.characterLevel,
+    updatedAt: now,
+    lastSeenAt: now,
+  });
+}
+async function saveCharacterCampaign(): Promise<void> {
+  snapshotActiveCharacter();
+  characterCampaign = { ...characterCampaign, activeProfileId: activeCharacterProfileId || undefined };
+  await store.write('campaign-characters.json', characterCampaign);
+}
+async function saveProgress(): Promise<void> {
+  await Promise.all([store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }), saveCharacterCampaign()]);
+}
 async function saveRunState(): Promise<void> { await store.write('run.json', { session: runSession, history: runHistory, updatedAt: new Date().toISOString() }); }
-async function saveRewardConfirmations(): Promise<void> { await store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }); }
+async function saveRewardConfirmations(): Promise<void> {
+  await Promise.all([store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }), saveCharacterCampaign()]);
+}
+async function writeActiveCharacterMirrors(): Promise<void> {
+  await Promise.all([
+    store.write('progress.json', { progress, history: progressHistory, updatedAt: new Date().toISOString() }),
+    store.write('reward-audit.json', { confirmedStepIds: [...confirmedRewardStepIds], updatedAt: new Date().toISOString() }),
+    store.write('campaign-characters.json', { ...characterCampaign, activeProfileId: activeCharacterProfileId || undefined }),
+  ]);
+}
+async function activateCharacterProfile(
+  profileId: string,
+  reason: string,
+  source: CharacterCampaignProfile['identitySource'] = 'route-match',
+  confidence: CharacterCampaignProfile['identityConfidence'] = 'inferred',
+): Promise<boolean> {
+  if (!profileId || profileId === activeCharacterProfileId) return false;
+  snapshotActiveCharacter();
+  const target = characterProfileById(characterCampaign, profileId);
+  if (!target || target.archived) return false;
+  const now = new Date().toISOString();
+  const activated = { ...target, identitySource: source, identityConfidence: confidence, identityReason: reason, updatedAt: now, lastSeenAt: now };
+  characterCampaign = upsertCharacterProfile(characterCampaign, activated);
+  activeCharacterProfileId = activated.id;
+  characterAmbiguity = undefined;
+  progress = activated.progress;
+  progressHistory = [...activated.history];
+  confirmedRewardStepIds = new Set(activated.confirmedRewardStepIds);
+  characterLevel = activated.characterLevel;
+  currentAreaId = '';
+  currentZone = '';
+  currentAreaLevel = undefined;
+  recentAreaIds = [];
+  recentAreaNames = [];
+  startupReconciliation = { state: 'none' };
+  runSession = emptyRunSession();
+  if (activated.buildProfileId && buildProfiles.some((profile) => profile.id === activated.buildProfileId)) {
+    buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, activated.buildProfileId);
+  }
+  rebuildBuildGuidance();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState(), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await refreshBuildLootFilter();
+  sessionGuard?.update(progress, app.getVersion());
+  log.info(`Activated campaign character profile ${activated.characterName ?? activated.id}: ${reason}`);
+  return true;
+}
+async function beginFreshCharacterProfile(
+  reason: string,
+  source: CharacterCampaignProfile['identitySource'] = 'fresh-start',
+  confidence: CharacterCampaignProfile['identityConfidence'] = 'verified',
+): Promise<void> {
+  snapshotActiveCharacter();
+  const now = new Date().toISOString();
+  const runId = `run:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const id = `provisional:${runId}`;
+  const profile = createCharacterCampaignProfile(id, now, {
+    runId, provisional: true, freshStart: true, progress: 0, history: [], confirmedRewardStepIds: [], characterLevel: 1,
+    identitySource: source, identityConfidence: confidence, identityReason: reason,
+  });
+  characterCampaign = upsertCharacterProfile(characterCampaign, profile);
+  activeCharacterProfileId = id;
+  characterAmbiguity = undefined;
+  progress = 0;
+  progressHistory = [];
+  confirmedRewardStepIds = new Set();
+  characterLevel = 1;
+  currentAreaId = '';
+  currentZone = '';
+  currentAreaLevel = undefined;
+  recentAreaIds = [];
+  recentAreaNames = [];
+  startupReconciliation = { state: 'none' };
+  runSession = emptyRunSession();
+  rebuildBuildGuidance();
+  await Promise.all([writeActiveCharacterMirrors(), saveRunState(), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await refreshBuildLootFilter();
+  sessionGuard?.update(progress, app.getVersion());
+  log.info(`Started a fresh campaign character profile: ${reason}`);
+}
+async function bindCharacterIdentity(event: ZoneEvent): Promise<boolean> {
+  const active = activeCharacterProfile();
+  const now = new Date().toISOString();
+  if (!active) return false;
+  if (event.identityScope === 'self' && event.characterLevel) {
+    characterLevel = event.characterLevel;
+    characterCampaign = upsertCharacterProfile(characterCampaign, {
+      ...active, characterLevel: event.characterLevel, identitySource: 'self-level', identityConfidence: 'verified',
+      identityReason: 'Client.txt emitted an explicit self level-up event.', updatedAt: now, lastSeenAt: now,
+    });
+    return true;
+  }
+  const name = event.characterName?.trim();
+  if (!name || event.identityScope !== 'named') return false;
+  if (active.characterName?.toLocaleLowerCase() === name.toLocaleLowerCase()) {
+    characterLevel = event.characterLevel ?? characterLevel;
+    characterCampaign = upsertCharacterProfile(characterCampaign, {
+      ...active, characterClass: event.characterClass ?? active.characterClass, characterLevel: event.characterLevel ?? active.characterLevel,
+      provisional: false, identitySource: 'named-level', identityConfidence: 'inferred',
+      identityReason: 'Named level-up matched the already tracked character.', updatedAt: now, lastSeenAt: now,
+    });
+    return true;
+  }
+  log.info(`Ignored named Client.txt level-up for ${name}; unknown names never claim an active profile. Confirm the character name in Character Profiles first.`);
+  return false;
+}
+function campaignEvent(event: ZoneEvent): boolean {
+  if (event.areaId && dataset.areas.some((area) => area.id === event.areaId)) return true;
+  const name = event.areaName?.toLowerCase().replace(/^the\s+/, '').replace(/[.!]$/, '').trim();
+  return Boolean(name && dataset.areas.some((area) => area.name.toLowerCase().replace(/^the\s+/, '').trim() === name));
+}
+async function selectCharacterForZone(event: ZoneEvent, startup: boolean): Promise<void> {
+  if (event.type === 'character-level') return;
+  const effectiveEvent = { ...event, areaLevel: event.areaLevel ?? currentAreaLevel };
+  if (isFreshCampaignStart(effectiveEvent)) {
+    const active = activeCharacterProfile();
+    const alreadyFresh = Boolean(active && active.freshStart && active.progress <= 3 && (active.lastAreaId === '1_1_1' || (active.provisional && !active.lastAreaId)));
+    if (!alreadyFresh) await beginFreshCharacterProfile(startup ? 'Detected a new Act 1 Twilight Strand run during startup.' : 'Detected a new Act 1 Twilight Strand run.');
+    characterAmbiguity = undefined;
+    return;
+  }
+  const steps = progressionSteps();
+  const matches = characterProfileMatchesForZone(characterCampaign, effectiveEvent, steps, (step, index) => enabled(step));
+  const selected = selectCharacterProfileForZone(characterCampaign, effectiveEvent, steps, (step, index) => enabled(step), activeCharacterProfileId);
+  if (selected && selected.id !== activeCharacterProfileId) {
+    const match = matches.find((candidate) => candidate.profile.id === selected.id);
+    await activateCharacterProfile(selected.id, match?.reason ?? `Zone ${event.areaId ?? event.areaName ?? 'unknown'} matched this saved character route.`, match?.source ?? 'route-match', 'inferred');
+    return;
+  }
+  if (!selected && matches.length >= 2 && matches[0].score - matches[1].score < 8) {
+    characterAmbiguity = {
+      areaId: event.areaId,
+      areaName: event.areaName,
+      candidateProfileIds: matches.slice(0, 4).map((match) => match.profile.id),
+      reason: 'Multiple saved characters fit this zone almost equally well. ExileQuesting refused to guess.',
+    };
+  } else if (selected) characterAmbiguity = undefined;
+}
 
 async function loadAnnotations(): Promise<GuidanceAnnotation[]> { return readJson<GuidanceAnnotation[]>(bundledCampaignPath('annotations.json')); }
 async function loadLayoutHints(): Promise<LayoutHint[]> {
@@ -255,10 +466,37 @@ async function loadCampaign(): Promise<void> {
     if (error instanceof Error && !error.message.includes('ENOENT')) log.warn('Cached campaign rejected; using bundled fallback.', error);
   }
   const savedProgress = await store.loadProgress(dataset.steps.length - 1);
-  progress = savedProgress.progress;
-  progressHistory = savedProgress.history;
   const knownRewardIds = new Set(dataset.steps.filter((step) => step.permanentReward).map((step) => step.id));
-  confirmedRewardStepIds = await store.loadRewards(knownRewardIds);
+  const legacyRewards = await store.loadRewards(knownRewardIds);
+  try { characterCampaign = normalizeCharacterCampaignDocument(await store.readUnknown('campaign-characters.json'), dataset.steps.length - 1, knownRewardIds); }
+  catch { characterCampaign = emptyCharacterCampaignDocument(); }
+  if (!characterCampaign.profiles.length) {
+    const now = new Date().toISOString();
+    const legacy = createCharacterCampaignProfile(`legacy:${Date.now()}`, now, {
+      provisional: savedProgress.progress <= 3,
+      freshStart: false,
+      progress: savedProgress.progress,
+      history: savedProgress.history,
+      confirmedRewardStepIds: [...legacyRewards],
+      buildProfileId: buildPlannerState.activeProfileId,
+      identitySource: 'legacy',
+      identityConfidence: 'unknown',
+      identityReason: 'Migrated from the pre-character-aware global campaign save.',
+    });
+    characterCampaign = upsertCharacterProfile(characterCampaign, legacy);
+  }
+  let active = characterProfileById(characterCampaign, characterCampaign.activeProfileId) ?? characterCampaign.profiles.find((profile) => !profile.archived) ?? characterCampaign.profiles[0];
+  if (!active.buildProfileId && characterCampaign.profiles.filter((profile) => !profile.archived).length === 1 && buildPlannerState.activeProfileId) {
+    active = { ...active, buildProfileId: buildPlannerState.activeProfileId, updatedAt: new Date().toISOString() };
+    characterCampaign = upsertCharacterProfile(characterCampaign, active);
+  }
+  activeCharacterProfileId = active.id;
+  characterCampaign = { ...characterCampaign, activeProfileId: active.id };
+  progress = active.progress;
+  progressHistory = [...active.history];
+  confirmedRewardStepIds = new Set(active.confirmedRewardStepIds);
+  characterLevel = active.characterLevel;
+  await writeActiveCharacterMirrors();
 }
 
 async function loadBuildGameData(): Promise<void> {
@@ -271,51 +509,10 @@ async function loadBuildGameData(): Promise<void> {
   passiveData = passives;
 }
 
-function passiveTreeHudContext(): PassiveTreeHudContext {
-  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
-  const activeStageId = activeProfile ? buildPlannerState.activeStageByProfile[activeProfile.id] : undefined;
-  const passiveCursor = activeProfile ? buildPlannerState.passiveCursorByProfile[activeProfile.id] ?? 0 : 0;
-  const passiveRewardProgress = rewardProgressFor(dataset, progress).passive;
-  return {
-    enabled: settings.passiveTreeHudEnabled,
-    pathPreview: settings.passiveTreeHudPathPreview,
-    appWindowFocused: Boolean(mainWindow?.isFocused()),
-    characterLevel,
-    expectedQuestPassivePoints: passiveRewardProgress.completed,
-    snapshot: passiveData.snapshot,
-    guide: buildPassiveTreeGuidePlan(activeProfile, activeStageId, passiveCursor, passiveData.snapshot),
-  };
-}
-
-function applyPassiveTreeHudState(next: PassiveTreeHudState): void {
-  passiveTreeHudState = next;
-  const window = passiveTreeHudWindow;
-  if (window && !window.isDestroyed()) {
-    if (settings.passiveTreeHudEnabled && next.status === 'locked' && next.visible && next.displayBounds) {
-      const bounds = next.displayBounds;
-      const current = window.getBounds();
-      if (current.x !== bounds.x || current.y !== bounds.y || current.width !== bounds.width || current.height !== bounds.height) window.setBounds(bounds, false);
-      if (!window.isVisible()) window.showInactive();
-    } else if (window.isVisible()) window.hide();
-  }
-  broadcastState();
-}
-
-function initializePassiveTreeHud(): void {
-  passiveTreeHudService?.stop();
-  passiveTreeHudState = passiveTreeHudIdle(settings.passiveTreeHudEnabled);
-  passiveTreeHudService = new PassiveTreeHudService({
-    context: passiveTreeHudContext,
-    onState: applyPassiveTreeHudState,
-    log: { info: (...args) => log.info(...args), warn: (...args) => log.warn(...args) },
-  });
-  passiveTreeHudService.start();
-}
-
 function rebuildBuildGuidance(): void {
   buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
   campaignIntelligence = buildCampaignIntelligence(dataset);
-  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
+  const activeProfile = linkedBuildProfile();
   if (activeProfile?.maxroll && characterLevel) {
     buildPlannerState = activateMaxrollStageForLevel(buildPlannerState, buildProfiles, activeProfile.id, characterLevel);
   }
@@ -326,7 +523,6 @@ function rebuildBuildGuidance(): void {
   activeBuildCoach = activeProfile && activeGemPlan && gemData.snapshot
     ? buildCoachSnapshot(activeProfile, activeStageId, activeGemPlan, gemData.snapshot, passiveData.snapshot, passiveCursor, characterLevel)
     : undefined;
-  passiveTreeHudService?.poke();
 }
 
 async function refreshBuildLootFilter(): Promise<void> {
@@ -338,12 +534,13 @@ async function refreshBuildLootFilter(): Promise<void> {
 }
 
 function buildAwareDataset(): CampaignDataset {
+  const routeDataset = campaignForRouteMode(dataset, settings.leagueStart);
   const hasBuildActions = Boolean(buildBridge && Object.keys(buildBridge.actionsByStep).length);
   const hasCampaignIntelligence = Object.keys(campaignIntelligence.actionsByStep).length > 0;
-  if (!hasBuildActions && !hasCampaignIntelligence) return dataset;
+  if (!hasBuildActions && !hasCampaignIntelligence) return routeDataset;
   return {
-    ...dataset,
-    steps: dataset.steps.map((step) => {
+    ...routeDataset,
+    steps: routeDataset.steps.map((step) => {
       const extras = [
         ...campaignIntelligenceActionsForStep(campaignIntelligence, step.id),
         ...(buildBridge ? campaignBuildActionsForStep(buildBridge, step.id) : []),
@@ -355,7 +552,7 @@ function buildAwareDataset(): CampaignDataset {
 
 function buildWorkspaceSnapshot() {
   return {
-    planner: buildPlannerSnapshot(buildProfiles, buildPlannerState),
+    planner: { ...buildPlannerSnapshot(buildProfiles, buildPlannerState), activeProfileId: activeCharacterProfile()?.buildProfileId },
     gemData: {
       status: gemData.status,
       message: gemData.message,
@@ -381,21 +578,24 @@ function buildWorkspaceSnapshot() {
 }
 
 function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
+function progressionSteps(): CampaignDataset['steps'] { return campaignForRouteMode(dataset, settings.leagueStart).steps; }
+function rewardEnabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, { ...settings, showOptional: true }); }
 function xpGuidance(level = characterLevel, area = currentAreaLevel) { return calculateXpGuidance(level, area); }
 function runtimeState(): RuntimeState {
+  const activeDataset = buildAwareDataset();
   return {
-    settings, dataset: buildAwareDataset(), sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
-    xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, confirmedRewardStepIds),
+    settings, dataset: activeDataset, sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
+    characterTracking: characterTrackingState(), xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(activeDataset, progress, rewardEnabled), rewardAudit: buildRewardAudit(activeDataset, progress, confirmedRewardStepIds, rewardEnabled),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
     logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, passiveTreeHud: passiveTreeHudState, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
   };
 }
 function overlayState(real = runtimeState()): RuntimeState {
   if (!overlayDemo) return real;
-  const demoProgress = Math.max(0, Math.min(Math.trunc(overlayDemo.progress), dataset.steps.length - 1));
-  const step = dataset.steps[demoProgress];
-  const previousAreaStep = dataset.steps.slice(0, demoProgress).reverse().find((candidate) => enabled(candidate) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));
-  const detectedArea = previousAreaStep?.targetAreaId ? dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;
+  const demoProgress = Math.max(0, Math.min(Math.trunc(overlayDemo.progress), real.dataset.steps.length - 1));
+  const step = real.dataset.steps[demoProgress];
+  const previousAreaStep = real.dataset.steps.slice(0, demoProgress).reverse().find((candidate) => isStepEnabled(candidate, real.settings) && (candidate.targetAreaId || candidate.targetArea) && (candidate.targetAreaId !== step.targetAreaId || candidate.targetArea !== step.targetArea));
+  const detectedArea = previousAreaStep?.targetAreaId ? real.dataset.areas.find((area) => area.id === previousAreaStep.targetAreaId) : undefined;
   const areaLevel = overlayDemo.areaLevel ?? detectedArea?.lvl ?? previousAreaStep?.areaLevel ?? step.areaLevel;
   const level = overlayDemo.characterLevel ?? Math.max(1, (areaLevel ?? 1) - 2);
   return {
@@ -407,8 +607,8 @@ function overlayState(real = runtimeState()): RuntimeState {
     currentAreaLevel: areaLevel,
     characterLevel: level,
     xpGuidance: xpGuidance(level, areaLevel),
-    rewardProgress: rewardProgressFor(dataset, demoProgress),
-    rewardAudit: buildRewardAudit(dataset, demoProgress, new Set()),
+    rewardProgress: rewardProgressFor(real.dataset, demoProgress, (candidate) => isStepEnabled(candidate, { ...real.settings, showOptional: true })),
+    rewardAudit: buildRewardAudit(real.dataset, demoProgress, new Set(), (candidate) => isStepEnabled(candidate, { ...real.settings, showOptional: true })),
     startupReconciliation: { state: 'none' },
     logConnected: false,
   };
@@ -418,7 +618,6 @@ function broadcastState(): void {
   const real = runtimeState();
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('state:changed', real);
   if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('state:changed', overlayState(real));
-  if (passiveTreeHudWindow && !passiveTreeHudWindow.isDestroyed()) passiveTreeHudWindow.webContents.send('state:changed', real);
 }
 function appendDetectionTrace(entry: Omit<DetectionTraceEntry, 'id' | 'at'>): void {
   const at = new Date().toISOString();
@@ -462,7 +661,7 @@ async function finishCampaignRun(): Promise<void> {
   const result = finishRun(runSession); runSession = result.session; if (result.history) runHistory = appendRunHistory(runHistory, result.history); await saveRunState(); broadcastState();
 }
 
-async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay' | 'lab' | 'passive-tree-hud'): Promise<void> {
+async function loadRenderer(window: BrowserWindow, mode: 'manager' | 'overlay' | 'lab'): Promise<void> {
   const base = process.env.VITE_DEV_SERVER_URL;
   if (base) await window.loadURL(`${base}?mode=${mode}`);
   else await window.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), { query: { mode } });
@@ -507,21 +706,6 @@ function createOverlayWindow(): BrowserWindow {
   });
   window.webContents.setWindowOpenHandler(({ url }) => { openExternalIfAllowed(url); return { action: 'deny' }; });
   void loadRenderer(window, 'overlay').then(() => { placeOverlay(); void saveSettings(); }).catch((error) => log.error('Failed to load overlay UI.', error));
-  return window;
-}
-function createPassiveTreeHudWindow(): BrowserWindow {
-  const primary = screen.getPrimaryDisplay().bounds;
-  const window = new BrowserWindow({
-    x: primary.x, y: primary.y, width: primary.width, height: primary.height,
-    show: false, frame: false, transparent: true, backgroundColor: '#00000000', alwaysOnTop: true,
-    skipTaskbar: true, focusable: false, resizable: false, movable: false, hasShadow: false, webPreferences: commonWebPreferences(),
-  });
-  wireWindowDiagnostics(window, 'Passive Tree HUD');
-  window.setAlwaysOnTop(true, 'screen-saver');
-  window.setIgnoreMouseEvents(true, { forward: true });
-  if (process.platform === 'win32' || process.platform === 'darwin') window.setContentProtection(true);
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  void loadRenderer(window, 'passive-tree-hud').catch((error) => log.error('Failed to load Passive Tree HUD renderer.', error));
   return window;
 }
 function toggleOverlay(): void { if (!overlayWindow) return; if (overlayWindow.isVisible()) overlayWindow.hide(); else overlayWindow.showInactive(); }
@@ -569,7 +753,7 @@ function updateCurrentArea(event: ZoneEvent): void {
   if (event.areaId) { currentAreaId = event.areaId; currentAreaLevel = event.areaLevel ?? currentAreaLevel; currentZone = dataset.areas.find((area) => area.id === event.areaId)?.name ?? currentZone; }
   if (event.areaName) currentZone = event.areaName;
   if (event.areaLevel) currentAreaLevel = event.areaLevel;
-  if (event.characterLevel) characterLevel = event.characterLevel;
+  if (event.characterLevel && (event.type !== 'character-level' || event.identityScope === 'self')) characterLevel = event.characterLevel;
 }
 async function updateRunFromZone(event: ZoneEvent): Promise<void> {
   if (event.type === 'character-level') return;
@@ -577,6 +761,8 @@ async function updateRunFromZone(event: ZoneEvent): Promise<void> {
   if (runSession.state === 'running') { runSession = recordRunArea(runSession, event.areaId); await saveRunState(); }
 }
 async function handleZoneEvent(event: ZoneEvent): Promise<void> {
+  await selectCharacterForZone(event, false);
+  const acceptedCharacterLevel = event.type === 'character-level' ? await bindCharacterIdentity(event) : false;
   const progressBefore = progress;
   const stepIdBefore = dataset.steps[progressBefore]?.id;
   const previousAreaId = currentAreaId || undefined;
@@ -589,39 +775,47 @@ async function handleZoneEvent(event: ZoneEvent): Promise<void> {
     recentAreaNames = appendRecentArea(recentAreaNames, previousAreaName);
   }
   updateCurrentArea(event);
-  if (event.type === 'character-level') {
+  if (event.type === 'character-level' && acceptedCharacterLevel) {
     rebuildBuildGuidance();
     await store.saveBuildPlanner(buildPlannerState, buildProfiles);
   }
   await updateRunFromZone(event);
   let decision: ReturnType<typeof decideProgression> = null;
   if (event.type !== 'character-level' && settings.autoAdvance) {
-    decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
+    const activeSteps = progressionSteps();
+    decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
     if (decision && decision.to > progress) await setProgress(decision.to, decision.reason, decision.confidence, true, event);
   }
   if (event.type !== 'character-level' && event.areaId === '2_11_endgame_town' && runSession.state === 'running') await finishCampaignRun();
-  const reason = event.type === 'character-level' ? `Character level updated to ${event.characterLevel ?? '?'}.`
+  const reason = event.type === 'character-level'
+    ? acceptedCharacterLevel ? `Accepted active-character level update to ${event.characterLevel ?? '?'}.` : `Ignored named level-up for ${event.characterName ?? 'another player'}; it did not prove active-character identity.`
     : !settings.autoAdvance ? 'Automatic route progress is disabled.' : decision ? decision.reason : 'No bounded campaign transition matched this event.';
   appendDetectionTrace({ eventType: event.type, areaId: event.areaId, areaName: event.areaName, areaLevel: event.areaLevel, progressBefore, progressAfter: progress, stepIdBefore, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence, reason, raw: event.raw });
+  await saveCharacterCampaign();
   broadcastState();
-  if (event.type !== 'character-level' && settings.autoShowOnZoneChange && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
+  if (event.type !== 'character-level' && settings.autoShowOnZoneChange && campaignEvent(event) && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
 }
 async function handleStartupZone(event: ZoneEvent | undefined): Promise<void> {
   if (!event) return;
+  await selectCharacterForZone(event, true);
+  if (event.characterName || event.identityScope === 'self') await bindCharacterIdentity(event);
   const progressBefore = progress;
   const previousAreaId = currentAreaId || undefined;
   const previousAreaName = currentZone || undefined;
   updateCurrentArea(event);
-  const decision = decideProgression(dataset.steps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
+  const activeSteps = progressionSteps();
+  const decision = decideProgression(activeSteps, progress, event, { isStepEnabled: (step) => enabled(step), currentAreaId: previousAreaId, currentAreaName: previousAreaName, recentAreaIds, recentAreaNames });
   if (decision && decision.confidence === 'verified' && decision.to > progress && decision.to - progress <= 3) {
     await setProgress(decision.to, `Startup reconciliation: ${decision.reason}`, 'verified', true, event); startupReconciliation = { state: 'none' };
-  } else startupReconciliation = reconcileStartup(dataset.steps, progress, event, (step) => enabled(step));
+  } else startupReconciliation = reconcileStartup(activeSteps, progress, event, (step) => enabled(step));
   appendDetectionTrace({
     eventType: event.type, areaId: event.areaId, areaName: event.areaName, areaLevel: event.areaLevel, progressBefore, progressAfter: progress,
     stepIdBefore: dataset.steps[progressBefore]?.id, stepIdAfter: dataset.steps[progress]?.id, confidence: decision?.confidence,
     reason: startupReconciliation.state === 'suggested' ? startupReconciliation.message ?? 'Startup zone requires confirmation.' : decision?.reason ?? 'Startup tail established the current zone without changing progress.', raw: event.raw,
   });
+  await saveCharacterCampaign();
   broadcastState();
+  if (settings.autoShowOnZoneChange && campaignEvent(event) && overlayWindow && !overlayWindow.isVisible()) overlayWindow.showInactive();
 }
 async function startLogWatcher(): Promise<void> {
   if (logWatcher) await logWatcher.stop();
@@ -689,6 +883,7 @@ function diagnosticsText(): string {
     `ExileQuesting ${state.appVersion}`, `Application update: ${state.appUpdate.status} - ${state.appUpdate.message}`, `Campaign: ${state.dataset.source.repository}@${state.dataset.source.commit}`,
     `Schema: ${state.dataset.schemaVersion}`, `Progress: ${state.progress + 1}/${state.dataset.steps.length}`, `Step: ${state.dataset.steps[state.progress]?.id ?? 'unknown'}`,
     `Zone: ${state.currentZone ?? 'unknown'} (${state.currentAreaId ?? 'no-id'})`, `Character/Area: ${state.characterLevel ?? '?'} / ${state.currentAreaLevel ?? '?'}`,
+    `Tracking profile: ${state.characterTracking.active?.characterName ?? state.characterTracking.active?.id ?? 'unknown'}; source=${state.characterTracking.active?.identitySource ?? 'unknown'}; confidence=${state.characterTracking.active?.identityConfidence ?? 'unknown'}; run=${state.characterTracking.active?.runId ?? 'unknown'}; build=${state.characterTracking.active?.buildProfileName ?? 'none'}`,
     `Log: ${state.logDiagnostics.path || 'not configured'}`, `Watcher: ${state.logDiagnostics.watcherActive ? 'active' : 'inactive'}; polling: ${state.logDiagnostics.pollingActive ? 'active' : 'inactive'}`,
     `Last event: ${state.logDiagnostics.lastParsedEventAt ?? 'none'}`, `Source status: ${state.sourceStatus.state} - ${state.sourceStatus.message}`,
     `Progress history entries: ${state.progressHistory.length}`, `Run: ${state.runStats.session.state}; elapsed ${state.runStats.elapsedMs}ms; town ${state.runStats.session.townTimeMs}ms; splits ${state.runStats.session.splits.length}`,
@@ -752,16 +947,17 @@ async function importBuildProfileInput(input: string, sourceOverride?: string): 
   }
   buildProfiles = upsertBuildProfile(buildProfiles, profile);
   buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, profile.id);
+  setActiveCharacterBuildProfile(profile.id);
   rebuildBuildGuidance();
-  await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+  await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
   await refreshBuildLootFilter();
   broadcastState();
   return buildProfiles;
 }
 
 function analyzeActiveGear(input: string): GearCoachAnalysis {
-  const activeProfile = buildProfiles.find((profile) => profile.id === buildPlannerState.activeProfileId);
-  if (!activeProfile) throw new Error('Select or import a Build Profile before using Gear Coach.');
+  const activeProfile = linkedBuildProfile();
+  if (!activeProfile) throw new Error('Select or import a Build Profile for the active character before using Gear Coach.');
   if (!gemData.snapshot) throw new Error('Bundled gem data is unavailable, so Gear Coach cannot build a stage-aware score.');
   const activeStageId = buildPlannerState.activeStageByProfile[activeProfile.id];
   return analyzeGearItem(input, activeProfile, activeStageId, gemData.snapshot, characterLevel);
@@ -784,10 +980,6 @@ function registerIpc(): void {
     registerHotkeys();
     if (safePatch.logPath !== undefined) await startLogWatcher();
     if (safePatch.autoDownloadAppUpdates && appUpdate.status === 'available') void appUpdater?.download();
-    if (safePatch.passiveTreeHudEnabled !== undefined || safePatch.passiveTreeHudPathPreview !== undefined) {
-      if (!settings.passiveTreeHudEnabled) passiveTreeHudWindow?.hide();
-      passiveTreeHudService?.poke();
-    }
     broadcastState(); return runtimeState();
   });
   ipcMain.handle('log:select', async () => {
@@ -838,6 +1030,62 @@ function registerIpc(): void {
     return true;
   });
   ipcMain.handle('campaign:check', async () => { await checkCampaignUpdates(); return runtimeState(); });
+  ipcMain.handle('character:activate', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    await activateCharacterProfile(id, 'Selected manually from Character Profiles.', 'manual', 'manual');
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:start-new', async () => {
+    await beginFreshCharacterProfile('Started manually from Character Profiles.', 'manual', 'manual');
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:set-name', async (_event, id: unknown, rawName: unknown) => {
+    if (typeof id !== 'string' || id.length > 512 || typeof rawName !== 'string') return runtimeState();
+    const name = rawName.trim();
+    if (!name || name.length > 64 || /[\r\n\t]/.test(name)) return runtimeState();
+    const profile = characterProfileById(characterCampaign, id);
+    if (!profile || profile.archived) return runtimeState();
+    const now = new Date().toISOString();
+    characterCampaign = archiveCharacterProfilesByName(characterCampaign, name, profile.id, profile.id, now);
+    const refreshed = characterProfileById(characterCampaign, profile.id) ?? profile;
+    characterCampaign = upsertCharacterProfile(characterCampaign, {
+      ...refreshed, characterName: name, provisional: false, identitySource: 'manual', identityConfidence: 'manual',
+      identityReason: 'Character name confirmed manually. Named Client.txt level-ups must match this exact name.', updatedAt: now, lastSeenAt: now,
+    });
+    if (id === activeCharacterProfileId) characterAmbiguity = undefined;
+    await saveCharacterCampaign();
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:reset', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    if (id !== activeCharacterProfileId) await activateCharacterProfile(id, 'Selected for manual campaign reset.', 'manual', 'manual');
+    const active = activeCharacterProfile();
+    if (!active) return runtimeState();
+    const now = new Date().toISOString();
+    const reset = { ...active, runId: `manual-run:${Date.now()}`, progress: 0, history: [], confirmedRewardStepIds: [], freshStart: false, provisional: !active.characterName, identitySource: 'manual' as const, identityConfidence: 'manual' as const, identityReason: 'Campaign progress reset manually by the user.', updatedAt: now, lastSeenAt: now };
+    characterCampaign = upsertCharacterProfile(characterCampaign, reset);
+    progress = 0; progressHistory = []; confirmedRewardStepIds = new Set(); characterAmbiguity = undefined; runSession = emptyRunSession();
+    await Promise.all([writeActiveCharacterMirrors(), saveRunState()]);
+    sessionGuard?.update(progress, app.getVersion());
+    broadcastState();
+    return runtimeState();
+  });
+  ipcMain.handle('character:delete', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || id.length > 512) return runtimeState();
+    const deletingActive = id === activeCharacterProfileId;
+    characterCampaign = removeCharacterProfile(characterCampaign, id);
+    if (deletingActive) {
+      activeCharacterProfileId = '';
+      const next = [...characterCampaign.profiles].filter((profile) => !profile.archived).sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt))[0];
+      if (next) await activateCharacterProfile(next.id, 'Previous character profile was deleted; restored the most recently seen profile.', 'manual', 'manual');
+      else await beginFreshCharacterProfile('Created an empty profile after deleting the final character.', 'manual', 'manual');
+    } else await saveCharacterCampaign();
+    broadcastState();
+    return runtimeState();
+  });
   ipcMain.handle('reward:confirm', async (_event, stepId: string, confirmed: boolean) => {
     if (typeof stepId !== 'string' || stepId.length > 256 || !dataset.steps.some((step) => step.id === stepId && step.permanentReward)) return runtimeState();
     if (confirmed === true) confirmedRewardStepIds.add(stepId); else confirmedRewardStepIds.delete(stepId); await saveRewardConfirmations(); broadcastState(); return runtimeState();
@@ -911,8 +1159,9 @@ function registerIpc(): void {
   ipcMain.handle('pob:activate-profile', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildWorkspaceSnapshot();
     buildPlannerState = activateBuildProfile(buildPlannerState, buildProfiles, id);
+    setActiveCharacterBuildProfile(id);
     rebuildBuildGuidance();
-    await store.saveBuildPlanner(buildPlannerState, buildProfiles);
+    await Promise.all([store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
     await refreshBuildLootFilter();
     broadcastState();
     return buildWorkspaceSnapshot();
@@ -929,9 +1178,10 @@ function registerIpc(): void {
   ipcMain.handle('pob:delete', async (_event, id: unknown) => {
     if (typeof id !== 'string' || id.length > 256) return buildProfiles;
     buildProfiles = buildProfiles.filter((profile) => profile.id !== id);
+    characterCampaign = unlinkBuildProfile(characterCampaign, id, new Date().toISOString());
     buildPlannerState = normalizeBuildPlannerState(buildPlannerState, buildProfiles);
     rebuildBuildGuidance();
-    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles)]);
+    await Promise.all([store.saveBuildProfiles(buildProfiles), store.saveBuildPlanner(buildPlannerState, buildProfiles), saveCharacterCampaign()]);
     await refreshBuildLootFilter();
     broadcastState();
     return buildProfiles;
@@ -1070,8 +1320,10 @@ else {
 
     mainWindow = createMainWindow();
     overlayWindow = createOverlayWindow();
-    passiveTreeHudWindow = createPassiveTreeHudWindow();
-    initializePassiveTreeHud();
+    // Campaign Guide 2 retired the passive-tree screen HUD. Do not create its
+    // full-screen BrowserWindow or start any related runtime service. Keeping
+    // legacy state/types for one migration cycle must never affect capture.
+    passiveTreeHudState = passiveTreeHudIdle(false);
     createTray();
     registerHotkeys();
     await startLogWatcher();
@@ -1092,7 +1344,6 @@ app.on('before-quit', () => {
   if (campaignUpdateTimer) clearInterval(campaignUpdateTimer);
   if (appUpdateTimer) clearInterval(appUpdateTimer);
   sessionGuard?.clean();
-  passiveTreeHudService?.stop();
   void logWatcher?.stop();
   globalShortcut.unregisterAll();
 });

@@ -2,9 +2,28 @@ import type { AreaRecord, RouteAction, RouteActionType } from './types';
 
 const ACTION_LABELS: Record<RouteActionType, string> = {
   travel: 'Travel', kill: 'Kill', talk: 'Talk', collect: 'Collect', 'quest-item': 'Quest item', reward: 'Reward',
-  waypoint: 'Waypoint', passive: 'Passive point', trial: 'Trial', vendor: 'Vendor', gem: 'Gem', portal: 'Portal',
+  waypoint: 'Waypoint', passive: 'Passive point', trial: 'Trial / Labyrinth', vendor: 'Vendor', gem: 'Gem', portal: 'Portal',
   relog: 'Relog', craft: 'Crafting recipe', build: 'Build', warning: 'Warning', context: 'Route clue',
 };
+
+const LAB_NAMES: Record<string, string> = { normal: 'Normal', cruel: 'Cruel', merciless: 'Merciless', eternal: 'Eternal' };
+
+function labyrinthName(raw: string): string | undefined {
+  const match = raw.toLowerCase().match(/\b(normal|cruel|merciless|eternal)_lab\b/);
+  return match ? LAB_NAMES[match[1]] : undefined;
+}
+
+function routeModeForLine(raw: string): 'league-start' | 'twink' | undefined {
+  const lower = raw.toLowerCase();
+  if (/\btwinkrun\s*:/.test(lower)) return 'twink';
+  if (/\bleaguestart\s*:/.test(lower)) return 'league-start';
+  return undefined;
+}
+
+export function sourceLineVisibleForRouteMode(raw: string, leagueStart: boolean): boolean {
+  const mode = routeModeForLine(raw);
+  return !mode || (leagueStart ? mode === 'league-start' : mode === 'twink');
+}
 
 function questTokenLabel(token: string): string {
   const readable = token.replace(/[()]/g, '').replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
@@ -46,7 +65,7 @@ function parseQuest(raw: string): RouteAction | null {
   const token = match[1].replace(/[()]/g, '').replaceAll('_', ' ').trim();
   const lower = token.toLowerCase();
   if (lower.includes('book') || lower.includes('passive')) {
-    return makeAction('passive', 'Claim the passive-point reward', raw, true);
+    return makeAction('passive', 'Claim the passive skill point reward', raw, true);
   }
   return makeAction('reward', `Complete ${sentence(token)}`, raw);
 }
@@ -81,8 +100,18 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     }
   }
 
-  if (lower.includes('(img:lab)') || /\btrial\b/.test(lower)) {
-    actions.push(makeAction('trial', 'Complete the Ascendancy trial', raw, true));
+  const lab = labyrinthName(raw);
+  if (lab) {
+    const early = /\bearly\s+option\b/.test(lower);
+    const regular = /\bregular\s+option\b/.test(lower);
+    const title = early
+      ? `Optional: run the ${lab} Labyrinth early if you feel ready`
+      : regular
+        ? `Run the ${lab} Labyrinth now if you have not completed it`
+        : `Run the ${lab} Labyrinth now`;
+    actions.push(makeAction('trial', title, raw, !early));
+  } else if (lower.includes('(img:lab)') || /\btrial\b/.test(lower)) {
+    actions.push(makeAction('trial', 'Complete the Ascendancy Trial in this area', raw, true));
   }
 
   if (lower.includes('(img:craft)') || /crafting recipe/i.test(lower)) {
@@ -112,9 +141,6 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
   const quest = parseQuest(raw);
   if (quest) actions.push(quest);
 
-  // Exile-UI commonly prefixes quest turn-ins with the quest icon and then the
-  // NPC name, e.g. `(img:quest) tarkleigh: <the_caged_brute>`. The icon itself
-  // is removed from display text, so preserve the NPC interaction semantically.
   if (/\(img:quest\)/i.test(raw)) {
     const npc = cleanedRaw.match(/^([a-z][a-z' -]{1,40})\s*:/i);
     if (npc) actions.push(makeAction('talk', `Talk to ${sentence(npc[1])}`, raw));
@@ -130,10 +156,10 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
     actions.push(makeAction('vendor', 'Check the vendor', raw));
   }
 
-  // Every non-hint area reference in Exile-UI is a route transition signal. The
-  // author uses many forms besides literal `enter`: follow wall/road, reach,
-  // directional `go`, boats, waypoint travel, and similar shorthand. Treating
-  // those as context made otherwise valid route pages non-actionable in Focus.
+  if (/\/passives\b/i.test(raw)) {
+    actions.push(makeAction('passive', 'Type /passives in chat and verify every campaign passive reward', raw, true));
+  }
+
   if (destination && !isRelog) {
     actions.push(makeAction('travel', `Enter ${destination}`, raw));
   }
@@ -146,37 +172,39 @@ function parseLine(raw: string, areas: Map<string, AreaRecord>): RouteAction[] {
   return dedupe(actions);
 }
 
+function actionModeKey(action: RouteAction): string {
+  return action.sourceLine ? routeModeForLine(action.sourceLine) ?? 'all' : 'all';
+}
+
 function dedupe(actions: RouteAction[]): RouteAction[] {
   const seen = new Set<string>();
   return actions.filter((action) => {
-    const key = `${action.type}|${action.title.toLowerCase()}`;
+    const key = `${actionModeKey(action)}|${action.type}|${action.title.toLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
-export function buildRouteActions(rawLines: string[], areas: Map<string, AreaRecord>): RouteAction[] {
-  const actions = dedupe(rawLines.flatMap((line) => parseLine(line, areas)));
-  // Preserve the route author's sequence among actual actions. Context/layout
-  // clues are moved behind decisive actions so “follow the wall” can never
-  // become NOW when a later line on the same route page says “kill Hailrake”.
+function reprioritize(actions: RouteAction[]): RouteAction[] {
   const decisive = actions.filter((action) => action.type !== 'context');
   const context = actions.filter((action) => action.type === 'context');
   const ordered = [...decisive, ...context];
-
   let assignedNow = false;
-  ordered.forEach((action) => {
-    if (action.type === 'context') {
-      action.priority = 'context';
-    } else if (!assignedNow) {
-      action.priority = 'now';
-      assignedNow = true;
-    } else {
-      action.priority = 'then';
-    }
+  return ordered.map((action) => {
+    const priority: RouteAction['priority'] = action.type === 'context' ? 'context' : !assignedNow ? 'now' : 'then';
+    if (action.type !== 'context' && !assignedNow) assignedNow = true;
+    return { ...action, priority };
   });
-  return ordered;
+}
+
+export function buildRouteActions(rawLines: string[], areas: Map<string, AreaRecord>): RouteAction[] {
+  return reprioritize(dedupe(rawLines.flatMap((line) => parseLine(line, areas))));
+}
+
+/** Mirrors Exile-UI's leveling tracker: league-start hides twinkrun lines and vice versa. */
+export function actionsForRouteMode(actions: RouteAction[], leagueStart: boolean): RouteAction[] {
+  return reprioritize(actions.filter((action) => !action.sourceLine || sourceLineVisibleForRouteMode(action.sourceLine, leagueStart)));
 }
 
 export function summarizeActions(actions: RouteAction[]): { now?: RouteAction; then: RouteAction[]; context: RouteAction[] } {

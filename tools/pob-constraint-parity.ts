@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { materializeCurrentParityFixture, POB_PARITY_FIXTURES } from './pob-kernel/current-parity-fixture';
 import { runPobConstraintRequest } from '../electron/services/pob-constraint-service';
 import type { PobKernelRuntimeOptions } from '../electron/services/pob-kernel-service';
 import type { PobConstraintMetrics, PobReplaceableItemSlot } from '../src/core/pob-calculation';
@@ -12,18 +13,14 @@ import { POB_REPLACEABLE_ITEM_SLOTS } from '../src/core/pob-calculation';
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
-const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.1.0';
+const CONSTRAINT_ADAPTER_VERSION = 'constraint-0.2.0';
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_CONSTRAINT_REFERENCE@@';
 const PROCESS_TIMEOUT_MS = 45_000;
 const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
 const ABSOLUTE_TOLERANCE = 0.05;
 const RELATIVE_TOLERANCE = 1e-6;
 
-const FIXTURES = [
-  'spec/TestBuilds/3.13/OccVortex.xml',
-  'spec/TestBuilds/3.13/Dual Wield Cospris CoC.xml',
-  'spec/TestBuilds/3.13/Mirage Archer Toxic Rain.xml',
-] as const;
+const FIXTURES = POB_PARITY_FIXTURES;
 
 type RawOutput = Record<string, number | undefined>;
 
@@ -206,9 +203,10 @@ async function main(): Promise<void> {
   const reports: FixtureReport[] = [];
 
   for (const fixture of FIXTURES) {
-    const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
+    const currentFixture = await materializeCurrentParityFixture(pobRoot, fixture);
+    const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, currentFixture.relativePath);
     if (!validSlot(reference.slot)) throw new Error(`${fixture}: reference selected unsupported slot ${reference.slot}.`);
-    const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
+    const xml = currentFixture.xml;
     const response = await runPobConstraintRequest({
       protocolVersion: POB_CONSTRAINT_PROTOCOL_VERSION,
       requestId: `constraint-parity-${reports.length + 1}`,

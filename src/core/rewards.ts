@@ -1,9 +1,13 @@
 import { summarizeActions } from './actions';
 import type { CampaignDataset, RewardAudit, RewardProgress } from './types';
 
-export function rewardProgressFor(dataset: CampaignDataset, progress: number): RewardProgress {
-  const passives = dataset.steps.filter((step) => step.permanentReward === 'passive');
-  const trials = dataset.steps.filter((step) => step.permanentReward === 'trial');
+export function rewardProgressFor(
+  dataset: CampaignDataset,
+  progress: number,
+  enabled: (step: CampaignDataset['steps'][number]) => boolean = () => true,
+): RewardProgress {
+  const passives = dataset.steps.filter((step) => enabled(step) && step.permanentReward === 'passive');
+  const trials = dataset.steps.filter((step) => enabled(step) && step.permanentReward === 'trial');
   return {
     passive: {
       completed: passives.filter((step) => dataset.steps.indexOf(step) < progress).length,
@@ -26,9 +30,10 @@ export function buildRewardAudit(
   dataset: CampaignDataset,
   progress: number,
   confirmedStepIds: ReadonlySet<string> = new Set(),
+  enabled: (step: CampaignDataset['steps'][number]) => boolean = () => true,
 ): RewardAudit {
   const items = dataset.steps.flatMap((step, stepIndex) => {
-    if (!step.permanentReward) return [];
+    if (!enabled(step) || !step.permanentReward) return [];
     const status = confirmedStepIds.has(step.id)
       ? 'confirmed' as const
       : stepIndex < progress

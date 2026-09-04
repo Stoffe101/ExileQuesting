@@ -35,7 +35,7 @@ const settings: AppSettings = {
   autoAdvance: true, autoShowOnZoneChange: true, overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true }, overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5,
-  passiveTreeHudEnabled: true, passiveTreeHudPathPreview: true,
+  passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false,
   reducedMotion: false, reducedTransparency: false, onboardingComplete: true, launchMinimized: false, autoCheckAppUpdates: true, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: { toggleOverlay: 'CommandOrControl+Shift+H', nextStep: 'Alt+Shift+Right', previousStep: 'Alt+Shift+Left', toggleInteraction: 'CommandOrControl+Shift+I', cycleOverlayMode: 'CommandOrControl+Shift+M' },
@@ -322,11 +322,25 @@ async function main(): Promise<void> {
   const progress = Math.min(6, dataset.steps.length - 1);
   const state: RuntimeState = {
     settings, dataset, sourceStatus: { state: 'current', activeCommit: manifest.commit, checkedAt: now, message: 'Campaign data is current and verified.' }, progress,
-    currentZone: 'Karui Shores', currentAreaId: '2_11_endgame_town', currentAreaLevel: 83, characterLevel: 96, xpGuidance: calculateXpGuidance(96, 83),
+    currentZone: 'Karui Shores', currentAreaId: '2_11_endgame_town', currentAreaLevel: 83, characterLevel: 96,
+    characterTracking: {
+      activeProfileId: 'visual-doctor-character',
+      active: {
+        id: 'visual-doctor-character', runId: 'visual-doctor-run', characterName: 'VisualTrickster', characterClass: 'Shadow', characterLevel: 96, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-build-doctor', buildProfileName: 'Level 96 Trickster · Build Doctor fixture',
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      },
+      profiles: [{
+        id: 'visual-doctor-character', runId: 'visual-doctor-run', characterName: 'VisualTrickster', characterClass: 'Shadow', characterLevel: 96, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false, buildProfileId: 'visual-build-doctor', buildProfileName: 'Level 96 Trickster · Build Doctor fixture',
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      }],
+    },
+    xpGuidance: calculateXpGuidance(96, 83),
     rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, new Set()), progressHistory: [], startupReconciliation: { state: 'none' }, logConnected: true,
     logDiagnostics: { path: settings.logPath, fileExists: true, watcherActive: true, pollingActive: true, lastParsedEventAt: now, characterLevel: 96, areaLevel: 83 }, detectionTrace: [],
-    runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.3', latestVersion: '0.2.3', message: 'ExileQuesting is up to date.' },
-    recovery: { previousSessionUnclean: false, acknowledged: true }, lootFilter: workspace.lootFilter, passiveTreeHud: passiveTreeHudIdle(true), appVersion: '0.2.3',
+    runStats: runStatsFor(emptyRunSession(), []), appUpdate: { status: 'up-to-date', currentVersion: '0.2.5', latestVersion: '0.2.5', message: 'ExileQuesting 0.2.5 is up to date.' },
+    recovery: { previousSessionUnclean: false, acknowledged: true }, lootFilter: workspace.lootFilter, passiveTreeHud: passiveTreeHudIdle(false), appVersion: '0.2.5',
     diagnosticsPath: 'C:\\Users\\Visual\\AppData\\Roaming\\ExileQuesting\\logs\\main.log',
   };
   const snapshot = readyBuildDoctorSnapshot({ profileId: buildProfile.id, profileName: buildProfile.name, generatedAt: now, baseline: baseline(), flaskInspection: utilityInspection() });

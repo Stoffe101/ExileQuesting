@@ -12,6 +12,9 @@ export type XpPace = 'behind' | 'efficient' | 'overlevelled' | 'unknown';
 export type AppUpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'disabled' | 'error';
 export type RunState = 'idle' | 'running' | 'paused' | 'finished';
 export type RewardAuditStatus = 'pending' | 'route-passed' | 'confirmed';
+export type LayoutAuditStatus = 'verified' | 'reviewed' | 'unaudited' | 'outdated';
+export type CharacterIdentitySource = 'fresh-start' | 'self-level' | 'named-level' | 'exact-zone' | 'route-match' | 'manual' | 'legacy' | 'unknown';
+export type CharacterIdentityConfidence = 'verified' | 'inferred' | 'manual' | 'unknown';
 
 export type RouteActionType =
   | 'travel'
@@ -85,7 +88,11 @@ export interface LayoutHint {
   areaId: string;
   text: string;
   confidence: 'high' | 'medium' | 'low';
+  auditStatus?: LayoutAuditStatus;
+  auditedAt?: string;
+  auditNote?: string;
   source?: string;
+  sourceUrl?: string;
   gameVersion?: string;
   enabled?: boolean;
 }
@@ -218,6 +225,8 @@ export interface LogDiagnostics {
   lastAreaName?: string;
   areaLevel?: number;
   characterLevel?: number;
+  characterName?: string;
+  characterClass?: string;
   lastError?: string;
 }
 
@@ -283,6 +292,39 @@ export interface CampaignCompatibilityManifest {
   adapterVersion: number;
   campaignSchemaVersion: number;
   updatedAt: string;
+}
+
+export interface CampaignCharacterSummary {
+  id: string;
+  runId: string;
+  characterName?: string;
+  characterClass?: string;
+  characterLevel?: number;
+  leagueId?: string;
+  progress: number;
+  act?: number;
+  provisional: boolean;
+  freshStart: boolean;
+  archived: boolean;
+  buildProfileId?: string;
+  buildProfileName?: string;
+  identitySource: CharacterIdentitySource;
+  identityConfidence: CharacterIdentityConfidence;
+  identityReason?: string;
+  updatedAt: string;
+  lastSeenAt: string;
+}
+
+export interface CharacterTrackingState {
+  activeProfileId?: string;
+  active?: CampaignCharacterSummary;
+  profiles: CampaignCharacterSummary[];
+  ambiguity?: {
+    areaId?: string;
+    areaName?: string;
+    candidateProfileIds: string[];
+    reason: string;
+  };
 }
 
 export interface AppUpdateState {
@@ -422,6 +464,7 @@ export interface RuntimeState {
   currentAreaId?: string;
   currentAreaLevel?: number;
   characterLevel?: number;
+  characterTracking: CharacterTrackingState;
   xpGuidance: XpGuidance;
   rewardProgress: RewardProgress;
   rewardAudit: RewardAudit;
@@ -448,6 +491,9 @@ export interface ZoneEvent {
   areaId?: string;
   areaLevel?: number;
   characterLevel?: number;
+  characterName?: string;
+  characterClass?: string;
+  identityScope?: 'self' | 'named';
   timestamp?: string;
   raw: string;
 }

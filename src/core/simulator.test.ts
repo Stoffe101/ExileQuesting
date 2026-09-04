@@ -72,13 +72,31 @@ describe('offline Acts 1-10 campaign simulator', () => {
     expect(decideProgression(steps, 2, { areaId: 'parent' })).toBeNull();
   });
 
-  it('still allows an intentional immediate return to the parent area', () => {
+  it('keeps intentional one-page catch-up available only when explicitly requested', () => {
     const steps = [
       { id: 'a', targetAreaId: 'parent', targetArea: 'Parent' },
       { id: 'b', targetAreaId: 'side', targetArea: 'Side' },
       { id: 'c', targetAreaId: 'parent', targetArea: 'Parent' },
       { id: 'd', targetAreaId: 'next', targetArea: 'Next' },
     ] as any[];
-    expect(decideProgression(steps, 1, { areaId: 'parent' })).toMatchObject({ to: 3 });
+    expect(decideProgression(steps, 1, { areaId: 'parent' })).toBeNull();
+    expect(decideProgression(steps, 1, { areaId: 'parent' }, { allowAheadMatch: true })).toMatchObject({ to: 3 });
+  });
+
+  it('never auto-completes passive rewards, Ascendancy Trials or Labyrinth pages', () => {
+    const protectedPages = [
+      { permanentReward: 'passive', tags: ['passive'] },
+      { permanentReward: 'trial', tags: ['trial'] },
+      { tags: ['labyrinth'] },
+    ] as const;
+
+    for (const [index, protectedPage] of protectedPages.entries()) {
+      const steps = [
+        { id: `protected-${index}`, targetAreaId: 'next-zone', targetArea: 'Next Zone', ...protectedPage },
+        { id: `after-${index}`, targetAreaId: 'after-zone', targetArea: 'After Zone', tags: [] },
+      ] as any[];
+      expect(decideProgression(steps, 0, { areaId: 'next-zone' })).toBeNull();
+      expect(decideProgression(steps, 0, { areaId: 'next-zone' }, { allowAheadMatch: true })).toBeNull();
+    }
   });
 });

@@ -14,7 +14,6 @@ import {
   UpdatePanel,
 } from './reliability';
 import PreplaytestLab from './PreplaytestLab';
-import PassiveTreeHudOverlay from './PassiveTreeHudOverlay';
 import type {
   AppSettings,
   CampaignStep,
@@ -540,7 +539,6 @@ export default function App() {
   const [state, setState] = useRuntime();
   if (!state) return <div className="loading-screen"><div className="brand-mark">EQ</div><span>Loading verified campaign data…</span></div>;
   const mode = new URLSearchParams(window.location.search).get('mode');
-  if (mode === 'passive-tree-hud') return <PassiveTreeHudOverlay state={state} />;
   if (mode === 'overlay') return <Overlay state={state} />;
   if (mode === 'lab') return <PreplaytestLab state={state} setState={setState} />;
   return <Manager state={state} setState={setState} />;

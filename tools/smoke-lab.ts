@@ -6,6 +6,7 @@ import { buildRewardAudit, rewardProgressFor } from '../src/core/rewards';
 import { emptyRunSession, runStatsFor } from '../src/core/run';
 import { runCampaignSimulationSuite } from '../src/core/simulation-suite';
 import { calculateXpGuidance } from '../src/core/xp';
+import { passiveTreeHudIdle } from '../src/core/passive-tree-hud-state';
 import type { AppSettings, GuidanceAnnotation, LayoutHint, OverlayMode, RawAreas, RawGuide, RuntimeState } from '../src/core/types';
 
 const settings: AppSettings = {
@@ -13,7 +14,7 @@ const settings: AppSettings = {
   overlayOpacity: 0.94, overlayScale: 1, overlayClickThrough: false, overlayMode: 'focus',
   overlayTypography: { preset: 'default', objective: 21, actions: 15, guidance: 13, labels: 10, status: 10, density: 'comfortable' },
   overlayPosition: { preset: 'top-right', locked: false, snapToEdges: true },
-  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, reducedMotion: false, reducedTransparency: false,
+  overlayAutoCollapse: true, overlayAutoCollapseSeconds: 5, passiveTreeHudEnabled: false, passiveTreeHudPathPreview: false, reducedMotion: false, reducedTransparency: false,
   onboardingComplete: true, launchMinimized: false, autoCheckAppUpdates: false, autoDownloadAppUpdates: false,
   autoStartRunTimer: true, showRunTimerInOverlay: true,
   hotkeys: {
@@ -38,18 +39,34 @@ async function makeState(): Promise<RuntimeState> {
     repository: 'Lailloken/Exile-UI', commit: manifest.commit, fetchedAt: manifest.fetchedAt, license: 'MIT',
   }, layouts);
   const progress = 0;
+  const now = new Date().toISOString();
   return {
     settings,
     dataset,
     sourceStatus: { state: 'current', activeCommit: manifest.commit, message: 'Lab smoke fixture.' },
     progress,
+    characterTracking: {
+      activeProfileId: 'lab-smoke-character',
+      active: {
+        id: 'lab-smoke-character', runId: 'lab-smoke-run', characterName: 'LabSmokeWitch', characterClass: 'Witch', characterLevel: 1, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false,
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      },
+      profiles: [{
+        id: 'lab-smoke-character', runId: 'lab-smoke-run', characterName: 'LabSmokeWitch', characterClass: 'Witch', characterLevel: 1, progress: progress, act: dataset.steps[progress]?.act,
+        provisional: false, freshStart: false, archived: false,
+        identitySource: 'manual', identityConfidence: 'manual', identityReason: 'Visual/smoke fixture: exact character identity is explicitly known.', updatedAt: now, lastSeenAt: now,
+      }],
+    },
+    xpGuidance: calculateXpGuidance(1, 1),
     rewardProgress: rewardProgressFor(dataset, progress),
     rewardAudit: buildRewardAudit(dataset, progress, new Set()),
     progressHistory: [], startupReconciliation: { state: 'none' }, logConnected: false,
     logDiagnostics: { path: '', fileExists: false, watcherActive: false, pollingActive: false },
     detectionTrace: [], runStats: runStatsFor(emptyRunSession(), []),
-    appUpdate: { status: 'disabled', currentVersion: '0.1.4', message: 'Disabled in Lab smoke.' },
-    recovery: { previousSessionUnclean: false, acknowledged: true }, appVersion: '0.1.4', diagnosticsPath: '',
+    lootFilter: { status: 'unconfigured', needsReload: false, message: 'Build-aware loot filter is not configured in Lab smoke.' },
+    appUpdate: { status: 'disabled', currentVersion: '0.2.5', message: 'Disabled in Lab smoke.' },
+    recovery: { previousSessionUnclean: false, acknowledged: true }, passiveTreeHud: passiveTreeHudIdle(false), appVersion: '0.2.5', diagnosticsPath: '',
   };
 }
 

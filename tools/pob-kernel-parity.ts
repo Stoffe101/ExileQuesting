@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { materializeCurrentParityFixture, POB_PARITY_FIXTURES } from './pob-kernel/current-parity-fixture';
 import { PobKernelWorkerError, runPobKernelRequest } from '../electron/services/pob-kernel-service';
 import {
   POB_CALCULATION_PROTOCOL_VERSION,
@@ -14,7 +15,7 @@ import {
 
 const POB_COMMIT = 'ed354c2f8c42e148bc904c7508dbe851fb2cf952';
 const LUAJIT_COMMIT = '2460b3ff93a1c955de3d62cfc825de7d68dc272e';
-const ADAPTER_VERSION = '0.6.0';
+const ADAPTER_VERSION = '0.7.0';
 const REFERENCE_SENTINEL = '@@EXILEQUESTING_POB_REFERENCE@@';
 const DEFAULT_RELATIVE_TOLERANCE = 1e-6;
 const DEFAULT_ABSOLUTE_TOLERANCE = 0.05;
@@ -85,11 +86,7 @@ interface ReferencePayload {
   };
 }
 
-const FIXTURES = [
-  'spec/TestBuilds/3.13/OccVortex.xml',
-  'spec/TestBuilds/3.13/Dual Wield Cospris CoC.xml',
-  'spec/TestBuilds/3.13/Mirage Archer Toxic Rain.xml',
-] as const;
+const FIXTURES = POB_PARITY_FIXTURES;
 
 const METRICS: MetricCheck[] = [
   { label: 'Combined DPS', expectedStat: 'CombinedDPS', readActual: (result) => result.offence.combinedDps },
@@ -321,8 +318,9 @@ async function runFixture(
   referenceScriptPath: string,
   fixture: string,
 ): Promise<FixtureReport> {
-  const xml = await readFile(resolve(pobRoot, fixture), 'utf8');
-  const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, fixture);
+  const currentFixture = await materializeCurrentParityFixture(pobRoot, fixture);
+  const xml = currentFixture.xml;
+  const reference = await runReference(pobRoot, runtimePath, referenceScriptPath, currentFixture.relativePath);
   if (!POB_REPLACEABLE_ITEM_SLOTS.includes(reference.itemReplacement.slot as PobReplaceableItemSlot)) {
     throw new Error(`Reference selected unsupported replacement slot ${reference.itemReplacement.slot} for ${fixture}.`);
   }

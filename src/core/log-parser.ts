@@ -2,7 +2,8 @@ import type { ZoneEvent } from './types';
 
 const ENTERED_AREA = /(?:You have entered|You have joined area)\s+(.+?)[.!]?$/i;
 const GENERATED_AREA = /Generating level\s+(\d+)\s+area\s+"([^"]+)"(?:\s+with seed\s+(\d+))?/i;
-const CHARACTER_LEVEL = /\b(?:You|[^\[\]:]+\([^\)]+\))\s+is now level\s+(\d+)\b/i;
+const NAMED_CHARACTER_LEVEL = /\[INFO Client[^\]]*\]\s*:?\s*([^:\r\n]+?)\s+\(([^)]+)\)\s+is now level\s+(\d+)\b/i;
+const YOU_CHARACTER_LEVEL = /\bYou\s+(?:are|is)\s+now level\s+(\d+)\b/i;
 
 function timestampFor(line: string): string | undefined {
   return line.match(/^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})/)?.[1];
@@ -30,11 +31,25 @@ export function parseClientLogLine(line: string): ZoneEvent | null {
     };
   }
 
-  const characterLevel = line.match(CHARACTER_LEVEL);
-  if (characterLevel) {
+  const namedCharacterLevel = line.match(NAMED_CHARACTER_LEVEL);
+  if (namedCharacterLevel) {
     return {
       type: 'character-level',
-      characterLevel: Number(characterLevel[1]),
+      characterName: namedCharacterLevel[1]?.trim(),
+      characterClass: namedCharacterLevel[2]?.trim(),
+      characterLevel: Number(namedCharacterLevel[3]),
+      identityScope: 'named',
+      timestamp: timestampFor(line),
+      raw: line,
+    };
+  }
+
+  const youCharacterLevel = line.match(YOU_CHARACTER_LEVEL);
+  if (youCharacterLevel) {
+    return {
+      type: 'character-level',
+      characterLevel: Number(youCharacterLevel[1]),
+      identityScope: 'self',
       timestamp: timestampFor(line),
       raw: line,
     };
@@ -53,7 +68,14 @@ export function parseLogTail(content: string): ZoneEvent[] {
 export function latestZoneEvent(events: ZoneEvent[]): ZoneEvent | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (event.type === 'area-generated' || event.type === 'area-entered') return event;
+    if (event.type === 'area-generated') return event;
+    if (event.type !== 'area-entered') continue;
+    for (let generatedIndex = index - 1; generatedIndex >= 0; generatedIndex -= 1) {
+      const previous = events[generatedIndex];
+      if (previous.type === 'area-entered') break;
+      if (previous.type === 'area-generated') return { ...event, areaId: previous.areaId, areaLevel: previous.areaLevel };
+    }
+    return event;
   }
   return undefined;
 }

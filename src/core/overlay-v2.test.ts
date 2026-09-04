@@ -52,6 +52,16 @@ describe('strict Client.txt events', () => {
     const event = parseClientLogLine('2026/09/01 18:02:00 [INFO Client] Stoffe (Witch) is now level 19');
     expect(event?.type).toBe('character-level');
     expect(event?.characterLevel).toBe(19);
+    expect(event?.characterName).toBe('Stoffe');
+    expect(event?.characterClass).toBe('Witch');
+  });
+
+  it('pairs an entered-area startup line with its preceding generated area identity', () => {
+    const events = parseLogTail([
+      '2026/09/01 18:00:00 [DEBUG Client] Generating level 1 area "1_1_1" with seed 1',
+      '2026/09/01 18:00:01 [INFO Client] : You have entered Twilight Strand.',
+    ].join('\n'));
+    expect(latestZoneEvent(events)).toMatchObject({ areaId: '1_1_1', areaName: 'Twilight Strand', areaLevel: 1 });
   });
 
   it('finds the latest zone from a bounded log tail', () => {
@@ -91,19 +101,26 @@ describe('progression state decisions', () => {
     { id: 'e', targetAreaId: '1_1_6', targetArea: 'The Climb' },
   ] as CampaignStep[];
 
-  it('uses internal IDs as verified progression signals', () => {
-    expect(decideProgression(steps, 0, { areaId: '1_1_3' })).toMatchObject({ to: 2, confidence: 'verified' });
+  it('uses internal IDs as verified progression signals when bounded catch-up is explicitly requested', () => {
+    expect(decideProgression(steps, 0, { areaId: '1_1_3' }, { allowAheadMatch: true })).toMatchObject({ to: 2, confidence: 'verified' });
   });
 
-  it('uses display names only as inferred fallback', () => {
-    expect(decideProgression(steps, 0, { areaName: 'Mud Flats' })).toMatchObject({ to: 2, confidence: 'inferred' });
+  it('uses display names only as inferred fallback when bounded catch-up is explicitly requested', () => {
+    expect(decideProgression(steps, 0, { areaName: 'Mud Flats' }, { allowAheadMatch: true })).toMatchObject({ to: 2, confidence: 'inferred' });
+  });
+
+  it('fails closed instead of silently skipping the current objective when a later route zone is detected', () => {
+    expect(decideProgression(steps, 0, { areaId: '1_1_3' })).toBeNull();
+    expect(decideProgression(steps, 0, { areaName: 'Mud Flats' })).toBeNull();
+    expect(decideProgression(steps, 1, { areaId: '1_1_3' })).toMatchObject({ to: 2, confidence: 'verified' });
   });
 
   it('does not advance twice for a duplicate area event', () => {
     expect(decideProgression(steps, 2, { areaId: '1_1_3' })).toBeNull();
   });
 
-  it('offers reconciliation rather than silently making a large startup jump', () => {
+  it('offers reconciliation rather than silently making a startup jump', () => {
+    expect(reconcileStartup(steps, 0, { areaId: '1_1_3' }).state).toBe('suggested');
     expect(reconcileStartup(steps, 0, { areaId: '1_1_6' }).state).toBe('suggested');
   });
 
