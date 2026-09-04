@@ -163,6 +163,19 @@ html[data-mode="passive-tree-hud"] #root { margin: 0; width: 100%; height: 100%;
   color: rgba(235, 229, 212, .64);
 }
 
+.passive-target-label .passive-auto-status {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--target-main) 38%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--target-main) 9%, rgba(8, 7, 4, .84));
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .11em;
+  color: color-mix(in srgb, var(--target-main) 82%, white);
+}
+
 .passive-scope-label {
   display: block;
   margin-bottom: 4px;
