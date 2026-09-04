@@ -10,10 +10,15 @@ function shortKind(kind?: string): string {
 export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }) {
   const hud = state.passiveTreeHud;
   const handledOperationToken = useRef<string>();
+  const detectedToken = hud.operationDetected?.token;
+  const detectedNodeId = hud.operationDetected?.nodeId;
+  const detectedOperation = hud.operationDetected?.operation;
+  const targetNodeId = hud.target?.nodeId;
+  const targetOperation = hud.target?.operation;
+  const profileId = state.buildCoach?.profileId;
 
   useEffect(() => {
     const detected = hud.operationDetected;
-    const profileId = state.buildCoach?.profileId;
     const target = hud.target;
     if (!detected || !profileId || hud.mode !== 'exact' || !target) return;
     if (detected.nodeId !== target.nodeId || detected.operation !== target.operation) return;
@@ -45,7 +50,7 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [hud.operationDetected, hud.mode, hud.target, state.buildCoach?.profileId]);
+  }, [detectedToken, detectedNodeId, detectedOperation, hud.mode, targetNodeId, targetOperation, profileId]);
 
   if (!hud.visible || hud.status !== 'locked' || !hud.target) {
     return <main className="passive-tree-hud-root" aria-hidden="true" />;
