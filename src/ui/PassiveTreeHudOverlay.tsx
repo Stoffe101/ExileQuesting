@@ -23,9 +23,28 @@ export default function PassiveTreeHudOverlay({ state }: { state: RuntimeState }
     // control. Vision never supplies a new node ID; it only acknowledges that
     // the already-authoritative current operation visibly completed.
     handledOperationToken.current = detected.token;
-    void window.exileQuesting.stepBuildPassive(profileId, 1).catch(() => {
-      if (handledOperationToken.current === detected.token) handledOperationToken.current = undefined;
-    });
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const advance = async (attempt: number): Promise<void> => {
+      try {
+        await window.exileQuesting.stepBuildPassive(profileId, 1);
+      } catch {
+        if (cancelled) return;
+        if (attempt < 2) {
+          retryTimer = window.setTimeout(() => { void advance(attempt + 1); }, 180 + attempt * 220);
+          return;
+        }
+        // Let a future state delivery retry this exact token instead of
+        // permanently swallowing a verified operation after a transient IPC
+        // failure. No second cursor step is issued after a successful call.
+        if (handledOperationToken.current === detected.token) handledOperationToken.current = undefined;
+      }
+    };
+    void advance(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, [hud.operationDetected, hud.mode, hud.target, state.buildCoach?.profileId]);
 
   if (!hud.visible || hud.status !== 'locked' || !hud.target) {
