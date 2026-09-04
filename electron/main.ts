@@ -14,7 +14,7 @@ import {
 import log from 'electron-log/main';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { normalizeCampaign, isStepEnabled, validateCampaign } from '../src/core/campaign';
+import { campaignForRouteMode, normalizeCampaign, isStepEnabled, validateCampaign } from '../src/core/campaign';
 import { validateCompatibilityManifest } from '../src/core/compatibility';
 import { validateLayoutHints } from '../src/core/layouts';
 import { deterministicChunks, replayClientLogChunks, type LogReplayReport } from '../src/core/log-replay';
@@ -338,12 +338,13 @@ async function refreshBuildLootFilter(): Promise<void> {
 }
 
 function buildAwareDataset(): CampaignDataset {
+  const routeDataset = campaignForRouteMode(dataset, settings.leagueStart);
   const hasBuildActions = Boolean(buildBridge && Object.keys(buildBridge.actionsByStep).length);
   const hasCampaignIntelligence = Object.keys(campaignIntelligence.actionsByStep).length > 0;
-  if (!hasBuildActions && !hasCampaignIntelligence) return dataset;
+  if (!hasBuildActions && !hasCampaignIntelligence) return routeDataset;
   return {
-    ...dataset,
-    steps: dataset.steps.map((step) => {
+    ...routeDataset,
+    steps: routeDataset.steps.map((step) => {
       const extras = [
         ...campaignIntelligenceActionsForStep(campaignIntelligence, step.id),
         ...(buildBridge ? campaignBuildActionsForStep(buildBridge, step.id) : []),
@@ -381,11 +382,13 @@ function buildWorkspaceSnapshot() {
 }
 
 function enabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, settings); }
+function rewardEnabled(step: CampaignDataset['steps'][number]): boolean { return isStepEnabled(step, { ...settings, showOptional: true }); }
 function xpGuidance(level = characterLevel, area = currentAreaLevel) { return calculateXpGuidance(level, area); }
 function runtimeState(): RuntimeState {
+  const activeDataset = buildAwareDataset();
   return {
-    settings, dataset: buildAwareDataset(), sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
-    xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(dataset, progress), rewardAudit: buildRewardAudit(dataset, progress, confirmedRewardStepIds),
+    settings, dataset: activeDataset, sourceStatus, progress, currentZone: currentZone || undefined, currentAreaId: currentAreaId || undefined, currentAreaLevel, characterLevel,
+    xpGuidance: xpGuidance(), rewardProgress: rewardProgressFor(activeDataset, progress, rewardEnabled), rewardAudit: buildRewardAudit(activeDataset, progress, confirmedRewardStepIds, rewardEnabled),
     progressHistory, startupReconciliation, logConnected: Boolean(settings.logPath && logDiagnostics.fileExists && (logDiagnostics.watcherActive || logDiagnostics.pollingActive)),
     logDiagnostics, detectionTrace, runStats: runStatsFor(runSession, runHistory), appUpdate, recovery, buildCoach: activeBuildCoach, lootFilter, passiveTreeHud: passiveTreeHudState, appVersion: app.getVersion(), diagnosticsPath: log.transports.file.getFile().path,
   };
@@ -407,8 +410,8 @@ function overlayState(real = runtimeState()): RuntimeState {
     currentAreaLevel: areaLevel,
     characterLevel: level,
     xpGuidance: xpGuidance(level, areaLevel),
-    rewardProgress: rewardProgressFor(dataset, demoProgress),
-    rewardAudit: buildRewardAudit(dataset, demoProgress, new Set()),
+    rewardProgress: rewardProgressFor(real.dataset, demoProgress, (candidate) => isStepEnabled(candidate, { ...real.settings, showOptional: true })),
+    rewardAudit: buildRewardAudit(real.dataset, demoProgress, new Set(), (candidate) => isStepEnabled(candidate, { ...real.settings, showOptional: true })),
     startupReconciliation: { state: 'none' },
     logConnected: false,
   };

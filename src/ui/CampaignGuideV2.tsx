@@ -187,7 +187,8 @@ function ActMap({ state, act, currentIndex, onInspect }: { state: RuntimeState; 
 }
 
 function Timeline({ state, currentIndex, onInspect }: { state: RuntimeState; currentIndex: number; onInspect: (index: number) => void }) {
-  const items = progressionTimeline(state.dataset, currentIndex);
+  const items = progressionTimeline(state.dataset, currentIndex)
+    .filter((item) => isStepEnabled(state.dataset.steps[item.stepIndex], state.settings));
   return <div className="g2-timeline">{items.map((item) => <button key={item.id} className={`${item.complete ? 'done' : ''} ${item.current ? 'current' : ''} timeline-${item.kind}`} onClick={() => onInspect(item.stepIndex)}><i>{item.complete ? '✓' : item.current ? '●' : '○'}</i><div><span>ACT {item.act} · {item.kind.toUpperCase()}</span><strong>{item.title}</strong></div></button>)}</div>;
 }
 

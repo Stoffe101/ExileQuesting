@@ -1,4 +1,4 @@
-import { buildRouteActions } from './actions';
+import { actionsForRouteMode, buildRouteActions, sourceLineVisibleForRouteMode } from './actions';
 import { hintsForArea } from './layouts';
 import { decideProgression } from './progression';
 import { isPermanentRewardStep } from './rewards';
@@ -196,6 +196,43 @@ export function normalizeCampaign(
   });
 
   return { schemaVersion: 2, source, steps, acts, areas: [...areas.values()] };
+}
+
+/**
+ * Materialize Exile-UI's line-level leaguestart:/twinkrun: semantics without
+ * deleting steps or changing their stable IDs/progress indexes.
+ */
+export function campaignForRouteMode(dataset: CampaignDataset, leagueStart: boolean): CampaignDataset {
+  const areas = new Map(dataset.areas.map((area) => [area.id, area]));
+  return {
+    ...dataset,
+    steps: dataset.steps.map((step) => {
+      const visibleIndexes = step.rawLines
+        .map((line, index) => ({ line, index }))
+        .filter(({ line }) => sourceLineVisibleForRouteMode(line, leagueStart))
+        .map(({ index }) => index);
+      const rawLines = visibleIndexes.map((index) => step.rawLines[index]);
+      const lines = visibleIndexes.map((index) => step.lines[index]).filter((line): line is string => typeof line === 'string');
+      const actions = actionsForRouteMode(step.actions, leagueStart);
+      const tags = tagsFor(rawLines);
+      const areaIds = extractAreaIds(rawLines);
+      const targetAreaId = areaIds.at(-1);
+      const target = targetAreaId ? areas.get(targetAreaId) : undefined;
+      return {
+        ...step,
+        title: step.annotation?.title ?? actions.find((action) => action.priority === 'now')?.title ?? inferTitle(rawLines, target?.name),
+        targetAreaId,
+        targetArea: target?.name,
+        areaLevel: target?.lvl,
+        rawLines,
+        lines,
+        tags,
+        actions,
+        layoutHints: targetAreaId === step.targetAreaId ? step.layoutHints : undefined,
+        permanentReward: isPermanentRewardStep(tags),
+      };
+    }),
+  };
 }
 
 export function validateCampaign(rawGuide: unknown, rawAreas: unknown): CampaignValidation {
