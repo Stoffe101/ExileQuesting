@@ -22,6 +22,8 @@ export interface CurrentParityFixture {
  * interpret those IDs against its current 3.29 tree. Both the independent raw
  * reference and the ExileQuesting worker receive this exact same materialized
  * XML, so the parity oracle remains independent and apples-to-apples.
+ * Reports keep the upstream fixture name for provenance while calculations run
+ * exclusively against the materialized standard 3.29 passive-tree version.
  */
 export async function materializeCurrentParityFixture(
   pobRoot: string,
